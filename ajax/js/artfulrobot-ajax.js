@@ -1,4 +1,57 @@
+/*
+Copyright 2011, Rich Lott
+
+This file is part of Artful Robot Libraries.
+
+Artful Robot Libraries is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+Artful Robot Libraries is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
+// main namespace
 var artfulrobot = artfulrobot || {};
+
+/**  class with inheritance
+ *
+ *  fooClass = artfulrobot.Class.create( obj );
+ *  barClass = artfulrobot.Class.create( fooClass, obj );
+ *
+ *  fooObj = new fooClass();
+ *  barObj = new barClass();
+ *
+ *  - obj is an object whose keys are property/method names.
+ *  - within a method function 'this' will refer to the instance.
+ *  - each method name that extends a method in the superclass
+ *    can access the superclass method by prefixing with $,
+ *    e.g. if barClass.say() extended fooClass.say() then barClass
+ *    can call fooClass.say with this.$say()
+ *  
+ *  Callbacks, e.g. for jQuery:
+ *  jQuery('.clickable).click( fooObj.getCallback( 'clickHandler' ));
+ *
+ *  When jQuery calls clickHandler, 'this' still points to fooObj,
+ *  and the jQuery object that would otherwise have been 'this' is
+ *  accessible at this.origContext
+ *
+ *  Nb. getCallback can take addition arguments, these become the 
+ *  first arguments passed, with any others getting appended.
+ *  e.g.
+ *  for ( rowNo in rows ) {
+ *      cb = fooObj.getCallback( 'rowClicked', rowNo );
+ *      // attach handler to the row that includes the rowNo
+ *      }
+ *  
+ */
 artfulrobot.Class = (function() {
 	var IS_DONTENUM_BUGGY = (function(){/*{{{*/
 		for (var p in { toString: 1 }) {
@@ -34,7 +87,7 @@ artfulrobot.Class = (function() {
 
 		// klass is the class that we're crafting
 		function klass() {
-			this.initialize.apply(this, arguments);
+			this.initialise.apply(this, arguments);
 		}
 
 		// this keeps track of subclasses created
@@ -68,9 +121,9 @@ artfulrobot.Class = (function() {
 		for (var i = 0, length = properties.length; i < length; i++)
 			addMethods(klass, properties[i]);
 
-		// set up blank initialize method if none already
-		if (!klass.prototype.initialize)
-			klass.prototype.initialize = function(){};
+		// set up blank initialise method if none already
+		if (!klass.prototype.initialise)
+			klass.prototype.initialise = function(){};
 
 		// tell the klass object that its constructor is the
 		// klass function defined above (as the starting point for klass)
@@ -123,7 +176,7 @@ artfulrobot.Class = (function() {
 				var args = fixedArgs.concat(Array.prototype.slice.call(arguments));
 				console.warn("calling ",method, " with args: ", args);
 				// store original context (e.g. a jQuery object)
-				context.originalContext = this;
+				context.origContext = this;
 				// call method from object context
 				context[method].apply(context, args);
 			});

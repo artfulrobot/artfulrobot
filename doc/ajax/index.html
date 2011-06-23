@@ -1,0 +1,39 @@
+<html>
+	<head>
+		<title>Artful Robot Ajax Libraries</title>
+	</head>
+	<body>
+		<script type="text/javascript" src="../../ajax/js/artfulrobot-ajax.js" ></script>
+		<script type="text/javascript" >
+
+var vehicle=artfulrobot.Class.create( {
+    initialise: function(colour) {
+		this.myName='vehicle';
+		this.colour=colour;
+    },
+	describe: function() {
+		return "This " + this.myName 
+			+ " is " + this.colour ;
+	},
+});
+
+var myVehicle=new vehicle('yellow');
+t=myVehicle.describe(); // This vehicle is yellow 
+document.write("<p>" + t + '</p>');
+
+var car=artfulrobot.Class.create( vehicle, {
+	initialise: function(colour) {
+		// call superclass's initialise method
+		this.$initialise(colour);
+		// overwrite myName
+		this.myName='car';
+	}
+});
+
+var myCar=new car('red');
+t=myCar.describe(); // This car is red
+document.write("<p>" + t + '</p>');
+
+		</script>
+	<body>
+</html>
