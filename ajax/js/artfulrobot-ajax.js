@@ -162,7 +162,6 @@ artfulrobot.Class = (function() {
 		return obj;
 	}/*}}}*/
 	function getCallback(method) {/*{{{*/
-		console.log(arguments.callee.name,method);
 		// reference to our instance
 		var context=this;
 		// if we were passed any other arguments beyond method,
@@ -174,7 +173,6 @@ artfulrobot.Class = (function() {
 		return (function() {
 				// prepend fixedArgs
 				var args = fixedArgs.concat(Array.prototype.slice.call(arguments));
-				console.warn("calling ",method, " with args: ", args);
 				// store original context (e.g. a jQuery object)
 				context.origContext = this;
 				// call method from object context
@@ -183,3 +181,253 @@ artfulrobot.Class = (function() {
 	}/*}}}*/
 	return { create: create };
 })();
+
+artfulrobot.objectKeys = function( obj ) {
+	var a=[];
+	for (var k in obj) a.push(k);
+	return a;
+};
+artfulrobot.countKeys = function( obj ) {
+	// some browsers support this:
+	if (obj.__count__) return obj.__count__;
+	var a=0;
+	for (var k in obj) a++;
+	return a;
+};
+
+// artfulrobot.Ajax main ajax class {{{ 
+artfulrobot.AjaxClass = artfulrobot.Class.create( 
+{
+/** Main Ajax class
+ *  Deals with making ajax requests and parsing the responses
+ *  into chunks of html(/text), js code, json object, error message
+ *
+ */
+	initialise: function() // {{{
+	{
+		this.requestFrom = 'ajaxprocess.php'; // default
+		this.requests = {};
+		this.uniqueCounter = 1;
+	},// }}}
+	setRequestFrom: function (requestFrom) // {{{
+	{
+		// set the script to use for ajax requests.
+		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
+	}, // }}}
+	liveRequests: function () // {{{
+	{
+		// count this.requests
+		return artfulrobot.countKeys(this.requests);
+	}, // }}}
+	request: function( parmsObject, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
+	{
+		/* We number requests, and return this number. 
+		 * 
+		 * Requests are stored in the object (hash) this.requests, which is an 
+		 * object of objects containing statusText (optional string for debugging) and requestURI
+		 *
+		 */
+		
+		// need onSuccessCallback fundction, even if it is blank
+		if ( typeof(onSuccessCallback) == 'undefined' )  onSuccessCallback=function(){};
+
+		var requestId = 'ajax' + this.uniqueCounter++;
+
+		var parms;
+		if ( typeof parmsObject == 'string' ) parms = parmsObject;
+		else parms = jQuery.param(parmsObject);
+
+		// create absolute debug uri
+		if (this.requestFrom.match( /^\// ))
+			debugURI = window.location.protocol + '//' 
+				+ window.location.host 
+				+ this.requestFrom ;
+		else // requestFrom is relative uri
+		{
+//			alert( this.requestFrom); alert( window.location.pathname); alert( window.location.pathname.replace( /^(.+\/).+?$/,'$1' ));
+			debugURI = window.location.protocol + '//' 
+				+ window.location.host 
+				+ window.location.pathname.replace( /^(.+\/)[^\/]*?$/,'$1' )
+				+ this.requestFrom ;
+		}
+		debugURI += '?' + parms + '&ajax=2',
+
+		this.requests[ requestId ] = 
+		{ 
+			statusText:	( statusText ? statusText : '' ),
+			debugURI: debugURI,
+			outputHtmlInsideElement: outputHtmlInsideElement,
+			onSuccessCallback: onSuccessCallback,
+			live: 1,
+			stage: 'request'
+		};
+		console.info(requestId + ' debug: ' + debugURI);
+
+		// override this method if needed
+		this.requestStarts( this.requests[ requestId ] );
+
+		// make request
+		jQuery.ajax( 
+			this.requestFrom,
+			{
+				data:parms,
+				type:'POST',
+				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
+				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
+			} );
+	}, // }}}
+	requestEnded: function( requestId ) // {{{
+	{
+		this.requestEnds( this.requests[requestId] );
+		delete this.requests[requestId];
+		//this.requests[requestId].live = 0;
+	}, // }}}
+	onFailure: function(requestId, t)  // {{{
+	{ 
+		alert( requestId + ': Problem! error: '+t.status+'--'+t.statusText );
+		t.responseText='';
+		this.requestEnded();
+	}, // }}}
+	onSuccess: function(requestId, t) // {{{
+	{
+		/* This returns 
+		{objectLength:nnn, errorLength:nnn, codeLength:nnn }
+		object
+		error
+		code
+		text
+		*/
+		var rqst = this.requests[requestId];
+		rqst.stage = 'response-parse-stage-1';
+		rqst.t = t;
+		try
+		{
+			var rsp = t;
+			var i;
+			i   = rsp.indexOf('}')+1;
+			if ( ! i) 
+			{
+				rqst.stage = 'response-parse-stage-1 FAIL';
+				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Expected } but none found.', requestId, rsp );
+				return;
+			}
+			rqst.stage = 'response-parse-stage-2';
+			// unpack json into chunks variable
+			chunks = rsp.substr(0,i);
+			if ( ! /^\{.*?\}$/.test(chunks)) 
+			{
+				rqst.stage = 'response-parse-stage-2 FAIL';
+				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Structure definition failed regexp.', requestId, rsp );
+				return;
+			}
+			try { 
+				rqst.stage = 'response-parse-stage-3';
+				var chunks = jQuery.parseJSON(rsp.substr(0,i));
+			}
+			catch(e) 
+			{ 
+				rqst.stage = 'response-parse-stage-3 FAIL';
+				this.seriousError('Bad ajax response. Javascript failed to parse structure definition found in the response', requestId, rsp );
+				return;
+			}
+
+
+			// json object returned?
+			var obj = rsp.substr(i,chunks.objectLength);
+			i += parseInt(chunks.objectLength);
+			if (obj) 
+			{
+				try {
+					rqst.stage = 'response-parse-json';
+					obj = jQuery.parseJSON(obj);
+				}
+				catch(e) 
+				{ 
+					rqst.stage = 'response-parse-json FAIL';
+					this.seriousError('Bad ajax response. Javascript failed to parse returned JSON object', requestId, rsp );
+					return;
+			   	}
+			}
+			else obj = {};
+
+			rqst.stage = 'response-parse-error and text';
+			// error returned?
+			var error = rsp.substr(i,chunks.errorLength);
+			i+=parseInt(chunks.errorLength);
+
+			// text returned?
+			var text = rsp.substr(i);
+		}
+		catch(e)
+		{
+			rqst.stage = 'response-parse FAIL';
+			console.error(e);
+			this.seriousError('Bad ajax response.', requestId, rsp );
+			return;
+		}
+
+		// show any non-serious error to user
+		if (error) alert(error);
+
+		rqst.stage = "replace element innerHTML...";
+		// update the element if given, and if there's html 
+		// returned from the ajax call
+		if (text!='' && rqst.outputHtmlInsideElement!='') 
+		{
+			var node = rqst.outputHtmlInsideElement;
+			if ( typeof node == 'string' ) node = jQuery('#'+node);
+			else node = jQuery(node);
+			node.html(text);
+		}
+		// do extra stuff
+		rqst.stage = "callback";
+		try
+		{
+			this.requests[requestId].onSuccessCallback(obj, text);
+		}
+		catch(e)
+		{
+			this.seriousError('Failed on callback function. Request ' + requestId + ' ' + Object.toJSON(this.requests[requestId]) , requestId, rsp );
+			return;
+		}
+
+		// execute the js code returned by the ajax call
+		if ( js_to_run && debug(requestId+": (WARNING: DEPRECIATED)"+js_to_run)) 
+		{
+			alert("Used depreciated 'code' return. Please re-write code.");
+//			   	eval(js_to_run);
+		}
+//			else debug(requestId+' 4/4 (no code to eval (good, this functionality is depreciated)) ');
+
+		this.requestEnded(requestId);
+	}, // }}}
+	seriousError: function( errorMsg, requestId, responseText ) // {{{
+	{
+		var errorReport = window.open();
+		errorReport.document.write( 
+				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
+				+'<body>'
+				+ '<h2>Error: ' + errorMsg + '</h3><p><a href="'
+				+ this.requests[requestId].debugURI
+				+ '" >Re-issue request with php debugging on</a></p>' 
+				+ '<h3>Request:</h3><div>'
+				+ this.requests[requestId].debugURI.replace( /^(.+?)\?.+$/, '$1' )
+				+ '<br /><pre>'
+				+ this.requests[requestId].debugURI.replace( /^(.+?)\?(.+)$/, '$2' ).replace( /&/g, '<br />' )
+				+ '</pre></div>'
+				+ '<h3>Response received:</h3><div>'
+				+ responseText
+				+'</div></body></html>');
+
+	}, // }}}
+	requestEnds: function( requestObj ) { },
+	requestStarts: function( requestObj ) { },
+	dump:function() // {{{
+	{
+		console.log(this.requests);
+	} // }}}
+}); // }}}
+jQuery(function(){ 
+		// set up default instance
+		artfulrobot.Ajax = new artfulrobot.AjaxClass();
+	});
