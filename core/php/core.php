@@ -1,10 +1,46 @@
 <?php
+/*
+	Copyright 2007-2011 © Rich Lott 
+
+This file is part of Artful Robot Libraries.
+
+Artful Robot Libraries is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+Artful Robot Libraries is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
+
+ */
+
+/** ARL_Debug class provides debugging facility
+ *
+ *  This may be used for all debugging needs. See doc.
+ *
+ *  It is used internally by all Artful Robot Libraries code.
+ *  
+ *  It is turned off by default.
+ *
+ *  Synopsis:
+ *
+ *  set_error_handler( array('ARL_Debug','handle_error') );
+ *  set_exception_handler(array('ARL_Debug','handle_exception') );
+ *
+ *  ARL_Debug::running = true;
+ *  ARL_Debug::running = true;
+ */
 class ARL_Debug
 {
 	static public    $errors_to_ignore ;
-	static protected $running = true;
+	static protected $running          = false; // class does nothing if not enabled.
 	static protected $init 		   	   = false; // class is initialised
-	static protected $toponly 		   = true; // drop all data unless TOP'ed
+	static protected $top_only 		   = true; // drop all data unless TOP'ed
 	static protected $error_log		   = false; // call error_log for each debug call (emergency debugging)
 	static protected $stderr		   = false; // write error_log output to stderr (CLI debugging)
 	static protected $silent 		   = 0; // whether to ever output to browser (or fetch)
@@ -94,7 +130,7 @@ class ARL_Debug
 		if ($topStart) $top_level++;
 		if ($topEnd && $top_level) $top_level--;
 		$myTopSetting = $top || $top_level;  
-		if ((!$myTopSetting) && self::$toponly) return true; // if toponly set, ignore everything else 
+		if ((!$myTopSetting) && self::$top_only) return true; // if top_only set, ignore everything else 
 		// }}}
 
 		$newRowId = sizeof( self::$log );
@@ -168,102 +204,51 @@ class ARL_Debug
 
 		return true;
 	}//}}}
-	static public function legacy_api( $command , $args=false ) // {{{
+	static public function set_on($v)   //{{{
 	{
 		self::init();
-	/*
-		commands:
-		1. fetch - return chunk of html  if not debug[silent] \_  both of these write a full 
-		2. print - output full html page if debug[silent]     /   html file if debug[file] set
-		3. [not ]silent set debug[silent]
-		4. [not ]file   set debug[file]
-		   if args given, this is the filename used.
-		   %d in the filename is replaced with the timestamp
-		   if no %d, it is pre-pended.
-		5. off | on - start/stop debugging. Future calls to debug do nothing.
-		   off returns the previous value
-		6. get_file returns the value of file, e.g. 0|1|filename
-	 */
-
-		$command = strtolower($command);
-		if	   ($command == 'not silent' ){ self::$silent = 0;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'silent' )    { self::$silent = 1;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'not stderr' )   { self::$stderr = 0;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'stderr' ) { self::$stderr = 1;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'not error_log' )   { self::$error_log = 0;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'error_log' ) { self::$error_log = 1;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'toponly' )   { self::$toponly = 1;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'not toponly' ) { self::$toponly = 0;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'not file' )  { self::$file = 0;debug('Debugging set ' . $command ); return true ; }
-		elseif ($command == 'set slow' )  { self::$slow = $args;debug('Debugging set slow to ' . $args ); return true ; }
-		elseif ($command == 'on' && self::$running==false )  	  { self::$running = true;debug('<<Debugger turned ON');  return true ; }
-		elseif ($command == 'off')
+		self::$running = (bool) $v;
+	}//}}}
+	static public function set_silent($v)   //{{{
+	{
+		self::init();
+		self::$silent = (bool) $v;
+	}//}}}
+	static public function set_error_log($v)   //{{{
+	{
+		self::init();
+		self::$error_log = (bool) $v;
+	}//}}}
+	static public function set_top_only($v)   //{{{
+	{
+		self::init();
+		self::$top_only = (bool) $v;
+	}//}}}
+	static public function set_stderr($v)   //{{{
+	{
+		self::init();
+		self::$stderr = (bool) $v;
+	}//}}}
+	static public function set_file($v)   //{{{
+	{
+		self::init();
+		if (! $v) 
 		{
-			if ( self::$running )  	  
-			{  
-				debug('>>Debugger turned OFF');
-				self::$running = false;  
-				return 'on';
-			}
-			else
-			{
-				return 'off';
-			}
+			self::$file = false;
+			self::log("TOP set_file OFF");
 		}
-		elseif ($command == 'file' )      
-		{ 
-			if ($args) 
-			{
-				// ensure timestamp is in there (somewhere)
-				// otherwise too much rik of overwriting others.
-				if (strpos($args,'%d')===false) $args = "%d_$args";
-				self::$file = $args;
-			}
-			else self::$file = 1;
-
-			debug('TOP Debugging set ' . $command . ' to ' . self::$file); 
-			return true ; 
-		}
-		elseif ($command == 'get_file' )      
-		{ 
-			return self::$file;
-		}
-
-		// if we're turned off, do nothing more. xxx really?
-		//	if (! self::$running ) return;
-
-		if (self::$format == 'html' || 1)
+		elseif ($v===true || $v===1) 
 		{
-			$chunk = self::report_html();
-			$timestamp = explode(" ",microtime()); 
-			$timestamp= substr($timestamp[0],1,3); // microseconds to 2dp 0.1234 => .12
-			$timestamp = date('Y-m-d\\TH.i.s') . $timestamp;
-			// append part of session id
-			if (session_id()) $timestamp .= '_' . substr(session_id(),0,4);
-
-			if (is_string(self::$file)) $filename = 
-				strtr( strtr(self::$file,'/=?&\\:;, ','_')
-				, array( '%d' => $timestamp ));
-
-			else $filename = $timestamp . strtr($_SERVER['REQUEST_URI'],'/=?&\\:;, ','_');
-
-			if (self::$file) // {{{
-			{
-				$f = fopen( $_SERVER['DOCUMENT_ROOT'] . "/logs/$filename.html" ,'w' );
-				fwrite ($f, self::template($filename, $chunk));
-				fclose( $f);
-			} // }}}
-			if (self::$silent) return ;
-			if ($command =='fetch') return $chunk;
-			elseif ($command =='fetch_full') return "$head$chunk</body></html>";
-			elseif ($command == 'print' ) echo self::template('', $chunk); 
-			elseif ($command == 'print_full' ) echo self::template('', $chunk); 
+			self::$file = true;
+			self::log("TOP set_file ON");
 		}
 		else
 		{
-			self::$log='removed';
-			var_dump(self);
-			exit("Format not known");
+			// ensure timestamp is in there (somewhere)
+			// otherwise too much rik of overwriting others.
+			if (strpos($v,'%d')===false) $v = "%d_$v";
+			self::$file = $v;
+			self::log("TOP set_file ON, naming files: $v");
 		}
 	}//}}}
 	//static public function fatal( $t='!!myexit called',$vars=null,$applyhtmlspecialchars=true ) // {{{
@@ -273,7 +258,7 @@ class ARL_Debug
 	{
 		// get out of all debug depths so that the last message is always immediately visible.
 		if (!self::$running) self::$running=true;//must be ON for this to work!
-		if (self::$toponly) self::$toponly = false; // turn this off
+		if (self::$top_only) self::$top_only = false; // turn this off
 
 		self::log('!! Whooooah there!');
 		self::log( "TOP{ $t" ,null,$applyhtmlspecialchars);
@@ -388,6 +373,77 @@ class ARL_Debug
 		self::log("TOP Uncaught Exception: ". ( $exception->getCode() ? '(code ' . $exception->getCode() . ')' : '' ) . $exception->getMessage() , $exception->getTraceAsString());
 		self::fatal("FATAL: Uncaught exception");
 	} // }}}
+	static public function legacy_api( $command , $args=false ) // {{{
+	{
+		self::init();
+	/*
+		commands:
+		1. fetch - return chunk of html  if not debug[silent] \_  both of these write a full 
+		2. print - output full html page if debug[silent]     /   html file if debug[file] set
+		3. [not ]silent set debug[silent]
+		4. [not ]file   set debug[file]
+		   if args given, this is the filename used.
+		   %d in the filename is replaced with the timestamp
+		   if no %d, it is pre-pended.
+		5. off | on - start/stop debugging. Future calls to debug do nothing.
+		   off returns the previous value
+		6. get_file returns the value of file, e.g. 0|1|filename
+	 */
+
+		$command = strtolower($command);
+		if	   ($command == 'not silent' ){ self::set_silent(false); return true ; }
+		elseif ($command == 'silent' )    { self::set_silent(true);  return true ; }
+		elseif ($command == 'not stderr' ){ self::set_stderr(false); return true ; }
+		elseif ($command == 'stderr' )    { self::set_stderr(true);  return true ; }
+		elseif ($command == 'not file' )  { self::set_file(false); return true ; }
+		elseif ($command == 'file' )      { self::set_file($args); return true ; }
+		elseif ($command == 'not error_log' )   { self::set_error_log(false); return true ; }
+		elseif ($command == 'error_log' ) { self::set_error_log(true); return true ; }
+		elseif ($command == 'top_only' )   { self::set_top_only(true); return true ; }
+		elseif ($command == 'not top_only' )     { self::set_top_only(false); return true ; }
+		elseif ($command == 'set slow' )  { self::$slow = $args;debug('Debugging set slow to ' . $args ); return true ; }
+		elseif ($command == 'on' )  	  { self::set_on(true); return 'on';}
+		elseif ($command == 'off' )  	  { self::set_on(false); return 'off';}
+		elseif ($command == 'file' )      { self::set_file($args); return true; }
+		elseif ($command == 'get_file' )  { return self::$file; }
+
+		// if we're turned off, do nothing more. xxx really?
+		//	if (! self::$running ) return;
+
+		if (self::$format == 'html' || 1)
+		{
+			$chunk = self::report_html();
+			$timestamp = explode(" ",microtime()); 
+			$timestamp= substr($timestamp[0],1,3); // microseconds to 2dp 0.1234 => .12
+			$timestamp = date('Y-m-d\\TH.i.s') . $timestamp;
+			// append part of session id
+			if (session_id()) $timestamp .= '_' . substr(session_id(),0,4);
+
+			if (is_string(self::$file)) $filename = 
+				strtr( strtr(self::$file,'/=?&\\:;, ','_')
+				, array( '%d' => $timestamp ));
+
+			else $filename = $timestamp . strtr($_SERVER['REQUEST_URI'],'/=?&\\:;, ','_');
+
+			if (self::$file) // {{{
+			{
+				$f = fopen( $_SERVER['DOCUMENT_ROOT'] . "/logs/$filename.html" ,'w' );
+				fwrite ($f, self::template($filename, $chunk));
+				fclose( $f);
+			} // }}}
+			if (self::$silent) return ;
+			if ($command =='fetch') return $chunk;
+			elseif ($command =='fetch_full') return "$head$chunk</body></html>";
+			elseif ($command == 'print' ) echo self::template('', $chunk); 
+			elseif ($command == 'print_full' ) echo self::template('', $chunk); 
+		}
+		else
+		{
+			self::$log='removed';
+			var_dump(self);
+			exit("Format not known");
+		}
+	}//}}}
 
 	static private function report_html( ) // {{{
 	{
@@ -466,7 +522,7 @@ class ARL_Debug
 				'%reveal' =>(  $row['parent']
 				?"<button class=\"command\" onclick=\"debugRevealParents(this,event)\" >Highlight Parents</button>" 
 				:'')));
-			if ($row['top'] && ! self::$toponly) 
+			if ($row['top'] && ! self::$top_only) 
 			{
 				$top .= strtr( $li, array(
 					'%debugid'=>"",
@@ -475,7 +531,7 @@ class ARL_Debug
 		}
 		while ($depth--) $html .= '</li></ol>';
 
-		if ($top && ! self::$toponly) $top = "<h1>Attention</h1><ol>$top</ol>\n<h1>Full Log</h1>";
+		if ($top && ! self::$top_only) $top = "<h1>Attention</h1><ol>$top</ol>\n<h1>Full Log</h1>";
 		$html = "<div class=\"debug\">$top$html</div>";
 
 		$html = <<<EOF

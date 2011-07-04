@@ -1,4 +1,27 @@
 
+Directory structure
+
+* core     required by all sub projects. Must be included.
+* projects (i.e. multiple related files) have their own subdirs
+* utils    contains misc individual files.
+* doc      is documentation
+
+Within projects|utils the next subdir will be a type, e.g. php
+
+The libraries are structured this way so that you can safely symlink a
+folder in a public place, e.g.  you need public access to
+artfulrobot/ajax/js/ but there should not be public access to php files.
+
+For php files, sites can either:
+
+1. Put the project somewhere within their include_path 
+   require_once 'artfulrobot/project/php/file.php';
+
+2. symlink direct to an apropriate php directory
+   require_once 'artfulrobot-project/file.php';
+
+
+
 migration from rl_core:
 
 debug(...)			ARL_Debug::log(...)
