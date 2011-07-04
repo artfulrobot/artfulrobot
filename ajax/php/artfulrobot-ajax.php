@@ -121,7 +121,7 @@ class ARL_Ajax_Request
 		$response = self::get_response();
 
 		// odd bodge we use
-		$debugging = ARL_Array::value('ajax',$_GET)==2 ;
+		$debugging = ARL_Array::value('debug',$_GET)==2 ;
 		if ( $debugging )
 		{
 			$_POST=$_GET;
@@ -130,7 +130,7 @@ class ARL_Ajax_Request
 			debug("TOP debugging: data (from _POST=_GET):", $_POST);
 		}
 
-		if ( ($todo=isgiven($_GET,'request')) || ($todo=isgiven($_POST,'request')))
+		if ( ($todo=isgiven($_GET,'arlClass')) || ($todo=isgiven($_POST,'arlClass')))
 			$todo = "Ajax_$todo";
 
 		if ($todo == 'Ajax_keepalive')
