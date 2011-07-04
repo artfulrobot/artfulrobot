@@ -1,0 +1,7 @@
+
+migration from rl_core:
+
+debug(...)			ARL_Debug::log(...)
+debug_control(..)	ARL_Debug::legacy_api(...)
+redirect_and_exit   ARL_Debug::redirect_and_exit
+myexit				ARL_Debug::fatal
