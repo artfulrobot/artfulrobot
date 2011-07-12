@@ -19,6 +19,7 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 
  */
 
+//class ARL_Debug/*{{{*/
 /** ARL_Debug class provides debugging facility
  *
  *  This may be used for all debugging needs. See doc.
@@ -687,4 +688,113 @@ $html
 EOF;
 		else return $css . $html;
 	}/*}}}*/
-}
+}/*}}}*/
+//class ARL_Array/*{{{*/
+/** ARL_Array provides various functions for dealing with arrays
+  */
+class ARL_Array
+{
+	// static public function value( $key, &$array, $default=null, $create_if_missing=false)/*{{{*/
+	/** return value from an array for given key, or default.
+	 *  
+	 *  @param string $key
+	 *  @param array &$array reference to array
+	 *  @param mixed $default defaults to null
+	 *  @param bool $create_if_missing 
+	 *  @return mixed
+	 */
+	static public function value( $key, &$array, $default=null, $create_if_missing=false)
+	{
+		if (! is_array($array)) throw new Exception( "ARL_Array::value called with something other than an array");
+		if (array_key_exists($key, $array)) return $array[$key];
+		if ($create_if_missing) $array[$key] = $default;
+		return $default;
+	}/*}}}*/
+	// static public function reference( $key, &$array, $default=null )/*{{{*/
+	/** return reference to an array for given key, initialising default value if necessary.
+	 *  
+	 *  @param string $key
+	 *  @param array &$array reference to array
+	 *  @param mixed $default defaults to null
+	 *  @return mixed
+	 */
+	static public function & reference( $key, &$array, $default=null)
+	{
+		if (! is_array($array)) throw new Exception( "ARL_Array::reference called with something other than an array");
+		if (!array_key_exists($key, $array)) $array[$key] = $default;
+		return $array[$key];
+	}/*}}}*/
+
+	/** return value from an array nested key array, or default.
+	 *  
+	 *  @param array &$array reference to array
+	 *  @param array $key
+	 *  @param mixed $default defaults to null
+	 *  @param bool $create_if_missing 
+	 *  @return mixed
+	 */
+	public static function value_recursive( &$array, $keys, $default=null, $create_if_missing=false)
+	{
+		throw new exception("value_recursive not written yet!");
+	}
+
+	// public static function tokenise_search_string( $search_text )/*{{{*/
+	/** tokenise a search string into an array, preserving phrases in quotes as individual tokens
+	 *  
+	 *  this taken from http://www.php.net/manual/en/function.strtok.php#94463
+	 */
+	public static function tokenise_search_string( $search_text )
+	{
+		$tokens = array();
+		$token = strtok($search_text, ' ');
+		while ($token) 
+		{
+			// find double quoted tokens
+			if (substr($token,0,1)=='"')
+				$token = substr($token,1) . ' ' . strtok('"'); 
+			// find single quoted tokens
+			elseif (substr($token,0,1)=="'")
+				$token = substr($token,1) . ' ' . strtok("'"); 
+
+			$tokens[] = $token;
+			$token = strtok(' ');
+		}
+		return $tokens;
+	}/*}}}*/
+}/*}}}*/
+//class ARL_Object/*{{{*/
+/** ARL_Object provides various functions for dealing with objects
+  */
+class ARL_Object
+{
+	// static public function property( $property, $object, $default=null, $create_if_missing=false)/*{{{*/
+	/** return given property of object, or default if not exists.
+	 *  
+	 *  @param string $property
+	 *  @param object $object
+	 *  @param mixed $default defaults to null
+	 *  @param bool $create_if_missing 
+	 *  @return mixed
+	 */
+	static public function property( $property, $object, $default=null, $create_if_missing=false)
+	{
+		if (! is_object($object)) throw new Exception( "ARL_Object::value called with something other than an object");
+		if (array_key_exists($property, $object)) return $object->$property;
+		if ($create_if_missing) $object->$property = $default;
+		return $default;
+	}/*}}}*/
+	// static public function property_reference( $property, &$object, $default=null )/*{{{*/
+	/** return reference to an object's property, initialising default value if necessary.
+	 *  
+	 *  @param string $property
+	 *  @param object $object
+	 *  @param mixed $default defaults to null
+	 *  @return mixed
+	 */
+	static public function & property_reference( $property, &$object, $default=null)
+	{
+		if (! is_object($object)) throw new Exception( "ARL_Object::reference called with something other than an object");
+		if (!array_key_exists($property, $object)) $object->$property = $default;
+		return $object->$property;
+	}/*}}}*/
+}/*}}}*/
