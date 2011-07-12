@@ -126,17 +126,7 @@ class ARL_Ajax_Request
 		}
 		else
 		{
-			$todo = ARL_Array::value('arlClass',  $_POST);
-
-			// odd bodge we use xxx this is a security risk - maybe sensitive info in debugging output
-			$debugging = ARL_Array::value('debug',$_GET)==2 ;
-			if ( $debugging )
-			{
-				$_POST=$_GET;
-				magic_unquote($_POST); // xxx ?
-				debug_control('not silent');
-				debug("TOP debugging: data (from _POST=_GET):", $_POST);
-			}
+			$todo = ARL_Array::value('arlClass',  $_GET);
 		}
 
 		if($todo) $todo = "Ajax_$todo";
@@ -151,8 +141,8 @@ class ARL_Ajax_Request
 		// send response and exit now unless debugging
 		if ( ! $debugging ) $response->send();
 
-		debug("TOP Response object:", $response);
-		debug_control('print_full');
+		ARL_Debug::log("TOP Response object:", $response);
+		ARL_Debug::legacy_api('print_full');
 		echo "<hr />" . $response->html;
 		exit;
 	}/*}}}*/
