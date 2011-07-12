@@ -195,6 +195,12 @@ artfulrobot.countKeys = function( obj ) {
 	return a;
 };
 
+artfulrobot.getRadioValue = function( radioGroupName ) // {{{
+{
+	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
+	if ( selectedElement  ) return selectedElement[0].value;
+	return null; 
+} // }}}
 artfulrobot.typeof = function( thing ) // {{{
 {
 	var type = typeof thing;
@@ -215,16 +221,26 @@ artfulrobot.AjaxClass = artfulrobot.Class.create(
  *  into chunks of html(/text), js code, json object, error message
  *
  */
-	initialise: function() // {{{
+	initialise: function( opts ) // {{{
 	{
 		this.requestFrom = 'ajaxprocess.php'; // default
+		this.method = 'get'; // default
 		this.requests = {};
 		this.uniqueCounter = 1;
+
+		opts = opts || {};
+		if (opts.requestFrom) this.setRequestFrom(opts.requestFrom);
+		if (opts.method) this.setMethod(opts.method);
 	},// }}}
 	setRequestFrom: function (requestFrom) // {{{
 	{
 		// set the script to use for ajax requests.
 		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
+	}, // }}}
+	setMethod: function (postOrGet) // {{{
+	{
+		if (postOrGet == 'get' || postOrGet == 'post') this.method=postOrGet;
+		else throw new Error("ajax method must be post or get"); 
 	}, // }}}
 	liveRequests: function () // {{{
 	{
@@ -283,7 +299,7 @@ artfulrobot.AjaxClass = artfulrobot.Class.create(
 			this.requestFrom,
 			{
 				data:parms,
-				type:'POST',
+				type:this.method,
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
 				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
 			} );

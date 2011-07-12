@@ -120,18 +120,26 @@ class ARL_Ajax_Request
 		// response object is a singleton
 		$response = self::get_response();
 
-		// odd bodge we use
-		$debugging = ARL_Array::value('debug',$_GET)==2 ;
-		if ( $debugging )
+		if ($_POST)
 		{
-			$_POST=$_GET;
-			magic_unquote($_POST); // xxx ?
-			debug_control('not silent');
-			debug("TOP debugging: data (from _POST=_GET):", $_POST);
+			$todo = ARL_Array::value('arlClass',  $_POST);
+		}
+		else
+		{
+			$todo = ARL_Array::value('arlClass',  $_POST);
+
+			// odd bodge we use xxx this is a security risk - maybe sensitive info in debugging output
+			$debugging = ARL_Array::value('debug',$_GET)==2 ;
+			if ( $debugging )
+			{
+				$_POST=$_GET;
+				magic_unquote($_POST); // xxx ?
+				debug_control('not silent');
+				debug("TOP debugging: data (from _POST=_GET):", $_POST);
+			}
 		}
 
-		if ( ($todo=isgiven($_GET,'arlClass')) || ($todo=isgiven($_POST,'arlClass')))
-			$todo = "Ajax_$todo";
+		if($todo) $todo = "Ajax_$todo";
 
 		if ($todo == 'Ajax_keepalive')
 		{
