@@ -62,6 +62,9 @@ abstract class ARL_Ajax_Module/*{{{*/
 	 */ 
 	protected $groups_required = array('staff'); 
 
+	/** reference to either _POST or _GET, set in  */
+	public $request;
+
 	function __construct( $response )
 	{
 		if ( ! ($response instanceof ARL_Ajax_Response) )
@@ -98,9 +101,6 @@ abstract class ARL_Ajax_Module/*{{{*/
 // ARL_Ajax_Request::process() /*{{{*/
 /** this class deals with requests, handing them on to the correct module and sending the response.
  *
- *  Nb. if _GET contains ajax=2 then debugging mode is turned on.
- *      currently no security checks are done on this fixme 
- *
  * Synopsis (very simple!):
 <code>
 ARL_Ajax_Request::process();
@@ -110,6 +110,7 @@ ARL_Ajax_Request::process();
 class ARL_Ajax_Request
 {
 	static private $response;
+	static private $request;
 	static public function get_response()/*{{{*/
 	{
 		if (! self::$response) self::$response = new ARL_Ajax_Response();
@@ -123,10 +124,12 @@ class ARL_Ajax_Request
 		if ($_POST)
 		{
 			$todo = ARL_Array::value('arlClass',  $_POST);
+			self::$request = & $_POST;
 		}
 		else
 		{
 			$todo = ARL_Array::value('arlClass',  $_GET);
+			self::$request = & $_GET;
 		}
 
 		if($todo) $todo = "Ajax_$todo";
@@ -163,6 +166,7 @@ class ARL_Ajax_Request
 			$response->send(); // exits script
 		}
 
+		$processor->request = & self::$request;
 		$processor->run();
 	}/*}}}*/
 }/*}}}*/
