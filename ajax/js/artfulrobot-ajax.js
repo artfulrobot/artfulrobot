@@ -182,18 +182,18 @@ artfulrobot.Class = (function() {
 	return { create: create };
 })();
 
-artfulrobot.objectKeys = function( obj ) {
+artfulrobot.objectKeys = function( obj ) {/*{{{*/
 	var a=[];
 	for (var k in obj) a.push(k);
 	return a;
-};
-artfulrobot.countKeys = function( obj ) {
+};/*}}}*/
+artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
 	if (obj.__count__) return obj.__count__;
 	var a=0;
 	for (var k in obj) a++;
 	return a;
-};
+};/*}}}*/
 
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
 {
@@ -212,6 +212,21 @@ artfulrobot.typeof = function( thing ) // {{{
 	}
 	else return type;
 } // }}}
+artfulrobot.Exception = artfulrobot.Class.create( {/*{{{*/
+	initialise: function()
+	{
+		for (var i in arguments) this.details.push(arguments[i]);
+		this.message = this.details[0];
+		console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
+	},
+	details:[],
+	toString:function()
+	{
+		var msg="artfulrobot.Exception :"+this.message;
+		for (x in this.details) msg += "\n" + this.details[x];
+		return msg;
+	}
+});/*}}}*/
 
 // artfulrobot.AjaxClass main ajax class {{{ 
 artfulrobot.AjaxClass = artfulrobot.Class.create( 
@@ -628,8 +643,10 @@ artfulrobot.ARLObject = artfulrobot.Class.create(
 		if (typeof objClass == 'string') 
 		{
 			soName   = objClass; 		// store name
+			if ( ! window[objClass] ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: Class '"+objClass+"' is unknown");
 			objClass = window[objClass];// reference 'class' itself
 		}
+		if ( ! artfulrobot.typeof(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
 		// create new abstract object
 		// Arguments:
 		// 		this, 		reference will be saved in object's myParent property
@@ -803,3 +820,132 @@ artfulrobot.ARLObject = artfulrobot.Class.create(
 	}, // }}}
 });
 // }}}
+ARLKeepAlive = artfulrobot.Class.create( artfulrobot.ARLObject, // {{{
+{
+	localInitialise: function()  // {{{
+	{ 
+		this.pingInABit();
+	}, // }}}
+	pingInABit:function()//{{{
+	{
+		// ping every 2 minutes
+		this.timer = setTimeout( this.ping.bind(this), 1000*60*2 );
+	},//}}}
+	ping: function()  // {{{
+	{ 
+		artfulrobot.ajax.request( {arlClass: 'keepalive'}, '', this.getCallback('pingRtn') );
+	}, // }}}
+	pingRtn: function(obj)  // {{{
+	{ 
+		if (! obj.success)
+		{
+			alert("Keep alive failed!");
+			throw "Keep alive failed!";
+		}
+		else 
+		{	
+			this.pingInABit();
+		}
+	}, // }}}
+	cleanup: function()  // {{{
+	{ 
+		if (this.timer) clearTimeout( this.timer );
+	} // }}}
+}); // }}}
+
+artfulrobot.htmlentities = {/*{{{*/
+	hellip : '\u2026',
+	nbsp   : '\u00a0',
+	hellip : '\u2297'
+};/*}}}*/
+artfulrobot.createFragmentFromArray = function( arr ) // {{{
+{
+/* example: call with AAA.
+   AAA is either a string or an array of BBBs
+   BBB is either a string, or an object CCC
+   CCC is like { element: 'div', content: AAA }
+
+		html.appendChild( createFragmentFromArray( [
+				{ element: 'div', style: 'border:solid 1px red;', content: 'goodbye' },
+				{ element: 'div', style: 'border:solid 1px red;', content: [
+					'aaaaaaaaaaaaa',
+					{ element: 'div', style: 'background-color:#fee', content: 'blah' },
+//					{ element: 'div', style: 'background-color:#ffe', content: 'doob' },
+					'bbbbbbbbbbbbb'
+				]}
+			] ));
+   */
+	var myDebug=0;
+	var type = artfulrobot.typeof(arr);
+	if ( type === 'string' ) 
+	{
+		myDebug && console.log('Called with string: returning TextNode:' + arr );
+		return document.createTextNode( arr );
+	}
+	else if ( type === 'null' ) 
+	{ 
+		alert("Encountered a null, expected string, array, object");
+		return; 
+	}
+	// convert single objects to arrays
+	else if ( type === 'object' ) 
+	{
+		myDebug && console.log('Called with object: putting it in an array');
+		arr = [ arr ];
+	}
+	else if ( type !== 'array' )
+	{
+		alert("error: type " + type + " encountered in createFragmentFromArray expected: string, array, object");
+		return;
+	}
+
+	var arrLen = arr.length;
+	var df = document.createDocumentFragment();
+	var tmp;
+	for (var i=0;i<arrLen;i++) // process each element of array: either an object or a string
+	{
+		var part = arr[i];
+		type = artfulrobot.typeof( part );
+		myDebug && console.warn('part:', part);
+		if (type == 'string' || type == 'number')
+		{
+			myDebug && console.log('appending TextNode:' + part );
+			df.appendChild( document.createTextNode( String(part) ) );
+		}
+		else if (type == 'object' ) 
+		{
+			myDebug && console.log('Creating ' + part.element + ' element');
+			// create element
+			tmp = document.createElement( part.element );
+			// set attributes
+			for (var key in part)
+			{
+				myDebug && console.log('key: ', key);
+
+				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,').indexOf(','+key+',')>-1)
+					{  myDebug && console.log('adding as event listener '+part[key]);tmp[key] = part[key];}
+				else if (key=='element' || key=='content' ) continue;
+				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
+			}
+			myDebug && console.log('created ' + part.element + ' element: ' + tmp + ' ' + df.childNodes.length);
+			// append children
+			if (part.content) 
+			{
+				myDebug && console.log('Recursing for ', part.content);
+				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content ) );
+				myDebug && console.log('Back from recursion');
+			}
+			myDebug && console.log('Adding to fragment...');
+			// add this to our document fragment
+			df.appendChild( tmp );
+			myDebug && console.log('...success');
+		}
+		else 
+		{
+			alert("error: " + type + " type encountered, expected string or object");
+		}
+	}
+	myDebug && console.log('Complete');
+	return df;
+} // }}}
