@@ -23,7 +23,7 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 	ul.SelectableList li:hover>div.row { background:yellow; }
 	ul.SelectableList li.selected div.row { background:red; }
 		this.tmp = this.addSubObject( 'SelectableList', [ this.myHTML ]);
-		this.tmp.connectSignal( 'selected', this.tmp2.bind(this) );
+		this.tmp.connectSignal( 'selected', this.getCallback('tmp2') );
 		this.tmp.setData( [
 				{ li : '<div class="row" ><big>Rich Lott</big><br/><span style="font-size:0.8em" >61812 proof of concept?<br />what abou thtis thsn?</span></div>',
 					record : { iid: 61812, name: 'rich lott' } 
@@ -33,11 +33,11 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 				},
 				]);
 */
-	localInitialize: function( html )  // {{{
+	localInitialize: function( nodeId )  // {{{
 	{ 
 		console.info('SelectableList.localInitialize');
 		// attach to screen area
-		this.myHTML     = html
+		this.myHTML = jQuery('#' +nodeId);
 		this.records    = false;
 		this.selectedI  = -1;
 		this.selectedRecord = false;
@@ -51,37 +51,34 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 		 *   this is what gets returned when a list item is clicked.
 		 */
 		this.records =[];
-		$(this.myHTML).innerHTML = '';
+		this.myHTML.empty();
 		var lis = [];
 		var i=0;
-		var me = this;
-		$A(resultsArray).each( function( row )
-			{
-				lis.push( 
+		for (i in resultsArray)
+		{
+			var row=resultsArray[i];
+			lis.push( 
 					{
-						element: 'li', 
+						element: 'li',
 						innerHTML : row.li,
-						id: me.myId + '_li' + i ,
-						onclick: me.clicked.bindAsEventListener(me, i)
+						id: this.myId + '_li' + i,
+						onclick: [this.getCallback('clicked'),{idx:i}]
 					});
-				me.records.push( row.record );
-				i++;
-			});
+				this.records.push( row.record );
+			};
 		
-		var ul = createFragmentFromArray([ { element: 'ul', 'id' : this.myId+'_ul','class' : 'SelectableList', content:lis } ] );
+		var ul = artfulrobot.createFragmentFromArray([ { element: 'ul', 'id' : this.myId+'_ul','class' : 'SelectableList', content:lis } ] );
 
-		$(this.myHTML).appendChild(ul);
+		this.myHTML[0].appendChild(ul);
 
 		// bind buttons
-		var handler = this.buttonClicked.bind(this);
-		$(this.myHTML).select('button').each( function( btn ) { 
-				Event.observe( btn, 'click', handler);
-				});
+		var handler = this.getCallback('buttonClicked');
+		this.myHTML.find('button').click( handler );
 	}, // }}}
 	showSelectedOnly: function( selectedOnly )//{{{
 	{
 		if (typeof selectedOnly == 'undefined') selectedOnly = 1;
-		var ul = $(this.myId+'_ul');
+		var ul = jQuery('#'+this.myId+'_ul');
 		if ( !ul) return;
 		if (selectedOnly) ul.addClassName('selectedOnly');
 		else ul.removeClassName('selectedOnly');
@@ -115,26 +112,26 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 		// store record
 		this.records[i]=rec.record;
 
-		var li = $(this.myId + '_li' + i);
+		var li = jQuery('#'+this.myId + '_li' + i);
 		if (!li)
 		{
 			console.error("Item " + i + " does not exist.");
 			return;
 		}
-		li.innerHTML = rec.li;
+		li.html(rec.li);
 		
 		// bind buttons
-		var handler = this.buttonClicked.bind(this);
-		li.select('button').each( function( btn ) { 
-				Event.observe( btn, 'click', handler);
-				});
+		var handler = this.getCallback('buttonClicked');
+		li.find('button').click( handler);
 
 	}, // }}}
-	clicked: function( e, i ) // {{{
+	clicked: function( e ) // {{{
 	{
+		console.warn("here. event:",e, " data:", e.data);
+		var i=e.data.idx;
 		if ( this.selectedI == i ) // want to de-select this item
 		{
-			$(this.myId + '_li' + this.selectedI).removeClassName('selected');
+			jQuery('#'+this.myId + '_li' + this.selectedI).removeClass('selected');
 			this.selectedI = -1;
 			this.selectedRecord = false;
 			this.shout( 'selected', { record: false, evt: e } );
@@ -152,10 +149,10 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 
 		// other thing selected? deselect it if so.
 		if ( this.selectedI > -1 )
-			$(this.myId + '_li' + this.selectedI).removeClassName('selected');
+			jQuery('#'+this.myId + '_li' + this.selectedI).removeClass('selected');
 
 		this.selectedI = i;
-		$(this.myId + '_li' + i).addClassName('selected');
+		jQuery('#'+this.myId + '_li' + i).addClass('selected');
 		this.selectedRecord = this.records[i];
 	}, // }}}
 	buttonClicked: function( e ) // {{{
@@ -174,9 +171,6 @@ var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
 
 		this.shout( 'button_click', { buttonValue:btn.value, button:btn, record: this.records[i], evt: e, index:i } );
 	}, // }}}
-	cleanup: function()  // {{{
-	{ 
-		$(this.myHTML).innerHTML = ''; 
-	} // }}}
+	cleanup: function() { this.myHTML.empty();}
 }); // }}}
 

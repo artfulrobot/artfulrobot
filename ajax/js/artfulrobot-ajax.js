@@ -21,7 +21,7 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 // main namespace
 var artfulrobot = artfulrobot || {};
 
-/**  class with inheritance
+/**  artfulrobot.Class.create class with inheritance/*{{{
  *
  *  fooClass = artfulrobot.Class.create( obj );
  *  barClass = artfulrobot.Class.create( fooClass, obj );
@@ -180,13 +180,8 @@ artfulrobot.Class = (function() {
 			});
 	}/*}}}*/
 	return { create: create };
-})();
+})();/*}}}*/
 
-artfulrobot.objectKeys = function( obj ) {/*{{{*/
-	var a=[];
-	for (var k in obj) a.push(k);
-	return a;
-};/*}}}*/
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
 	if (obj.__count__) return obj.__count__;
@@ -194,13 +189,17 @@ artfulrobot.countKeys = function( obj ) {/*{{{*/
 	for (var k in obj) a++;
 	return a;
 };/*}}}*/
-
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
 {
 	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
 	if ( selectedElement  ) return selectedElement[0].value;
 	return null; 
 } // }}}
+artfulrobot.objectKeys = function( obj ) {/*{{{*/
+	var a=[];
+	for (var k in obj) a.push(k);
+	return a;
+};/*}}}*/
 artfulrobot.typeof = function( thing ) // {{{
 {
 	var type = typeof thing;
@@ -746,7 +745,7 @@ artfulrobot.ARLObject = artfulrobot.Class.create(
 		}
 		else if (argType == 'object') 
 		{
-			objId = objOrObjId.getArlId();
+			objId = objOrObjId.getId();
 			obj = objOrObjId;
 		}
 		else  throw "destroySubObject got type " + argType + " needed id or object of an ARL object (PS. also, I ignore null/false)";
@@ -799,13 +798,12 @@ artfulrobot.ARLObject = artfulrobot.Class.create(
 		 *  and if not, creates it with the value from defs.
 		 *  Does not overwrite anything that is there.
 		 */
-		me=this;
 		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
-		$H(defs).keys().each( function (key) 
-			{
-			   	if ( typeof me._SESSION[ key ] == 'undefined' )
-					me._SESSION[ key ] = defs[ key ];
-			} );
+		for (key in defs)
+		{
+			if ( typeof this._SESSION[ key ] == 'undefined' )
+				this._SESSION[ key ] = defs[ key ];
+		};
 	}, // }}}
 	getObjectByName: function (name) //{{{
 	{
@@ -829,7 +827,7 @@ ARLKeepAlive = artfulrobot.Class.create( artfulrobot.ARLObject, // {{{
 	pingInABit:function()//{{{
 	{
 		// ping every 2 minutes
-		this.timer = setTimeout( this.ping.bind(this), 1000*60*2 );
+		this.timer = setTimeout( this.getCallback('ping'), 1000*60*2 );
 	},//}}}
 	ping: function()  // {{{
 	{ 
@@ -922,8 +920,23 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 			{
 				myDebug && console.log('key: ', key);
 
-				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,').indexOf(','+key+',')>-1)
-					{  myDebug && console.log('adding as event listener '+part[key]);tmp[key] = part[key];}
+				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
+					{  
+						myDebug && console.log('adding as event listener '+part[key]);
+						// old: tmp[key] = part[key];
+
+						// if part[key] is an array, then the first part is the handler and the 2nd is data for jQuery.
+						var evtName = key.substr(2); // lop off the 'on'
+						if (artfulrobot.typeof(part[key]) == 'array')
+						{
+							// include the data in the jQuery bind call:
+							console.log("binding ", tmp, " evt type ", evtName, " to " ,part[key][1], "with data: ", part[key][1]);
+							jQuery(tmp).bind(evtName,part[key][1],part[key][0]);
+						}
+						else {
+							jQuery(tmp).bind(evtName,part[key]);
+						}
+					}
 				else if (key=='element' || key=='content' ) continue;
 				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
 				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
