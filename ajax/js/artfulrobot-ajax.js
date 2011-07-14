@@ -52,88 +52,20 @@ var artfulrobot = artfulrobot || {};
  *      }
  *  
  */
-artfulrobot.Class = (function() {
+artfulrobot.defineClass = function() {/*{{{*/
+	// Define local functions we need:
 	var IS_DONTENUM_BUGGY = (function(){/*{{{*/
 		for (var p in { toString: 1 }) {
 		if (p === 'toString') return false;
 		}
 		return true;
 		})();/*}}}*/
-	function keys(object) {/*{{{*/
-		if (typeof(object) !='object'
-			|| (! object)
-			|| (object instanceof Array) )
-		{ throw("object given to keys is not an object"); }
-		var results = [];
-		for (var property in object) {
-			if (object.hasOwnProperty(property)) {
-				results.push(property);
-			}
-		}
-		return results;
-	}/*}}}*/
-	function subclass() {};
-	function create() {/*{{{*/
-		var superclass = null, properties=[];
-
-		// convert arguments to a more manageable array
-		for (var i in arguments) properties.push(arguments[i]);
-
-		// if first arg is function, store as superclass and remove it from properties
-		if ( typeof(properties[0]) == 'function') {
-			superclass = properties[0];
-			properties.splice(0,1);
-		}
-
-		// klass is the class that we're crafting
-		function klass() {
-			this.initialise.apply(this, arguments);
-		}
-
-		// this keeps track of subclasses created
-		// on an array on the class itself; not on the class's prototype
-		// so the subclasses list is not inherited.
-		klass.subclasses = [];
-
-		// add in our getCallback method 
-		klass.prototype.getCallback = getCallback;
-
-		if (superclass) {
-			// make subclass (empty method) inherit from superclass
-			subclass.prototype = superclass.prototype;
-			// make our class'es prototype somehow relate to subclass?
-			// 'new' will return object.create(subclass.prototype) the subclass, 
-			// why this intermediary step? why not klass.prototype=superclass.prototype
-			// because calling "new superclass" would call superclass's constructor, which
-			// was prototype's old problem (because we don't want to create any
-			// objects here, just classes). So by wrapping around an empty function (constructor)
-			// no constructor code gets run. 
-			klass.prototype = new subclass;
-			// store reference to new class on superclass's subclasses property
-			superclass.subclasses.push(klass);
-			// store reference to superclass('s prototype) in class property superclass
-			// so subclass methods can accees the overridden superclass methods
-			klass.prototype.superclass = superclass.prototype;
-		}
-
-		// add methods specified in the object passed as argument(s) to ARLClass.create()
-		// nb. normally only one object is passed here.
-		for (var i = 0, length = properties.length; i < length; i++)
-			addMethods(klass, properties[i]);
-
-		// set up blank initialise method if none already
-		if (!klass.prototype.initialise)
-			klass.prototype.initialise = function(){};
-
-		// tell the klass object that its constructor is the
-		// klass function defined above (as the starting point for klass)
-		klass.prototype.constructor = klass;
-
-		return klass;
-	}/*}}}*/
-	function addMethods(obj, source) {/*{{{*/
+	var subclass = function() {};
+	// arlClass is the class that we're crafting
+	function arlClass() { this.initialise.apply(this, arguments); }
+	var addMethods = function(obj, source) {/*{{{*/
 		var ancestor   = obj.prototype.superclass && obj.prototype.superclass,
-			properties = keys(source);
+			properties = artfulrobot.objectKeys(source);
 
 		if (IS_DONTENUM_BUGGY) {
 			if (source.toString != Object.prototype.toString)
@@ -160,8 +92,8 @@ artfulrobot.Class = (function() {
 		}
 
 		return obj;
-	}/*}}}*/
-	function getCallback(method) {/*{{{*/
+	};/*}}}*/
+	var getCallback = function (method) {/*{{{*/
 		// reference to our instance
 		var context=this;
 		// if we were passed any other arguments beyond method,
@@ -179,8 +111,63 @@ artfulrobot.Class = (function() {
 				context[method].apply(context, args);
 			});
 	}/*}}}*/
-	return { create: create };
-})();/*}}}*/
+
+	// Start process
+	var superclass = null, properties=[];
+	// convert arguments to a more manageable array
+	for (var i in arguments) properties.push(arguments[i]);
+
+	// if first arg is function, store as superclass and remove it from properties
+	if ( typeof(properties[0]) == 'function') {
+		superclass = properties[0];
+		properties.splice(0,1);
+	}
+
+	// this keeps track of subclasses created
+	// on an array on the class itself; not on the class's prototype
+	// so the subclasses list is not inherited.
+	arlClass.subclasses = [];
+
+	// add in our getCallback method 
+	arlClass.prototype.getCallback = getCallback;
+
+	if (superclass) {
+		// make subclass (empty method) inherit from superclass
+		subclass.prototype = superclass.prototype;
+		// make our class'es prototype somehow relate to subclass?
+		// 'new' will return object.create(subclass.prototype) the subclass, 
+		// why this intermediary step? why not arlClass.prototype=superclass.prototype
+		// because calling "new superclass" would call superclass's constructor, which
+		// was prototype's old problem (because we don't want to create any
+		// objects here, just classes). So by wrapping around an empty function (constructor)
+		// no constructor code gets run. 
+		arlClass.prototype = new subclass;
+		// store reference to new class on superclass's subclasses property
+		superclass.subclasses.push(arlClass);
+		// store reference to superclass('s prototype) in class property superclass
+		// so subclass methods can accees the overridden superclass methods
+		arlClass.prototype.superclass = superclass.prototype;
+	}
+
+	// add methods specified in the object passed as argument(s) to ARLClass.create()
+	// nb. normally only one object is passed here.
+	for (var i = 0, length = properties.length; i < length; i++)
+		addMethods(arlClass, properties[i]);
+
+	// set up blank initialise method if none already
+	if (!arlClass.prototype.initialise)
+		arlClass.prototype.initialise = function(){};
+
+	// tell the arlClass object that its constructor is the
+	// arlClass function defined above (as the starting point for arlClass)
+	arlClass.prototype.constructor = arlClass;
+
+	return arlClass;
+}/*}}}*/
+// }}}
+
+artfulrobot.Class = {};
+artfulrobot.Class.create = artfulrobot.defineClass;
 
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
