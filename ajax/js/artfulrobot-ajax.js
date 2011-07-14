@@ -21,10 +21,10 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 // main namespace
 var artfulrobot = artfulrobot || {};
 
-/**  artfulrobot.Class.create class with inheritance/*{{{
+/**  artfulrobot.defineClass class with inheritance/*{{{
  *
- *  fooClass = artfulrobot.Class.create( obj );
- *  barClass = artfulrobot.Class.create( fooClass, obj );
+ *  fooClass = artfulrobot.defineClass( obj );
+ *  barClass = artfulrobot.defineClass( fooClass, obj );
  *
  *  fooObj = new fooClass();
  *  barObj = new barClass();
@@ -166,8 +166,11 @@ artfulrobot.defineClass = function() {/*{{{*/
 }/*}}}*/
 // }}}
 
-artfulrobot.Class = {};
-artfulrobot.Class.create = artfulrobot.defineClass;
+// backwards compatibility
+artfulrobot.Class = { create: function() {
+	console && console.error && console.error("Class.create deprecated, use artfulrobot.defineClass instead");
+	artfulrobot.defineClass.apply(this, arguments);
+}
 
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
@@ -198,7 +201,7 @@ artfulrobot.typeof = function( thing ) // {{{
 	}
 	else return type;
 } // }}}
-artfulrobot.Exception = artfulrobot.Class.create( {/*{{{*/
+artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 	initialise: function()
 	{
 		for (var i in arguments) this.details.push(arguments[i]);
@@ -215,7 +218,7 @@ artfulrobot.Exception = artfulrobot.Class.create( {/*{{{*/
 });/*}}}*/
 
 // artfulrobot.AjaxClass main ajax class {{{ 
-artfulrobot.AjaxClass = artfulrobot.Class.create( 
+artfulrobot.AjaxClass = artfulrobot.defineClass( 
 {
 /** Main Ajax class
  *  Deals with making ajax requests and parsing the responses
@@ -540,7 +543,7 @@ artfulrobot.ajax = new artfulrobot.AjaxClass();
 // Global collection of arlObjects
 artfulrobot.arlObjects = {};
 // Main class: all ARLObject classes must inherit from this
-artfulrobot.ARLObject = artfulrobot.Class.create(
+artfulrobot.ARLObject = artfulrobot.defineClass(
 {
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
 	debugLevel: 0,
@@ -805,7 +808,7 @@ artfulrobot.ARLObject = artfulrobot.Class.create(
 	}, // }}}
 });
 // }}}
-ARLKeepAlive = artfulrobot.Class.create( artfulrobot.ARLObject, // {{{
+ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{
 {
 	localInitialise: function()  // {{{
 	{ 
