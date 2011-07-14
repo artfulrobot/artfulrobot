@@ -80,8 +80,8 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		if (typeof selectedOnly == 'undefined') selectedOnly = 1;
 		var ul = jQuery('#'+this.myId+'_ul');
 		if ( !ul) return;
-		if (selectedOnly) ul.addClassName('selectedOnly');
-		else ul.removeClassName('selectedOnly');
+		if (selectedOnly) ul.addClass('selectedOnly');
+		else ul.removeClass('selectedOnly');
 	},//}}}
 	getIndexFromRecord: function( value, field ) // {{{
 	{
@@ -172,3 +172,470 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	cleanup: function() { this.myHTML.empty();}
 }); // }}}
 
+if(0){
+SelectableTable = artfulrobot.defineClass( // {{{
+{
+/** SelectableTable documentation
+ *  Quick way to make a table act like a select input.
+ *  table receives 'SelectableTable' class name, and 'filterOff' class name
+ *  rows receive 'selected' class name when selected.
+ *  only one row is selectable at a time.
+ *  rows do not respond to clicks if unselectable className exists on tr element.
+ *
+ */ 
+	initialise: function(tableId, selectedAction, options) // {{{
+	{
+		console.warn('Warning: SelectableTable might be axed in favour of ARLSelectableTable...');
+		// options object with options: hoverclass selectedclass 
+
+		this.nodesArray=[];
+		this.headerRowNodes=[];
+		this.filters = [];
+		this.table=jQuery('#'+tableId);
+		this.class_hover = 'hover';
+		this.class_selected = 'selected';
+		this.selectedAction = selectedAction;
+		this.lastSelected = false;
+		this.thaw();
+
+		var me=this;
+		// get all rows
+		var colIndex = 0;
+		var rows = $A(this.table.getElementsByTagName('tr'));
+		// deal with headers
+		$A(rows.shift().getElementsByTagName('th')).each( 
+				function(thNode) {	me.headerRowNodes[colIndex++] = thNode; });
+		/*
+		   the prototype .each calls the iterator function from window scope
+		   so at the end of the function definition it is explicitly bound to
+		   this object: function(node){...}.bind(this)
+
+		   this means "this" refers to the SelectableTable object, 
+		   so this.class_hover refers to the value as set above.
+	   */
+		// bind to this object's clicked method
+		var rowIndex =0;
+		var colIndex = 0;
+		rows.each( 
+			function (rowNode)
+			{
+				me.nodesArray[ rowIndex ] = [];
+				// walk through cells
+				$A( rowNode.getElementsByTagName('td') ).each( function (cellNode)
+						{
+							me.nodesArray[ rowIndex ][ colIndex ] = cellNode;
+							cellNode.onclick=me.clicked.bindAsEventListener(me,rowIndex,colIndex++);
+						});
+				rowIndex++;
+				colIndex=0;
+			} );
+	}, // }}}
+	clicked: function(evt,rowIndex,colIndex) // {{{
+	{
+		if (this.frozen) { console.warn('clicked frozen table'); return;}
+		var rowNode=evt.target;
+		while (rowNode.tagName!='TR') rowNode = rowNode.parentNode;
+
+		// check that this row does not have the unselectable class, if so pretend we weren't clicked!
+		if ( jQuery('#'+rowNode).hasClass('unselectable')) return;
+
+		// create an array of row values
+		row = new Array();
+		$A(rowNode.getElementsByTagName('td')).each( function( cell ) { row.push( cell.textContent ); } );
+
+		/* Because this is an event handler, the first argument is an event object.  */
+		if ( this.lastSelected.rowNode === rowNode ) // deselect
+		{
+			this.lastSelected.rowNode.removeClass(this.class_selected);
+			this.lastSelected = false;
+			this.selectedAction(evt,false, false, false,false,false); // send false instead of rowNode, to show nothing selected
+		}
+		else
+		{
+			this.lastSelected && this.lastSelected.rowNode.removeClass(this.class_selected);
+			this.lastSelected = 
+				{
+					rowNode: rowNode,
+					cellNode: evt.target,
+					rowIndex:rowIndex,
+					colIndex:colIndex
+				};
+			rowNode.addClass(this.class_selected);
+			 // call with the row as "this", passing on the event and the array of row values.
+			this.selectedAction(evt,rowNode,row,rowIndex,colIndex,this.headerRowNodes[colIndex]);
+		}
+	}, // }}}
+	filter: function(colIndex, re, leaveSelectedAlone ) // {{{
+	{
+		var l=this.nodesArray.length;
+		var nodesArray = this.nodesArray; // reference will save time if loop is big.
+		for (var i=0;i<l;i++)
+		{
+			if ( re.test( nodesArray[i][colIndex].textContent ) )
+				nodesArray[i][0].parentNode.show();
+			else
+				nodesArray[i][0].parentNode.hide();
+		}
+	}, // }}}
+	applyFilters: function() // {{{
+	{
+		var l=this.nodesArray.length;
+		var nodesArray = this.nodesArray; // reference will save time if loop is big.
+		var filters = this.filters; // reference will save time if loop is big.
+		var l2 = filters.length;
+
+		var anyFilters = 0;
+
+		for (var i=0;i<l;i++)
+		{
+			var show=true;
+			for ( var i2=0;i2<l2;i2++ )
+			{
+				if ( filters[i2] )
+				{
+					if (! filters[i2].test( nodesArray[i][i2].textContent ) ) show=false;
+				}
+			}
+			if (show) nodesArray[i][0].parentNode.show();
+			else
+			{
+				nodesArray[i][0].parentNode.hide();
+				anyFilters++;
+			}
+		}
+		if (anyFilters) { this.table.removeClass('filterOff');this.table.addClass('filterOn');}
+		else 			{ this.table.removeClass('filterOn');this.table.addClass('filterOff');}
+	}, // }}}
+	filterable: function(colIndex)	// {{{
+	{
+		var th = this.headerRowNodes[colIndex];
+		// create filter div immediately inside th
+		th.insertBefore( createFragmentFromArray( [
+					{
+				   		element: 'div',
+						'class': 'filterOff',
+						onclick: this.autoFilter.bind(this,colIndex)
+					}])
+				, th.firstChild );
+		// move everything into div
+		var div = th.firstChild;
+		var node = div;
+		while (node = node.nextSibling) div.appendChild(node);
+		// assume this is not called after a user has had a chance to filter the table...
+		this.table.addClass('filterOff');
+	}, // }}}
+	autoFilter: function(colIndex) // {{{
+	{
+		var f = prompt('Filter ' + this.headerRowNodes[colIndex].firstChild.textContent, this.filters[colIndex] && this.filters[colIndex].source || '' );
+		if (f) 
+		{
+			this.filters[colIndex] = new RegExp(f,'i');
+			this.headerRowNodes[colIndex].firstChild.removeClass('filterOff');
+			this.headerRowNodes[colIndex].firstChild.addClass('filterOn');
+		}
+		else 
+		{
+			this.headerRowNodes[colIndex].firstChild.removeClass('filterOn');
+			this.headerRowNodes[colIndex].firstChild.addClass('filterOff');
+			this.filters[colIndex] = false;
+		}
+		this.applyFilters();
+	}, // }}}
+	freeze: function() // {{{
+	{
+		this.frozen = true;
+		this.table.removeClass('SelectableTable');
+	}, //}}}
+	thaw: function() // {{{
+	{
+		this.frozen = false;
+		this.table.addClass('SelectableTable');
+	}, //}}}
+	reset: function() // {{{
+	{
+		// unselect any row
+		var rows = $A(this.table.getElementsByTagName('tr'));
+		rows.each( function (tr) { tr.removeClass('selected'); });
+		this.lastSelected = false;
+	}, //}}}
+	selectRow: function(needle, colIndex) // {{{
+	{
+		var i=0;
+		var m=this.nodesArray.length;
+		var found = 0;
+		for (i=0;i<m;i++) { if ( needle == this.nodesArray[i][colIndex].textContent ) { found=i;break;} }
+		this.clicked( { target: this.nodesArray[found][colIndex] }, found, colIndex );
+	}, // }}}
+}); // }}}
+}
+// ARLSelectableTable -- for working with a table that the user can select rows from {{{
+var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
+{
+/** ARLSelectableTable documentation
+ *  Quick way to make a table act like a select input.
+ *  table receives 'SelectableTable' class name, and 'filterOff' class name
+ *  rows receive 'selected' class name when selected.
+ *  only one row is selectable at a time.
+ *  rows do not respond to clicks if unselectable className exists on tr element.
+ *
+ *  Note: this is a replacement for the generic SelectableTable object. 
+ *  
+ *  shouts the following signals: 
+ *      rowSelected		with the following object:
+						tableId :
+						event: 
+						trNode: 
+						rowData: array 
+						rowIndex:
+						colIndex:
+						thNode:
+ */ 
+	localInitialise: function(tableId, options) // {{{
+	{
+		this.setSessionDefaults( {filters: []} );
+
+		this.filterRegexps  = [];
+		this.filterableCols = [];
+		this.nodesArray     = []; // nodesArray[ rowIndex ][ colIndex ] = td 
+		this.headerRowNodes = []; 
+		this.table          = jQuery('#'+tableId);
+		this.class_selected = 'selected';
+		this.lastSelected   = false;
+		this.isUnfiltered   = true;
+		this.thaw();
+		// get all rows
+		var colIndex = 0;
+		var rows = this.table.find('tr');
+		// deal with headers
+		this.headerRowNodes=rows.first().find('th');
+		// initialise filters to zls
+		var _fltrs=this._SESSION.filters;
+		this.headerRowNodes.each(function(i){ if ( ! _fltrs[i] ) _fltrs[i]= ''; });
+
+		// bind to this object's clicked method
+		var rowIndex =0;
+		var colIndex = 0;
+		var me=this;
+		var _nodesArray=this.nodesArray;
+		var _cb=this.getCallback('clicked');
+		rows.slice(1).each(
+			function (rowIndex)
+			{
+				_nodesArray[ rowIndex ] = [];
+				jQuery(this).find('td').each(
+					function( colIndex ) {
+						var td=jQuery(this);
+						_nodesArray[ rowIndex ][ colIndex ] = td;
+						td.click( {rowIndex:rowIndex,colIndex:colIndex}, _cb);
+						});
+			} );
+
+		if ( artfulrobot.typeof(options.filterable) == 'object' ) {
+			for(i in options.filterable) this.filterable( options.filterable[i] );
+		}
+		else if ( artfulrobot.typeof(options.filterable) == 'number' )
+			this.filterable( options.filterable );
+
+		this.filtersChanged();
+	}, // }}}
+	clicked: function(evt) // xxx {{{
+	{
+		if (this.frozen) { console.warn('clicked frozen table'); return;}
+		var rowNode=jQuery(this.origContext).closest('tr');
+		var rowIndex=evt.data.rowIndex;
+		var colIndex=evt.data.colIndex;
+
+		// check that this row does not have the unselectable class, if so pretend we weren't clicked!
+		if ( rowNode.hasClass('unselectable')) return;
+
+		// create an array of row texts
+		row = jQuery.map( rowNode.find('td'), function(node) { return jQuery(node).text(); } );
+
+		/* Because this is an event handler, the first argument is an event object.  */
+		if ( this.lastSelected!==false && this.lastSelected.rowNode.eq(rowNode) ) // deselect
+		{
+			this.lastSelected.rowNode.removeClass(this.class_selected);
+			this.lastSelected = false;
+			// send false instead of rowNode, to show nothing selected
+			this.shout('rowSelected', 
+					{
+						tableId: this.table.id,
+						event: evt,
+						trNode: false,
+						rowData: false,
+						rowIndex: false,
+						colIndex: false,
+						thNode: false,
+					});
+		}
+		else
+		{
+			this.lastSelected && this.lastSelected.rowNode.removeClass(this.class_selected);
+			this.lastSelected = 
+				{
+					rowNode: rowNode,
+					cellNode: this.origContext,
+					rowIndex:rowIndex,
+					colIndex:colIndex
+				};
+			rowNode.addClass(this.class_selected);
+			 // call with the row as "this", passing on the event and the array of row values.
+			this.shout('rowSelected', 
+					{
+						tableId: this.table.id,
+						event: evt,
+						trNode: rowNode, 
+						rowData: row,
+						rowIndex:rowIndex,
+						colIndex:colIndex,
+						thNode:this.headerRowNodes[colIndex]
+					});
+		}
+	}, // }}}
+	filter: function(colIndex, re, leaveSelectedAlone ) // {{{
+	{
+		// This function deals with actually show/hiding rows 
+		var l=this.nodesArray.length;
+		var nodesArray = this.nodesArray; // reference will save time if loop is big.
+		for (var i=0;i<l;i++)
+		{
+			if ( re.test( nodesArray[i][colIndex].textContent ) )
+				nodesArray[i][0].parentNode.show();
+			else
+				nodesArray[i][0].parentNode.hide();
+		}
+	}, // }}}
+	filtersChanged: function () // {{{
+	{
+		/** filtersChanged is called when this._SESSION.filters has been updated
+		 *  it:
+		 *	1. compiles new regexps
+		 *	2. updates the filter icon on the apropriate column heads. 
+		 *	3. calls applyFilters()
+		 */ 
+		// clear regexps:
+		this.filterRegexps = [];
+		for (idx in this.filterableCols)
+		{
+			colIndex=this.filterableCols[idx];
+			var f=this._SESSION.filters[colIndex];
+			if (f)
+			{
+				this.filterRegexps[colIndex] = new RegExp(f,'colIndex');
+			console.warn(idx,f);
+				this.headerRowNodes.eq(colIndex).children().first()
+					.removeClass('filterOff')
+					.addClass('filterOn');
+			}
+			else 
+			{
+				this.filterRegexps[colIndex] = false;
+				this.headerRowNodes.eq(colIndex).children().first()
+					.removeClass('filterOn')
+					.addClass('filterOff');
+			}
+		}
+
+		this.applyFilters();
+	}, // }}}
+	applyFilters: function() // {{{
+	{
+		var anyFilters = 0;
+
+		// first check needed {{{
+		if ( this._SESSION.filters.join('') == '')
+		{
+			//console.log('No filters, showing all table rows...');
+			if (! this.isUnfiltered) this.table.find('tr').show();
+			return;
+		} // }}}
+
+		// reduce filterableCols by whether there's a filter set for them...
+		var checks = [];
+		var _re=this.filterRegexps;
+		checks = jQuery.map( this.filterableCols, function(colIndex) { 
+			return   _re[colIndex] ? colIndex : null; });
+
+		// go through the rows of the table one-by-one
+		for (rowIndex in this.nodesArray)
+		{
+			var show=true;
+			for (colIndex in checks)
+			{
+				if ( ! _re[i].test( this.nodesArray[rowIndex][colIndex].text() ) ) 
+				{
+					show=false;
+				}
+			}
+
+			if (show) this.nodesArray[rowIndex][0].closest('tr').show();
+			else
+			{
+				this.nodesArray[rowIndex][0].closest('tr').hide();
+				anyFilters++;
+			}
+		}
+		if (anyFilters) { this.table.removeClass('filterOff').addClass('filterOn');this.isUnfiltered=false; }
+		else 			{ this.table.removeClass('filterOn').addClass('filterOff');this.isUnfiltered=true; }
+
+	}, // }}}
+	filterable: function(colIndex)	// {{{
+	{
+		this.filterableCols.push(colIndex);
+		
+		var th = this.headerRowNodes.eq(colIndex);
+		// create filter div immediately inside th
+		var origContents = th.children().detach();
+
+		th.html('<div class="filterOff"></div>').find('div').click(
+						this.getCallback('autoFilter',colIndex) ).append(origContents);
+
+		// assume this is not called after a user has had a chance to filter the table...
+		this.table.addClass('filterOff');
+	}, // }}}
+	autoFilter: function(colIndex) // {{{
+	{
+		var f = prompt('Filter ' + this.headerRowNodes[colIndex].firstChild.textContent, 
+				this._SESSION.filters[colIndex] && this._SESSION.filters[colIndex] || '' );
+		this._SESSION.filters[colIndex] = f?f:false;
+
+		this.filtersChanged();
+
+		// remember the filter settings
+		this.saveSession();
+	}, // }}}
+	setFilter: function(colIndex, regex ) // {{{
+	{
+		// public function: set up filter if not already filterable
+		if (! this.filterableCols[colIndex]) this.filterable(colIndex);
+		this._SESSION.filters[colIndex] = regex?regex:false;
+		this.filtersChanged();
+		// remember the filter settings
+		this.saveSession();
+	}, // }}}
+	freeze: function() // {{{
+	{
+		this.frozen = true;
+		this.table.removeClass('SelectableTable');
+	}, //}}}
+	thaw: function() // {{{
+	{
+		this.frozen = false;
+		this.table.addClass('SelectableTable');
+	}, //}}}
+	reset: function() // {{{
+	{
+		// unselect any row
+		var rows = $A(this.table.getElementsByTagName('tr'));
+		rows.each( function (tr) { tr.removeClass('selected'); });
+		this.lastSelected = false;
+	}, //}}}
+	selectRow: function(needle, colIndex) // {{{
+	{
+		var i=0;
+		var m=this.nodesArray.length;
+		var found = 0;
+		for (i=0;i<m;i++) { if ( needle == this.nodesArray[i][colIndex].textContent ) { found=i;break;} }
+		this.clicked( { target: this.nodesArray[found][colIndex] }, found, colIndex );
+	}, // }}}
+}); // }}}
