@@ -127,7 +127,6 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	}, // }}}
 	clicked: function( e ) // {{{
 	{
-		console.warn("here. event:",e, " data:", e.data);
 		var i=e.data.idx;
 		if ( this.selectedI == i ) // want to de-select this item
 		{
@@ -166,7 +165,6 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		var li = btn;
 		while (li.tagName != 'LI') li = li.parentNode;
 		i = li.id.replace(/^.+_li/,'');
-		console.warn("buttonClicked: ", li.id, i, this.selectedI);
 		this.select(i);
 
 		this.shout( 'button_click', { buttonValue:btn.value, button:btn, record: this.records[i], evt: e, index:i } );

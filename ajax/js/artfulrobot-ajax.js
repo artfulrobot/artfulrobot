@@ -93,24 +93,6 @@ artfulrobot.defineClass = function() {/*{{{*/
 
 		return obj;
 	};/*}}}*/
-	var getCallback = function (method) {/*{{{*/
-		// reference to our instance
-		var context=this;
-		// if we were passed any other arguments beyond method,
-	    // these become the first args onto the callback
-		var fixedArgs = Array.prototype.slice.call(arguments);
-		// remove 1st, method argument
-		fixedArgs.shift();
-
-		return (function() {
-				// prepend fixedArgs
-				var args = fixedArgs.concat(Array.prototype.slice.call(arguments));
-				// store original context (e.g. a jQuery object)
-				context.origContext = this;
-				// call method from object context
-				context[method].apply(context, args);
-			});
-	}/*}}}*/
 
 	// Start process
 	var superclass = null, properties=[];
@@ -129,7 +111,27 @@ artfulrobot.defineClass = function() {/*{{{*/
 	arlClass.subclasses = [];
 
 	// add in our getCallback method 
-	arlClass.prototype.getCallback = getCallback;
+	arlClass.prototype.getCallback = function (method) {/*{{{*/
+		// reference to our instance
+		var context=this;
+		// if we were passed any other arguments beyond method,
+	    // these become the first args onto the callback
+		var fixedArgs = Array.prototype.slice.call(arguments);
+		// remove 1st, method argument
+		fixedArgs.shift();
+
+		return (function() {
+				// prepend fixedArgs
+				var args = fixedArgs.concat(Array.prototype.slice.call(arguments));
+				// store original context (e.g. a jQuery object)
+				context.origContext = this;
+				// call method from object context
+				context[method].apply(context, args);
+			});
+	}/*}}}*/
+
+	// set up nice toString
+	arlClass.prototype.toString = function(){ return "arlClass object id:" + this.myId; };
 
 	if (superclass) {
 		// make subclass (empty method) inherit from superclass
@@ -922,7 +924,6 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 						if (artfulrobot.typeof(part[key]) == 'array')
 						{
 							// include the data in the jQuery bind call:
-							console.log("binding ", tmp, " evt type ", evtName, " to " ,part[key][1], "with data: ", part[key][1]);
 							jQuery(tmp).bind(evtName,part[key][1],part[key][0]);
 						}
 						else {
