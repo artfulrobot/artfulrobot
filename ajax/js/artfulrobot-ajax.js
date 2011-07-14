@@ -168,9 +168,11 @@ artfulrobot.defineClass = function() {/*{{{*/
 
 // backwards compatibility
 artfulrobot.Class = { create: function() {
-	console && console.error && console.error("Class.create deprecated, use artfulrobot.defineClass instead");
-	artfulrobot.defineClass.apply(this, arguments);
-}
+	console && console.warn && console.error("Class.create deprecated, use artfulrobot.defineClass instead");
+	var arg=[];
+	for (x in arguments) arg.push(arguments[x]);
+	return artfulrobot.defineClass.apply(artfulrobot, arg);
+}};
 
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:

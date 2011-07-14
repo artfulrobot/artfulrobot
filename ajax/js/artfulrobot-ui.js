@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with
 Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-var SelectableList = artfulrobot.Class.create( artfulrobot.ARLObject, //{{{
+var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 {
 /**
 	ul.SelectableList li:hover>div.row { background:yellow; }
