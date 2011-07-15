@@ -90,6 +90,9 @@ abstract class ARL_Ajax_Module/*{{{*/
 	 */
 	public function check_permissions()
 	{
+		// if no minimal CMS class, no security(!)
+		if (! class_exists('CMS')) return true;
+
 		if (! $this->groups_required) throw new Exception( get_class($this) . ' has no groups_required -- security risk.');
 		foreach ($this->groups_required as $group_name)
 			if (!CMS::user_in_group($group_name)) return false;
