@@ -33,9 +33,9 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 				},
 				]);
 */
-	localInitialize: function( nodeId )  // {{{
+	localInitialise: function( nodeId )  // {{{
 	{ 
-		console.info('SelectableList.localInitialize');
+		console.info('SelectableList.localInitialise');
 		// attach to screen area
 		this.myHTML = jQuery('#' +nodeId);
 		this.records    = false;
@@ -44,6 +44,7 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	}, // }}}
 	setData: function( resultsArray ) // {{{
 	{
+		console.log(this.name+'.setData');
 		/* render list inside our html element from data object supplied
 		 * which is an array of objects each having two subobjects:
 		 * - li (string of HTML) and
@@ -65,15 +66,14 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 						onclick: [this.getCallback('clicked'),{idx:i}]
 					});
 				this.records.push( row.record );
-			};
+		};
 		
 		var ul = artfulrobot.createFragmentFromArray([ { element: 'ul', 'id' : this.myId+'_ul','class' : 'SelectableList', content:lis } ] );
 
-		this.myHTML[0].appendChild(ul);
+		this.myHTML.append(ul);
 
 		// bind buttons
-		var handler = this.getCallback('buttonClicked');
-		this.myHTML.find('button').click( handler );
+		this.myHTML.find('button').click( this.getCallback('buttonClicked') );
 	}, // }}}
 	showSelectedOnly: function( selectedOnly )//{{{
 	{
@@ -98,7 +98,7 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	replaceEntry: function( rec, i ) // {{{
 	{
 		// replace currently selected entry or entry i
-		if (typeOfThing(i) == 'undefined') i=this.selectedI;
+		if (typeof(i) == 'undefined') i=this.selectedI;
 
 
 		if (i<0) 
@@ -127,6 +127,8 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	}, // }}}
 	clicked: function( e ) // {{{
 	{
+		// look out for old code whoopsies
+		if ( ! ( e && e.data && typeof(e.data.idx)!='undefined') ) console.error(this.name+'.clicked requires event.data.idx');
 		var i=e.data.idx;
 		if ( this.selectedI == i ) // want to de-select this item
 		{
