@@ -183,13 +183,6 @@ artfulrobot.countKeys = function( obj ) {/*{{{*/
 	for (var k in obj) a++;
 	return a;
 };/*}}}*/
-artfulrobot.getRadioValue = function( radioGroupName ) // {{{
-{
-	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
-	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
-	if ( selectedElement  ) return selectedElement[0].value;
-	return null; 
-} // }}}
 artfulrobot.objectKeys = function( obj ) {/*{{{*/
 	var a=[];
 	for (var k in obj) a.push(k);
@@ -221,6 +214,21 @@ artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 		return msg;
 	}
 });/*}}}*/
+/* functions for making forms easier */
+artfulrobot.getRadioValue = function( radioGroupName ) // {{{
+{
+	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
+	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
+	if ( selectedElement  ) return selectedElement[0].value;
+	return null; 
+} // }}}
+artfulrobot.setSelectOptionByValue = function( selectNode, val ) // {{{
+{
+	jQuery( selectNode ).find('option').each( function(i,optNode)
+		{ 
+			optNode.selected = (optNode.value==val); 
+		});
+} // }}}
 
 // artfulrobot.AjaxClass main ajax class {{{ 
 artfulrobot.AjaxClass = artfulrobot.defineClass( 
@@ -272,7 +280,17 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 
 		var parms;
 		if ( typeof parmsObject == 'string' ) parms = parmsObject;
-		else parms = jQuery.param(parmsObject);
+		else 
+		{
+			// map false|undefined to zls because it's likely parsed as a string
+			// the other end, so 'false' == true.
+			for (k in parmsObject)
+			{
+				if (parmsObject[k]===false
+					|| parmsObject[k]===undefined) parmsObject[k]='';
+			}
+			parms = jQuery.param(parmsObject);
+		}
 
 		// create absolute debug uri
 		if (this.requestFrom.match( /^\// ))
@@ -427,7 +445,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		}
 		catch(e)
 		{
-			this.seriousError('Failed on callback function. Request ' , requestId, rsp );
+			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, artfulrobot.ajax.requests[requestId]);
 			return;
 		}
 
