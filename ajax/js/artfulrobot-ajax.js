@@ -775,16 +775,18 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 			if (localAlias) this[localAlias]=false;
 		}
 	}, // }}}
+	destroySubObjects: function () // {{{
+	{ 
+		if (this.debugLevel>1) console.info(this.name + '.destroySubObjects '+this.myId);
+		// recursive bit: call .destroySubObject() on any subObjects
+		for (var id in this.subObjects) this.destroySubObject( id );
+	}, // }}}
 	destroy: function()  // {{{
 	{
+		if (this.debugLevel>1) console.log( this.name + '->destroy called');
 		// called by parent's destroySubObject method.
 		// we are being destroyed.
-		//
-		// recursive bit: call .destroySubObject() on any subObjects
-		// xxx 
-		if (this.debugLevel>1) console.log( this.name + '->destroy called');
-		for (var id in this.subObjects)
-			this.destroySubObject( id );
+		this.destroySubObjects();
 
 		// call .cleanup() which should be over-ridden by 
 	    // classes extending this one to remove html etc. that they created.
