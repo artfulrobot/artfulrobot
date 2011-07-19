@@ -185,6 +185,7 @@ artfulrobot.countKeys = function( obj ) {/*{{{*/
 };/*}}}*/
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
 {
+	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
 	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
 	if ( selectedElement  ) return selectedElement[0].value;
 	return null; 
@@ -430,14 +431,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 			return;
 		}
 
-		// execute the js code returned by the ajax call
-		if ( js_to_run && debug(requestId+": (WARNING: DEPRECIATED)"+js_to_run)) 
-		{
-			alert("Used depreciated 'code' return. Please re-write code.");
-//			   	eval(js_to_run);
-		}
-//			else debug(requestId+' 4/4 (no code to eval (good, this functionality is depreciated)) ');
-
 		this.requestEnded(requestId);
 	}, // }}}
 	seriousError: function( errorMsg, requestId, responseText ) // {{{
@@ -584,6 +577,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 
 		// local initialize:
 		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
+		if (artfulrobot.typeof(argsArray)!='array') argsArray = [];
 		this.localInitialise.apply(this, argsArray);
 		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
 		if (this.debugLevel>1) console.log('ends');
@@ -852,7 +846,8 @@ ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{
 artfulrobot.htmlentities = {/*{{{*/
 	hellip : '\u2026',
 	nbsp   : '\u00a0',
-	hellip : '\u2297'
+	otimes : '\u2297',
+	pound  : '\u00A3',
 };/*}}}*/
 artfulrobot.createFragmentFromArray = function( arr ) // {{{
 {
