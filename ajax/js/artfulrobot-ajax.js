@@ -311,6 +311,8 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
 				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
 			} );
+
+		return requestId;
 	}, // }}}
 	requestEnded: function( requestId ) // {{{
 	{
@@ -330,7 +332,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		{objectLength:nnn, errorLength:nnn, codeLength:nnn }
 		object
 		error
-		code
 		text
 		*/
 		var rqst = this.requests[requestId];
@@ -419,11 +420,13 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		rqst.stage = "callback";
 		try
 		{
+			// we add this to the object so the caller can know whether it's the one they were expecting to process!
+			obj.requestId = requestId;
 			this.requests[requestId].onSuccessCallback(obj, text);
 		}
 		catch(e)
 		{
-			this.seriousError('Failed on callback function. Request ' + requestId + ' ' , this.requests[requestId] , requestId, rsp );
+			this.seriousError('Failed on callback function. Request ' , requestId, rsp );
 			return;
 		}
 
@@ -439,6 +442,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	}, // }}}
 	seriousError: function( errorMsg, requestId, responseText ) // {{{
 	{
+		console && console.error && console.error( errorMsg, requestId, " ",  responseText);
 		var errorReport = window.open();
 		errorReport.document.write( 
 				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
@@ -563,8 +567,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 				? 'ARLObject' // first/main object will be this one
 				: myName);
 
-		if (this.debugLevel>0) console.group(this.name + '.initialize');
-		if (this.debugLevel>0) console.log(' session: ', session );
+		if (this.debugLevel>1) console.info(this.name + '.initialize');
+		if (this.debugLevel>1) console.log(' session: ', session );
 
 		// increment nextId so all Ajah_rl_AbstractObjects will have unique ids
 		artfulrobot.ARLObject.prototype.nextId++;
@@ -579,10 +583,10 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		this.initialiseSession(session);
 
 		// local initialize:
-		if (this.debugLevel>0) console.info(this.name + '.calling localInitialise');
+		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
 		this.localInitialise.apply(this, argsArray);
-		if (this.debugLevel>0) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
-		if (this.debugLevel>0) console.groupEnd();
+		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
+		if (this.debugLevel>1) console.log('ends');
 	}, // }}}
 	initialiseSession: function(session) // override if necessary {{{
 	{
@@ -594,7 +598,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	getId: function() { return this.myId; },
 	shout: function( sigType, dataObj ) // {{{
 	{ 
-		if (this.debugLevel>0) console.group(this.name + '.shout called for '+sigType);
+		if (this.debugLevel>1) console.info(this.name + '.shout called for '+sigType);
 
 		// append reference to self to dataObject
 		if ( typeof dataObj == 'undefined' ) dataObj = {};
@@ -605,29 +609,29 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		{
 			var signalTo = this.signals[ sigType ];
 			var l =signalTo.length;
-			if (this.debugLevel>0) console.log( 'signalling direct to ' + l + ' slots ');
+			if (this.debugLevel>1) console.log( 'signalling direct to ' + l + ' slots ');
 			for ( i=0; i<l ; i++ ) signalTo[i]( sigType, dataObj );
 		}
 		else if (this.myParent ) this.myParent.shout( sigType, dataObj );  // pass on shouts to parent.
 		else this.abstractHear( sigType, dataObj ); // _we_ are oldest ancestor start hearing and telling children
 
-		if (this.debugLevel>0) console.groupEnd();
+		if (this.debugLevel>1) console.log('ends');
 	}, // }}}
 	abstractHear: function(sigType, dataObj)  // {{{
 	{
 		// default, pass it down to subObjects
-		if (this.debugLevel>0) console.group(this.name + '.hear with sigType: ' + sigType);
+		if (this.debugLevel>0) console.info(this.name + '.hear with sigType: ' + sigType);
 		if (dataObj.shoutedBy.myId != this.myId ) this.hear(sigType, dataObj);
-		if (this.debugLevel>0) console.log('back from local hear, calling abstractHear on subobjects..');
+		if (this.debugLevel>1) console.log('back from local hear, calling abstractHear on subobjects..');
 		for (var id in this.subObjects)
 			this.subObjects[id].abstractHear(sigType,dataObj); 
-		if (this.debugLevel>0) console.groupEnd();
+		if (this.debugLevel>1) console.log('ends');
 	}, // }}}
 	hear: function(sigType, dataObj)  // override this {{{
 	{ }, // }}}
 	addSubObject: function( objClass, argsArray, localAlias ) // {{{
 	{ 
-		if (this.debugLevel>0) console.group(this.name + '.addSubObject called for objClass: ' + objClass);
+		if (this.debugLevel>1) console.info(this.name + '.addSubObject called for objClass: ' + objClass);
 		// objClass should be string name for the class
 		// argsArray should be an array that is passed to the class constructor
 
@@ -647,7 +651,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		//		session 	object given from this to the sub object
 		//		argsArray	as passed to us
 		var newObj = new objClass( this, soName, this.getSessionForSubObject(soName), argsArray ); 
-		if (this.debugLevel>0) console.log(this.name + '.addSubObject: new object created', newObj);
+		if (this.debugLevel>1) console.log(this.name + '.addSubObject: new object created', newObj);
 		
 		// connect child signal 'saveSession' to our slotSaveSession
 		newObj.connectSignal( 'saveSession', this.getCallback('saveSubObjSession') );
@@ -668,8 +672,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		}
 
 
-		if (this.debugLevel>0) console.info(this.name + '.addSubObject done');
-		if (this.debugLevel>0) console.groupEnd();
+		if (this.debugLevel>1) console.info(this.name + '.addSubObject done');
+		if (this.debugLevel>1) console.log('ends');
 		// return new object for chaining.
 		return newObj; 
 	}, // }}}
@@ -683,11 +687,11 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 			{
 			   x= this._SESSION.subObjects[soName];
 			}
-			else if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined for ' + soName );
+			else if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined for ' + soName );
 		}
-		else if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined' );
-		if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject: ' , this._SESSION );
-		if (this.debugLevel>0) console.info(this.name + '.getSessionForSubObject: returning ' , x );
+		else if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined' );
+		if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject: ' , this._SESSION );
+		if (this.debugLevel>1) console.info(this.name + '.getSessionForSubObject: returning ' , x );
 		return x;
 	}, // }}}
 	saveSession: function ( newFriendlyName, newTitle ) // {{{
@@ -696,8 +700,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		/**saveSession shouts 'saveSession' signal which should be received directly 
 		 * by parent object's saveSubObjSession()
 		 */
-		if (this.debugLevel>0) console.info( this.name+'.saveSession');
-		if (this.debugLevel>0) console.log(  this._SESSION );
+		if (this.debugLevel>1) console.info( this.name+'.saveSession');
+		if (this.debugLevel>1) console.log(  this._SESSION );
 		if ( this.myParent ) this.shout('saveSession', 
 				{
 					'id' : this.myId,
@@ -709,8 +713,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	}, // }}}
 	saveSubObjSession : function (sigType, obj) // hears subObject's saveSession call {{{
 	{ 
-		if (this.debugLevel>0) console.info(this.name + '.slotSaveSession');
-		if (this.debugLevel>0) console.info(obj);
+		if (this.debugLevel>1) console.info(this.name + '.slotSaveSession');
+		if (this.debugLevel>1) console.info(obj);
 		// obj contains:
 		// 	'id' subObject id
 		// 	'sessionObj' : _SESSION
@@ -744,7 +748,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		}
 		else  throw "destroySubObject got type " + argType + " needed id or object of an ARL object (PS. also, I ignore null/false)";
 
-		if (this.debugLevel>0) console.info(this.name + '.destroySubObject called for '+objId);
+		if (this.debugLevel>1) console.info(this.name + '.destroySubObject called for '+objId);
 		// possible for this to fail if the calling code has somehow messed something up,
 		// so we do the test for the subObject before destroy()ing it.
 		if (obj)
@@ -766,7 +770,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		//
 		// recursive bit: call .destroySubObject() on any subObjects
 		// xxx 
-		if (this.debugLevel>0) console.log( this.name + '->destroy called');
+		if (this.debugLevel>1) console.log( this.name + '->destroy called');
 		for (var id in this.subObjects)
 			this.destroySubObject( id );
 
