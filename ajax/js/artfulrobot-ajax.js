@@ -20,8 +20,8 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 
 // main namespace
 var artfulrobot = artfulrobot || {};
-
-/**  artfulrobot.defineClass class with inheritance/*{{{
+//artfulrobot.defineClass {{{
+/**  artfulrobot.defineClass class with inheritance
  *
  *  fooClass = artfulrobot.defineClass( obj );
  *  barClass = artfulrobot.defineClass( fooClass, obj );
@@ -167,15 +167,6 @@ artfulrobot.defineClass = function() {/*{{{*/
 	return arlClass;
 }/*}}}*/
 // }}}
-
-// backwards compatibility
-artfulrobot.Class = { create: function() {
-	console && console.warn && console.error("Class.create deprecated, use artfulrobot.defineClass instead");
-	var arg=[];
-	for (x in arguments) arg.push(arguments[x]);
-	return artfulrobot.defineClass.apply(artfulrobot, arg);
-}};
-
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
 	if (obj.__count__) return obj.__count__;
@@ -198,6 +189,117 @@ artfulrobot.typeof = function( thing ) // {{{
 		else return 'object';
 	}
 	else return type;
+} // }}}
+artfulrobot.htmlentities = {/*{{{*/
+	hellip : '\u2026',
+	nbsp   : '\u00a0',
+	otimes : '\u2297',
+	pound  : '\u00A3',
+};/*}}}*/
+artfulrobot.createFragmentFromArray = function( arr ) // {{{
+{
+/* example: call with AAA.
+   AAA is either a string or an array of BBBs
+   BBB is either a string, or an object CCC
+   CCC is like { element: 'div', content: AAA }
+
+		html.appendChild( createFragmentFromArray( [
+				{ element: 'div', style: 'border:solid 1px red;', content: 'goodbye' },
+				{ element: 'div', style: 'border:solid 1px red;', content: [
+					'aaaaaaaaaaaaa',
+					{ element: 'div', style: 'background-color:#fee', content: 'blah' },
+//					{ element: 'div', style: 'background-color:#ffe', content: 'doob' },
+					'bbbbbbbbbbbbb'
+				]}
+			] ));
+   */
+	var myDebug=0;
+	var type = artfulrobot.typeof(arr);
+	if ( type === 'string' ) 
+	{
+		myDebug && console.log('Called with string: returning TextNode:' + arr );
+		return document.createTextNode( arr );
+	}
+	else if ( type === 'null' ) 
+	{ 
+		alert("Encountered a null, expected string, array, object");
+		return; 
+	}
+	// convert single objects to arrays
+	else if ( type === 'object' ) 
+	{
+		myDebug && console.log('Called with object: putting it in an array');
+		arr = [ arr ];
+	}
+	else if ( type !== 'array' )
+	{
+		alert("error: type " + type + " encountered in createFragmentFromArray expected: string, array, object");
+		return;
+	}
+
+	var arrLen = arr.length;
+	var df = document.createDocumentFragment();
+	var tmp;
+	for (var i=0;i<arrLen;i++) // process each element of array: either an object or a string
+	{
+		var part = arr[i];
+		type = artfulrobot.typeof( part );
+		myDebug && console.warn('part:', part);
+		if (type == 'string' || type == 'number')
+		{
+			myDebug && console.log('appending TextNode:' + part );
+			df.appendChild( document.createTextNode( String(part) ) );
+		}
+		else if (type == 'object' ) 
+		{
+			myDebug && console.log('Creating ' + part.element + ' element');
+			// create element
+			tmp = document.createElement( part.element );
+			// set attributes
+			for (var key in part)
+			{
+				myDebug && console.log('key: ', key);
+
+				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
+					{  
+						myDebug && console.log('adding as event listener '+part[key]);
+						// old: tmp[key] = part[key];
+
+						// if part[key] is an array, then the first part is the handler and the 2nd is data for jQuery.
+						var evtName = key.substr(2); // lop off the 'on'
+						if (artfulrobot.typeof(part[key]) == 'array')
+						{
+							// include the data in the jQuery bind call:
+							jQuery(tmp).bind(evtName,part[key][1],part[key][0]);
+						}
+						else {
+							jQuery(tmp).bind(evtName,part[key]);
+						}
+					}
+				else if (key=='element' || key=='content' ) continue;
+				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
+			}
+			myDebug && console.log('created ' + part.element + ' element: ' + tmp + ' ' + df.childNodes.length);
+			// append children
+			if (part.content) 
+			{
+				myDebug && console.log('Recursing for ', part.content);
+				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content ) );
+				myDebug && console.log('Back from recursion');
+			}
+			myDebug && console.log('Adding to fragment...');
+			// add this to our document fragment
+			df.appendChild( tmp );
+			myDebug && console.log('...success');
+		}
+		else 
+		{
+			alert("error: " + type + " type encountered, expected string or object");
+		}
+	}
+	myDebug && console.log('Complete');
+	return df;
 } // }}}
 artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 	initialise: function()
@@ -565,7 +667,7 @@ artfulrobot.arlObjects = {};
 artfulrobot.ARLObject = artfulrobot.defineClass(
 {
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
-	debugLevel: 0,
+	debugLevel: 1,
 	sharedMethods: {},
 	initialise: function( parentItem, myName, session, argsArray )// {{{
 	{
@@ -752,6 +854,12 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		{
 			objId = objOrObjId;
 			obj = this.subObjects[objId];
+			if (typeof('ojb')=='undefined')
+			   throw new artfulrobot.Exception(
+					   'destroySubObject called for "'
+					   +objOrObjId+'" which is not valid id. I have: '
+					   +artfulrobot.objectKeys(this.subObjects).join(', '),
+				this.subObjects);
 		}
 		else if (argType == 'object') 
 		{
@@ -777,9 +885,10 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	}, // }}}
 	destroySubObjects: function () // {{{
 	{ 
-		if (this.debugLevel>1) console.info(this.name + '.destroySubObjects '+this.myId);
+		if (this.debugLevel>-1) console.info(this.name + '.destroySubObjects '+this.myId, this.subObjects);
 		// recursive bit: call .destroySubObject() on any subObjects
-		for (var id in this.subObjects) this.destroySubObject( id );
+		for (var id in this.subObjects) 
+			this.destroySubObject( id );
 	}, // }}}
 	destroy: function()  // {{{
 	{
@@ -792,8 +901,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	    // classes extending this one to remove html etc. that they created.
 		this.cleanup();	
 	}, // }}}
-	cleanup: function( )// {{{
-	{ }, // override this  }}}
+	cleanup: function( )// -override this- {{{
+	{ }, // }}}
 	connectSignal: function( sigType, receivingSlotMethod ) // {{{
 	{
 		if ( typeof this.signals[sigType] == 'undefined' ) this.signals[sigType] = [];
@@ -863,114 +972,3 @@ ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{
 	} // }}}
 }); // }}}
 
-artfulrobot.htmlentities = {/*{{{*/
-	hellip : '\u2026',
-	nbsp   : '\u00a0',
-	otimes : '\u2297',
-	pound  : '\u00A3',
-};/*}}}*/
-artfulrobot.createFragmentFromArray = function( arr ) // {{{
-{
-/* example: call with AAA.
-   AAA is either a string or an array of BBBs
-   BBB is either a string, or an object CCC
-   CCC is like { element: 'div', content: AAA }
-
-		html.appendChild( createFragmentFromArray( [
-				{ element: 'div', style: 'border:solid 1px red;', content: 'goodbye' },
-				{ element: 'div', style: 'border:solid 1px red;', content: [
-					'aaaaaaaaaaaaa',
-					{ element: 'div', style: 'background-color:#fee', content: 'blah' },
-//					{ element: 'div', style: 'background-color:#ffe', content: 'doob' },
-					'bbbbbbbbbbbbb'
-				]}
-			] ));
-   */
-	var myDebug=0;
-	var type = artfulrobot.typeof(arr);
-	if ( type === 'string' ) 
-	{
-		myDebug && console.log('Called with string: returning TextNode:' + arr );
-		return document.createTextNode( arr );
-	}
-	else if ( type === 'null' ) 
-	{ 
-		alert("Encountered a null, expected string, array, object");
-		return; 
-	}
-	// convert single objects to arrays
-	else if ( type === 'object' ) 
-	{
-		myDebug && console.log('Called with object: putting it in an array');
-		arr = [ arr ];
-	}
-	else if ( type !== 'array' )
-	{
-		alert("error: type " + type + " encountered in createFragmentFromArray expected: string, array, object");
-		return;
-	}
-
-	var arrLen = arr.length;
-	var df = document.createDocumentFragment();
-	var tmp;
-	for (var i=0;i<arrLen;i++) // process each element of array: either an object or a string
-	{
-		var part = arr[i];
-		type = artfulrobot.typeof( part );
-		myDebug && console.warn('part:', part);
-		if (type == 'string' || type == 'number')
-		{
-			myDebug && console.log('appending TextNode:' + part );
-			df.appendChild( document.createTextNode( String(part) ) );
-		}
-		else if (type == 'object' ) 
-		{
-			myDebug && console.log('Creating ' + part.element + ' element');
-			// create element
-			tmp = document.createElement( part.element );
-			// set attributes
-			for (var key in part)
-			{
-				myDebug && console.log('key: ', key);
-
-				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
-					{  
-						myDebug && console.log('adding as event listener '+part[key]);
-						// old: tmp[key] = part[key];
-
-						// if part[key] is an array, then the first part is the handler and the 2nd is data for jQuery.
-						var evtName = key.substr(2); // lop off the 'on'
-						if (artfulrobot.typeof(part[key]) == 'array')
-						{
-							// include the data in the jQuery bind call:
-							jQuery(tmp).bind(evtName,part[key][1],part[key][0]);
-						}
-						else {
-							jQuery(tmp).bind(evtName,part[key]);
-						}
-					}
-				else if (key=='element' || key=='content' ) continue;
-				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
-				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
-			}
-			myDebug && console.log('created ' + part.element + ' element: ' + tmp + ' ' + df.childNodes.length);
-			// append children
-			if (part.content) 
-			{
-				myDebug && console.log('Recursing for ', part.content);
-				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content ) );
-				myDebug && console.log('Back from recursion');
-			}
-			myDebug && console.log('Adding to fragment...');
-			// add this to our document fragment
-			df.appendChild( tmp );
-			myDebug && console.log('...success');
-		}
-		else 
-		{
-			alert("error: " + type + " type encountered, expected string or object");
-		}
-	}
-	myDebug && console.log('Complete');
-	return df;
-} // }}}
