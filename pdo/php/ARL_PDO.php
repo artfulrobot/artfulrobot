@@ -433,7 +433,8 @@ class ARL_PDO extends PDO
 			ARL_Debug::log("params: ", $query->params);
 			ARL_Debug::log("sql: ", $query->sql);
 			$stmt = $this->prepare($query->sql);
-			$stmt->execute($query->params);
+			if (! $stmt->execute($query->params) )
+				throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
 		}
 		return $stmt;
 	}/*}}}*/
