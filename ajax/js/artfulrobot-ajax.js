@@ -20,8 +20,8 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 
 // main namespace
 var artfulrobot = artfulrobot || {};
-
-/**  artfulrobot.defineClass class with inheritance/*{{{
+//artfulrobot.defineClass {{{
+/**  artfulrobot.defineClass class with inheritance
  *
  *  fooClass = artfulrobot.defineClass( obj );
  *  barClass = artfulrobot.defineClass( fooClass, obj );
@@ -167,15 +167,6 @@ artfulrobot.defineClass = function() {/*{{{*/
 	return arlClass;
 }/*}}}*/
 // }}}
-
-// backwards compatibility
-artfulrobot.Class = { create: function() {
-	console && console.warn && console.error("Class.create deprecated, use artfulrobot.defineClass instead");
-	var arg=[];
-	for (x in arguments) arg.push(arguments[x]);
-	return artfulrobot.defineClass.apply(artfulrobot, arg);
-}};
-
 artfulrobot.countKeys = function( obj ) {/*{{{*/
 	// some browsers support this:
 	if (obj.__count__) return obj.__count__;
@@ -183,13 +174,6 @@ artfulrobot.countKeys = function( obj ) {/*{{{*/
 	for (var k in obj) a++;
 	return a;
 };/*}}}*/
-artfulrobot.getRadioValue = function( radioGroupName ) // {{{
-{
-	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
-	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
-	if ( selectedElement  ) return selectedElement[0].value;
-	return null; 
-} // }}}
 artfulrobot.objectKeys = function( obj ) {/*{{{*/
 	var a=[];
 	for (var k in obj) a.push(k);
@@ -206,639 +190,6 @@ artfulrobot.typeof = function( thing ) // {{{
 	}
 	else return type;
 } // }}}
-artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
-	initialise: function()
-	{
-		for (var i in arguments) this.details.push(arguments[i]);
-		this.message = this.details[0];
-		console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
-	},
-	details:[],
-	toString:function()
-	{
-		var msg="artfulrobot.Exception :"+this.message;
-		for (x in this.details) msg += "\n" + this.details[x];
-		return msg;
-	}
-});/*}}}*/
-
-// artfulrobot.AjaxClass main ajax class {{{ 
-artfulrobot.AjaxClass = artfulrobot.defineClass( 
-{
-/** Main Ajax class
- *  Deals with making ajax requests and parsing the responses
- *  into chunks of html(/text), js code, json object, error message
- *
- */
-	initialise: function( opts ) // {{{
-	{
-		this.requestFrom = 'ajaxprocess.php'; // default
-		this.method = 'get'; // default
-		this.requests = {};
-		this.uniqueCounter = 1;
-
-		opts = opts || {};
-		if (opts.requestFrom) this.setRequestFrom(opts.requestFrom);
-		if (opts.method) this.setMethod(opts.method);
-	},// }}}
-	setRequestFrom: function (requestFrom) // {{{
-	{
-		// set the script to use for ajax requests.
-		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
-	}, // }}}
-	setMethod: function (postOrGet) // {{{
-	{
-		if (postOrGet == 'get' || postOrGet == 'post') this.method=postOrGet;
-		else throw new Error("ajax method must be post or get"); 
-	}, // }}}
-	liveRequests: function () // {{{
-	{
-		// count this.requests
-		return artfulrobot.countKeys(this.requests);
-	}, // }}}
-	request: function( parmsObject, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
-	{
-		/* We number requests, and return this number. 
-		 * 
-		 * Requests are stored in the object (hash) this.requests, which is an 
-		 * object of objects containing statusText (optional string for debugging) and requestURI
-		 *
-		 */
-		
-		// need onSuccessCallback fundction, even if it is blank
-		if ( typeof(onSuccessCallback) == 'undefined' )  onSuccessCallback=function(){};
-
-		var requestId = 'ajax' + this.uniqueCounter++;
-
-		var parms;
-		if ( typeof parmsObject == 'string' ) parms = parmsObject;
-		else parms = jQuery.param(parmsObject);
-
-		// create absolute debug uri
-		if (this.requestFrom.match( /^\// ))
-			debugURI = window.location.protocol + '//' 
-				+ window.location.host 
-				+ this.requestFrom ;
-		else // requestFrom is relative uri
-		{
-//			alert( this.requestFrom); alert( window.location.pathname); alert( window.location.pathname.replace( /^(.+\/).+?$/,'$1' ));
-			debugURI = window.location.protocol + '//' 
-				+ window.location.host 
-				+ window.location.pathname.replace( /^(.+\/)[^\/]*?$/,'$1' )
-				+ this.requestFrom ;
-		}
-		debugURI += '?' + parms + '&ajax=2',
-
-		this.requests[ requestId ] = 
-		{ 
-			statusText:	( statusText ? statusText : '' ),
-			debugURI: debugURI,
-			outputHtmlInsideElement: outputHtmlInsideElement,
-			onSuccessCallback: onSuccessCallback,
-			live: 1,
-			stage: 'request'
-		};
-		console.info(requestId + ' debug: ' + debugURI);
-
-		// override this method if needed
-		this.requestStarts( this.requests[ requestId ] );
-
-		// make request
-		jQuery.ajax( 
-			this.requestFrom,
-			{
-				data:parms,
-				type:this.method,
-				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
-				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
-			} );
-	}, // }}}
-	requestEnded: function( requestId ) // {{{
-	{
-		this.requestEnds( this.requests[requestId] );
-		delete this.requests[requestId];
-		//this.requests[requestId].live = 0;
-	}, // }}}
-	onFailure: function(requestId, t)  // {{{
-	{ 
-		alert( requestId + ': Problem! error: '+t.status+'--'+t.statusText );
-		t.responseText='';
-		this.requestEnded();
-	}, // }}}
-	onSuccess: function(requestId, t) // {{{
-	{
-		/* This returns 
-		{objectLength:nnn, errorLength:nnn, codeLength:nnn }
-		object
-		error
-		code
-		text
-		*/
-		var rqst = this.requests[requestId];
-		rqst.stage = 'response-parse-stage-1';
-		rqst.t = t;
-		try
-		{
-			var rsp = t;
-			var i;
-			i   = rsp.indexOf('}')+1;
-			if ( ! i) 
-			{
-				rqst.stage = 'response-parse-stage-1 FAIL';
-				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Expected } but none found.', requestId, rsp );
-				return;
-			}
-			rqst.stage = 'response-parse-stage-2';
-			// unpack json into chunks variable
-			chunks = rsp.substr(0,i);
-			if ( ! /^\{.*?\}$/.test(chunks)) 
-			{
-				rqst.stage = 'response-parse-stage-2 FAIL';
-				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Structure definition failed regexp.', requestId, rsp );
-				return;
-			}
-			try { 
-				rqst.stage = 'response-parse-stage-3';
-				var chunks = jQuery.parseJSON(rsp.substr(0,i));
-			}
-			catch(e) 
-			{ 
-				rqst.stage = 'response-parse-stage-3 FAIL';
-				this.seriousError('Bad ajax response. Javascript failed to parse structure definition found in the response', requestId, rsp );
-				return;
-			}
-
-
-			// json object returned?
-			var obj = rsp.substr(i,chunks.objectLength);
-			i += parseInt(chunks.objectLength);
-			if (obj) 
-			{
-				try {
-					rqst.stage = 'response-parse-json';
-					obj = jQuery.parseJSON(obj);
-				}
-				catch(e) 
-				{ 
-					rqst.stage = 'response-parse-json FAIL';
-					this.seriousError('Bad ajax response. Javascript failed to parse returned JSON object', requestId, rsp );
-					return;
-			   	}
-			}
-			else obj = {};
-
-			rqst.stage = 'response-parse-error and text';
-			// error returned?
-			var error = rsp.substr(i,chunks.errorLength);
-			i+=parseInt(chunks.errorLength);
-
-			// text returned?
-			var text = rsp.substr(i);
-		}
-		catch(e)
-		{
-			rqst.stage = 'response-parse FAIL';
-			console.error(e);
-			this.seriousError('Bad ajax response.', requestId, rsp );
-			return;
-		}
-
-		// show any non-serious error to user
-		if (error) alert(error);
-
-		rqst.stage = "replace element innerHTML...";
-		// update the element if given, and if there's html 
-		// returned from the ajax call
-		if (text!='' && rqst.outputHtmlInsideElement!='') 
-		{
-			var node = rqst.outputHtmlInsideElement;
-			if ( typeof node == 'string' ) node = jQuery('#'+node);
-			else node = jQuery(node);
-			node.html(text);
-		}
-		// do extra stuff
-		rqst.stage = "callback";
-		try
-		{
-			this.requests[requestId].onSuccessCallback(obj, text);
-		}
-		catch(e)
-		{
-			this.seriousError('Failed on callback function. Request ' + requestId + ' ' , this.requests[requestId] , requestId, rsp );
-			return;
-		}
-
-		this.requestEnded(requestId);
-	}, // }}}
-	seriousError: function( errorMsg, requestId, responseText ) // {{{
-	{
-		var errorReport = window.open();
-		errorReport.document.write( 
-				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
-				+'<body>'
-				+ '<h2>Error: ' + errorMsg + '</h3><p><a href="'
-				+ this.requests[requestId].debugURI
-				+ '" >Re-issue request with php debugging on</a></p>' 
-				+ '<h3>Request:</h3><div>'
-				+ this.requests[requestId].debugURI.replace( /^(.+?)\?.+$/, '$1' )
-				+ '<br /><pre>'
-				+ this.requests[requestId].debugURI.replace( /^(.+?)\?(.+)$/, '$2' ).replace( /&/g, '<br />' )
-				+ '</pre></div>'
-				+ '<h3>Response received:</h3><div>'
-				+ responseText
-				+'</div></body></html>');
-
-	}, // }}}
-	requestEnds: function( requestObj ) { },
-	requestStarts: function( requestObj ) { },
-	dump:function() // {{{
-	{
-		console.log(this.requests);
-	} // }}}
-});
-// set up default instance
-artfulrobot.ajax = new artfulrobot.AjaxClass();
-// }}}
-
-// artfulrobot.ARLObject  -- all arlObjects inherit from this {{{
-/** ARLObject documentation {{{
- *
- * Usual set up for a web application is to start with a single one:
- * var myApp = new artfulrobot.ARLObject();
- * 
- * and then to add in sub object(s) with
- * myApp.addSubObject( 'yourExtendedClassName', [optional args Array] );
-
- * As well as each instance of ARLObject keeping a record of its own sub
- * objects, *all* objects are given a unique id and registered globally on the
- * artfulrobot.arlObjects object. This id (accessible through obj.getId()
- * method) can be passed in ajax requests and means that code can be returned
- * from the server that directly calls a specific object's method. Obv. it's
- * nicer to do all your binding with js, but if needed you can do like
- * <span onclick='artfulrobot.arlObjects.$yourId.someMethodName()' >
-
- * Each object can communicate with others via "shouting". 
- * object's .shout method passes a sigType (string) and an dataObj (object) up
- * the inheritance chain until an object has no parent. Then the same data is
- * then fed down to the .abstractHear method, which calls the .hear method
- * before feeding the same data down to all the subObjects' .abstractHear
- * methods, recursively.
-
- * The idea is that a .hear method can listen out for signals by the value of
- * sigType.  Nb. An object does not .hear itself shout.
-
- * The dataObj object can contain whatever data is needed for anything to deal
- * with the shouted signal. Eg. if some field has been updated, the dataObject
- * might include the fieldname and the new value. Or, if needed it could
- * include the full record, including the updated field.
- * As a js. object it can also include callback functions etc. if really needed.
-
- * Objects reference their parent through .myParent However, the idea is that
- * objects can be re-used, so if an object relies on a parent method existing
- * then it means *all* potential parents need that method, which is not cool.
- * Better is to use signals.
-
- * Signals
-
- * An object can contain methods that deal with a particular signal from
- * a particular object.  These should be connected to the
- * 2nd object with the .connectSignal method. Then, when the 2nd object shouts
- * with that signal, the signal goes only to the connected slot(s), instead of
- * being broadcast to all objects. 
-
- * Usually it is a parent that connects one of its slots with a signal from a child object.
- * 
- * =======Example 1: connecting sub-object's signal to parent's slot ===========
- * usefulObject...
- * getSomeName: function
- * {
- * 	this.addSubObject( NameFinderGUI, [], 'myNameFinderGUI' );
- * 	this.myNameFinderGUI.connectSignal( 'nameFound', this.getCallback('nameFoundHandler') );
- * }
- * nameFoundHandler: function( sigType, dataObj )
- * {
- * 	// note "this" refers to this object, as you'd expect
- * 	// because you created the callback with getCallback()
- * 	var name = dataObj.name;
-
- * 	// do something with name
- * 	this.myNamesList.push( name );
-
- * 	// destroy the nameFinderGUI object
- * 	this.destroySubObject( this.myNameFinderGUI );
- * }
- * 
- * nameFinderGUI ...
- * userFinishedSelectingName: function()
- * {
- * 	this.shout( 'nameFound', {name:this.nameTheySelected} );
- * }
- * ==================================================
- * 
- *
- * }}}	*/
-// Global collection of arlObjects
-artfulrobot.arlObjects = {};
-// Main class: all ARLObject classes must inherit from this
-artfulrobot.ARLObject = artfulrobot.defineClass(
-{
-	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
-	debugLevel: 0,
-	sharedMethods: {},
-	initialise: function( parentItem, myName, session, argsArray )// {{{
-	{
-		// needs to know the parent object, in case it needs to shout (to siblings)
-		// this will be undefined for the first object created.
-		this.myParent = parentItem;
-
-		// class name
-		this.name = ( typeof myName == 'undefined' 
-				? 'ARLObject' // first/main object will be this one
-				: myName);
-
-		if (this.debugLevel>0) console.group(this.name + '.initialize');
-		if (this.debugLevel>0) console.log(' session: ', session );
-
-		// increment nextId so all Ajah_rl_AbstractObjects will have unique ids
-		artfulrobot.ARLObject.prototype.nextId++;
-		this.myId = 'arlObjId' + this.nextId;  
-
-		// container object  - by defining it here it's not part of the prototype
-		this.subObjects   = {}; 
-
-		// signals - methods that send signals from other objects
-		this.signals = {};
-
-		this.initialiseSession(session);
-
-		// local initialize:
-		if (this.debugLevel>0) console.info(this.name + '.calling localInitialise');
-		if (artfulrobot.typeof(argsArray)!='array') argsArray = [];
-		this.localInitialise.apply(this, argsArray);
-		if (this.debugLevel>0) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
-		if (this.debugLevel>0) console.groupEnd();
-	}, // }}}
-	initialiseSession: function(session) // override if necessary {{{
-	{
-		// console.log(this.name + '.initializeSession() called')
-		this._SESSION = (typeof session == 'object' ? session : {} );
-	}, // override this including setting this.name to the name of the object that extends this }}}
-	localInitialise: function(  )// abstract - must override {{{
-	{ }, // override this including setting this.name to the name of the object that extends this }}}
-	getId: function() { return this.myId; },
-	shout: function( sigType, dataObj ) // {{{
-	{ 
-		if (this.debugLevel>0) console.group(this.name + '.shout called for '+sigType);
-
-		// append reference to self to dataObject
-		if ( typeof dataObj == 'undefined' ) dataObj = {};
-		if ( typeof dataObj.shoutedBy == 'undefined' ) dataObj.shoutedBy = this;
-
-		// check if this sigType is connected to particular slot(s)
-		if ( typeof this.signals[ sigType ] != 'undefined' )
-		{
-			var signalTo = this.signals[ sigType ];
-			var l =signalTo.length;
-			if (this.debugLevel>0) console.log( 'signalling direct to ' + l + ' slots ');
-			for ( i=0; i<l ; i++ ) signalTo[i]( sigType, dataObj );
-		}
-		else if (this.myParent ) this.myParent.shout( sigType, dataObj );  // pass on shouts to parent.
-		else this.abstractHear( sigType, dataObj ); // _we_ are oldest ancestor start hearing and telling children
-
-		if (this.debugLevel>0) console.groupEnd();
-	}, // }}}
-	abstractHear: function(sigType, dataObj)  // {{{
-	{
-		// default, pass it down to subObjects
-		if (this.debugLevel>0) console.group(this.name + '.hear with sigType: ' + sigType);
-		if (dataObj.shoutedBy.myId != this.myId ) this.hear(sigType, dataObj);
-		if (this.debugLevel>0) console.log('back from local hear, calling abstractHear on subobjects..');
-		for (var id in this.subObjects)
-			this.subObjects[id].abstractHear(sigType,dataObj); 
-		if (this.debugLevel>0) console.groupEnd();
-	}, // }}}
-	hear: function(sigType, dataObj)  // override this {{{
-	{ }, // }}}
-	addSubObject: function( objClass, argsArray, localAlias ) // {{{
-	{ 
-		if (this.debugLevel>0) console.group(this.name + '.addSubObject called for objClass: ' + objClass);
-		// objClass should be string name for the class
-		// argsArray should be an array that is passed to the class constructor
-
-		// get name of class
-		var soName = 'unknown';
-		if (typeof objClass == 'string') 
-		{
-			soName   = objClass; 		// store name
-			if ( ! window[objClass] ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: Class '"+objClass+"' is unknown");
-			objClass = window[objClass];// reference 'class' itself
-		}
-		if ( ! artfulrobot.typeof(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
-		// create new abstract object
-		// Arguments:
-		// 		this, 		reference will be saved in object's myParent property
-		// 		soName,		name of subObject class, stored in object's name property
-		//		session 	object given from this to the sub object
-		//		argsArray	as passed to us
-		var newObj = new objClass( this, soName, this.getSessionForSubObject(soName), argsArray ); 
-		if (this.debugLevel>0) console.log(this.name + '.addSubObject: new object created', newObj);
-		
-		// connect child signal 'saveSession' to our slotSaveSession
-		newObj.connectSignal( 'saveSession', this.getCallback('saveSubObjSession') );
-
-		// keep reference to our subObject in our subObjects collection
-		this.subObjects[newObj.myId] = newObj ;  // used for shouting.
-
-		// keep global reference to object so it can be accessed directly
-		// by knowing it's 'arlObjId' 
-		artfulrobot.arlObjects[newObj.myId] = newObj; 			// global reference 
-
-		// aliasing makes a property with that name that references the
-		// object. When the object is destroyed, this is set false.
-		if (localAlias)
-		{
-			newObj.aliasedAs = localAlias;
-			this[localAlias] = newObj;
-		}
-
-
-		if (this.debugLevel>0) console.info(this.name + '.addSubObject done');
-		if (this.debugLevel>0) console.groupEnd();
-		// return new object for chaining.
-		return newObj; 
-	}, // }}}
-
-	getSessionForSubObject: function ( soName ) // {{{
-	{ 
-		var x = {};
-		if (   typeof this._SESSION.subObjects != 'undefined'  )
-		{
-		    if ( typeof this._SESSION.subObjects[soName] != 'undefined' )
-			{
-			   x= this._SESSION.subObjects[soName];
-			}
-			else if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined for ' + soName );
-		}
-		else if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined' );
-		if (this.debugLevel>0) console.log(this.name + '.getSessionForSubObject: ' , this._SESSION );
-		if (this.debugLevel>0) console.info(this.name + '.getSessionForSubObject: returning ' , x );
-		return x;
-	}, // }}}
-	saveSession: function ( newFriendlyName, newTitle ) // {{{
-	{ 
-
-		/**saveSession shouts 'saveSession' signal which should be received directly 
-		 * by parent object's saveSubObjSession()
-		 */
-		if (this.debugLevel>0) console.info( this.name+'.saveSession');
-		if (this.debugLevel>0) console.log(  this._SESSION );
-		if ( this.myParent ) this.shout('saveSession', 
-				{
-					'id' : this.myId,
-					'name' : this.name,
-					'sessionObj' : this._SESSION,
-					'newFriendlyName' : newFriendlyName,
-					'newTitle' : newTitle,
-				} );
-	}, // }}}
-	saveSubObjSession : function (sigType, obj) // hears subObject's saveSession call {{{
-	{ 
-		if (this.debugLevel>0) console.info(this.name + '.slotSaveSession');
-		if (this.debugLevel>0) console.info(obj);
-		// obj contains:
-		// 	'id' subObject id
-		// 	'sessionObj' : _SESSION
-		if ( typeof this._SESSION.subObjects == 'undefined' ) this._SESSION.subObjects = {};
-		this._SESSION.subObjects[ obj.name ] = obj.sessionObj;
-
-		// pass up the chain of parents
-		// the main controller parent would override the saveSession method
-		// with code that would stringify it's this._SESSION variable
-		// and send an ajax request to store it.
-		this.saveSession( obj.newFriendlyName, obj.newTitle );
-	}, // }}}
-
-	destroySubObject: function ( objOrObjId ) // {{{
-	{ 
-		if (!objOrObjId) return;
-		// takes a string id or the object
-		var argType = artfulrobot.typeof(objOrObjId);
-		var objId;
-		var obj;
-		
-		if (argType == 'string' ) 
-		{
-			objId = objOrObjId;
-			obj = this.subObjects[objId];
-		}
-		else if (argType == 'object') 
-		{
-			objId = objOrObjId.getId();
-			obj = objOrObjId;
-		}
-		else  throw "destroySubObject got type " + argType + " needed id or object of an ARL object (PS. also, I ignore null/false)";
-
-		if (this.debugLevel>0) console.info(this.name + '.destroySubObject called for '+objId);
-		// possible for this to fail if the calling code has somehow messed something up,
-		// so we do the test for the subObject before destroy()ing it.
-		if (obj)
-		{
-			// if we have a localAlias to this object, we need to drop that
-			var localAlias = obj.aliasedAs ;
-
-			obj.destroy();
-			delete this.subObjects[objId];	// our reference
-			delete artfulrobot.arlObjects[objId];			// global reference
-			delete obj;
-			if (localAlias) this[localAlias]=false;
-		}
-	}, // }}}
-	destroy: function()  // {{{
-	{
-		// called by parent's destroySubObject method.
-		// we are being destroyed.
-		//
-		// recursive bit: call .destroySubObject() on any subObjects
-		// xxx 
-		if (this.debugLevel>0) console.log( this.name + '->destroy called');
-		for (var id in this.subObjects)
-			this.destroySubObject( id );
-
-		// call .cleanup() which should be over-ridden by 
-	    // classes extending this one to remove html etc. that they created.
-		this.cleanup();	
-	}, // }}}
-	cleanup: function( )// {{{
-	{ }, // override this  }}}
-	connectSignal: function( sigType, receivingSlotMethod ) // {{{
-	{
-		if ( typeof this.signals[sigType] == 'undefined' ) this.signals[sigType] = [];
-		this.signals[sigType].push( receivingSlotMethod );
-	}, // }}}
-	toString: function() // {{{
-	{
-		msg =  "[" + this.name + "] Object";
-		return msg;
-	}, // }}}
-	setSessionDefaults: function( defs ) // {{{
-	{
-		/** setSessionDefaults checks that each key of defs exists in this._SESSION
-		 *  and if not, creates it with the value from defs.
-		 *  Does not overwrite anything that is there.
-		 */
-		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
-		for (key in defs)
-		{
-			if ( typeof this._SESSION[ key ] == 'undefined' )
-				this._SESSION[ key ] = defs[ key ];
-		};
-	}, // }}}
-	getObjectByName: function (name) //{{{
-	{
-		// go through all objects looking for one of class 'name'
-		// return reference to it.
-		// or null
-		for (i in artfulrobot.arlObjects)
-		{
-			if ( artfulrobot.arlObjects[i].name == name ) return artfulrobot.arlObjects[i];
-		}
-		return undefined;
-	}, // }}}
-});
-// }}}
-ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{
-{
-	localInitialise: function()  // {{{
-	{ 
-		this.pingInABit();
-	}, // }}}
-	pingInABit:function()//{{{
-	{
-		// ping every 2 minutes
-		this.timer = setTimeout( this.getCallback('ping'), 1000*60*2 );
-	},//}}}
-	ping: function()  // {{{
-	{ 
-		artfulrobot.ajax.request( {arlClass: 'keepalive'}, '', this.getCallback('pingRtn') );
-	}, // }}}
-	pingRtn: function(obj)  // {{{
-	{ 
-		if (! obj.success)
-		{
-			alert("Keep alive failed!");
-			throw "Keep alive failed!";
-		}
-		else 
-		{	
-			this.pingInABit();
-		}
-	}, // }}}
-	cleanup: function()  // {{{
-	{ 
-		if (this.timer) clearTimeout( this.timer );
-	} // }}}
-}); // }}}
-
 artfulrobot.htmlentities = {/*{{{*/
 	hellip : '\u2026',
 	nbsp   : '\u00a0',
@@ -950,3 +301,674 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 	myDebug && console.log('Complete');
 	return df;
 } // }}}
+artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
+	initialise: function()
+	{
+		for (var i in arguments) this.details.push(arguments[i]);
+		this.message = this.details[0];
+		console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
+	},
+	details:[],
+	toString:function()
+	{
+		var msg="artfulrobot.Exception :"+this.message;
+		for (x in this.details) msg += "\n" + this.details[x];
+		return msg;
+	}
+});/*}}}*/
+/* functions for making forms easier */
+artfulrobot.getRadioValue = function( radioGroupName ) // {{{
+{
+	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
+	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
+	if ( selectedElement  ) return selectedElement[0].value;
+	return null; 
+} // }}}
+artfulrobot.setSelectOptionByValue = function( selectNode, val ) // {{{
+{
+	jQuery( selectNode ).find('option').each( function(i,optNode)
+		{ 
+			optNode.selected = (optNode.value==val); 
+		});
+} // }}}
+
+// artfulrobot.AjaxClass main ajax class {{{ 
+artfulrobot.AjaxClass = artfulrobot.defineClass( 
+{
+/** Main Ajax class
+ *  Deals with making ajax requests and parsing the responses
+ *  into chunks of html(/text), js code, json object, error message
+ *
+ */
+	initialise: function( opts ) // {{{
+	{
+		this.requestFrom = 'ajaxprocess.php'; // default
+		this.method = 'get'; // default
+		this.requests = {};
+		this.uniqueCounter = 1;
+
+		opts = opts || {};
+		if (opts.requestFrom) this.setRequestFrom(opts.requestFrom);
+		if (opts.method) this.setMethod(opts.method);
+	},// }}}
+	setRequestFrom: function (requestFrom) // {{{
+	{
+		// set the script to use for ajax requests.
+		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
+	}, // }}}
+	setMethod: function (postOrGet) // {{{
+	{
+		if (postOrGet == 'get' || postOrGet == 'post') this.method=postOrGet;
+		else throw new Error("ajax method must be post or get"); 
+	}, // }}}
+	liveRequests: function () // {{{
+	{
+		// count this.requests
+		return artfulrobot.countKeys(this.requests);
+	}, // }}}
+	request: function( parmsObject, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
+	{
+		/* We number requests, and return this number. 
+		 * 
+		 * Requests are stored in the object (hash) this.requests, which is an 
+		 * object of objects containing statusText (optional string for debugging) and requestURI
+		 *
+		 */
+		
+		// need onSuccessCallback fundction, even if it is blank
+		if ( typeof(onSuccessCallback) == 'undefined' )  onSuccessCallback=function(){};
+
+		var requestId = 'ajax' + this.uniqueCounter++;
+
+		var parms;
+		if ( typeof parmsObject == 'string' ) parms = parmsObject;
+		else 
+		{
+			// map false|undefined to zls because it's likely parsed as a string
+			// the other end, so 'false' == true.
+			for (k in parmsObject)
+			{
+				if (parmsObject[k]===false
+					|| parmsObject[k]===undefined) parmsObject[k]='';
+			}
+			parms = jQuery.param(parmsObject);
+		}
+
+		// create absolute debug uri
+		if (this.requestFrom.match( /^\// ))
+			debugURI = window.location.protocol + '//' 
+				+ window.location.host 
+				+ this.requestFrom ;
+		else // requestFrom is relative uri
+		{
+//			alert( this.requestFrom); alert( window.location.pathname); alert( window.location.pathname.replace( /^(.+\/).+?$/,'$1' ));
+			debugURI = window.location.protocol + '//' 
+				+ window.location.host 
+				+ window.location.pathname.replace( /^(.+\/)[^\/]*?$/,'$1' )
+				+ this.requestFrom ;
+		}
+		debugURI += '?' + parms + '&ajax=2',
+
+		this.requests[ requestId ] = 
+		{ 
+			statusText:	( statusText ? statusText : '' ),
+			debugURI: debugURI,
+			outputHtmlInsideElement: outputHtmlInsideElement,
+			onSuccessCallback: onSuccessCallback,
+			live: 1,
+			stage: 'request'
+		};
+		console.info(requestId + ' debug: ' + debugURI);
+
+		// override this method if needed
+		this.requestStarts( this.requests[ requestId ] );
+
+		// make request
+		jQuery.ajax( 
+			this.requestFrom,
+			{
+				data:parms,
+				type:this.method,
+				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
+				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
+			} );
+
+		return requestId;
+	}, // }}}
+	requestEnded: function( requestId ) // {{{
+	{
+		this.requestEnds( this.requests[requestId] );
+		delete this.requests[requestId];
+		//this.requests[requestId].live = 0;
+	}, // }}}
+	onFailure: function(requestId, t)  // {{{
+	{ 
+		alert( requestId + ': Problem! error: '+t.status+'--'+t.statusText );
+		t.responseText='';
+		this.requestEnded();
+	}, // }}}
+	onSuccess: function(requestId, t) // {{{
+	{
+		/* This returns 
+		{objectLength:nnn, errorLength:nnn, codeLength:nnn }
+		object
+		error
+		text
+		*/
+		var rqst = this.requests[requestId];
+		rqst.stage = 'response-parse-stage-1';
+		rqst.t = t;
+		try
+		{
+			var rsp = t;
+			var i;
+			i   = rsp.indexOf('}')+1;
+			if ( ! i) 
+			{
+				rqst.stage = 'response-parse-stage-1 FAIL';
+				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Expected } but none found.', requestId, rsp );
+				return;
+			}
+			rqst.stage = 'response-parse-stage-2';
+			// unpack json into chunks variable
+			chunks = rsp.substr(0,i);
+			if ( ! /^\{.*?\}$/.test(chunks)) 
+			{
+				rqst.stage = 'response-parse-stage-2 FAIL';
+				this.seriousError('Bad ajax response. I cannot recognise a structure definition in the response. Structure definition failed regexp.', requestId, rsp );
+				return;
+			}
+			try { 
+				rqst.stage = 'response-parse-stage-3';
+				var chunks = jQuery.parseJSON(rsp.substr(0,i));
+			}
+			catch(e) 
+			{ 
+				rqst.stage = 'response-parse-stage-3 FAIL';
+				this.seriousError('Bad ajax response. Javascript failed to parse structure definition found in the response', requestId, rsp );
+				return;
+			}
+
+
+			// json object returned?
+			var obj = rsp.substr(i,chunks.objectLength);
+			i += parseInt(chunks.objectLength);
+			if (obj) 
+			{
+				try {
+					rqst.stage = 'response-parse-json';
+					obj = jQuery.parseJSON(obj);
+				}
+				catch(e) 
+				{ 
+					rqst.stage = 'response-parse-json FAIL';
+					this.seriousError('Bad ajax response. Javascript failed to parse returned JSON object', requestId, rsp );
+					return;
+			   	}
+			}
+			else obj = {};
+
+			rqst.stage = 'response-parse-error and text';
+			// error returned?
+			var error = rsp.substr(i,chunks.errorLength);
+			i+=parseInt(chunks.errorLength);
+
+			// text returned?
+			var text = rsp.substr(i);
+		}
+		catch(e)
+		{
+			rqst.stage = 'response-parse FAIL';
+			console.error(e);
+			this.seriousError('Bad ajax response.', requestId, rsp );
+			return;
+		}
+
+		// show any non-serious error to user
+		if (error) alert(error);
+
+		rqst.stage = "replace element innerHTML...";
+		// update the element if given, and if there's html 
+		// returned from the ajax call
+		if (text!='' && rqst.outputHtmlInsideElement!='') 
+		{
+			var node = rqst.outputHtmlInsideElement;
+			if ( typeof node == 'string' ) node = jQuery('#'+node);
+			else node = jQuery(node);
+			node.html(text);
+		}
+		// do extra stuff
+		rqst.stage = "callback";
+		try
+		{
+			// we add this to the object so the caller can know whether it's the one they were expecting to process!
+			obj.requestId = requestId;
+			this.requests[requestId].onSuccessCallback(obj, text);
+		}
+		catch(e)
+		{
+			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, artfulrobot.ajax.requests[requestId]);
+			return;
+		}
+
+		this.requestEnded(requestId);
+	}, // }}}
+	seriousError: function( errorMsg, requestId, responseText ) // {{{
+	{
+		console && console.error && console.error( errorMsg, requestId, " ",  responseText);
+		var errorReport = window.open();
+		errorReport.document.write( 
+				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
+				+'<body>'
+				+ '<h2>Error: ' + errorMsg + '</h3><p><a href="'
+				+ this.requests[requestId].debugURI
+				+ '" >Re-issue request with php debugging on</a></p>' 
+				+ '<h3>Request:</h3><div>'
+				+ this.requests[requestId].debugURI.replace( /^(.+?)\?.+$/, '$1' )
+				+ '<br /><pre>'
+				+ this.requests[requestId].debugURI.replace( /^(.+?)\?(.+)$/, '$2' ).replace( /&/g, '<br />' )
+				+ '</pre></div>'
+				+ '<h3>Response received:</h3><div>'
+				+ responseText
+				+'</div></body></html>');
+
+	}, // }}}
+	requestEnds: function( requestObj ) { },
+	requestStarts: function( requestObj ) { },
+	dump:function() // {{{
+	{
+		console.log(this.requests);
+	} // }}}
+});
+// set up default instance
+artfulrobot.ajax = new artfulrobot.AjaxClass();
+// }}}
+
+// artfulrobot.ARLObject  -- all arlObjects inherit from this {{{
+/** ARLObject documentation {{{
+ *
+ * Usual set up for a web application is to start with a single one:
+ * var myApp = new artfulrobot.ARLObject();
+ * 
+ * and then to add in sub object(s) with
+ * myApp.addSubObject( 'yourExtendedClassName', [optional args Array] );
+
+ * As well as each instance of ARLObject keeping a record of its own sub
+ * objects, *all* objects are given a unique id and registered globally on the
+ * artfulrobot.arlObjects object. This id (accessible through obj.getId()
+ * method) can be passed in ajax requests and means that code can be returned
+ * from the server that directly calls a specific object's method. Obv. it's
+ * nicer to do all your binding with js, but if needed you can do like
+ * <span onclick='artfulrobot.arlObjects.$yourId.someMethodName()' >
+
+ * Each object can communicate with others via "shouting". 
+ * object's .shout method passes a sigType (string) and an dataObj (object) up
+ * the inheritance chain until an object has no parent. Then the same data is
+ * then fed down to the .abstractHear method, which calls the .hear method
+ * before feeding the same data down to all the subObjects' .abstractHear
+ * methods, recursively.
+
+ * The idea is that a .hear method can listen out for signals by the value of
+ * sigType.  Nb. An object does not .hear itself shout.
+
+ * The dataObj object can contain whatever data is needed for anything to deal
+ * with the shouted signal. Eg. if some field has been updated, the dataObject
+ * might include the fieldname and the new value. Or, if needed it could
+ * include the full record, including the updated field.
+ * As a js. object it can also include callback functions etc. if really needed.
+
+ * Objects reference their parent through .myParent However, the idea is that
+ * objects can be re-used, so if an object relies on a parent method existing
+ * then it means *all* potential parents need that method, which is not cool.
+ * Better is to use signals.
+
+ * Signals
+
+ * An object can contain methods that deal with a particular signal from
+ * a particular object.  These should be connected to the
+ * 2nd object with the .connectSignal method. Then, when the 2nd object shouts
+ * with that signal, the signal goes only to the connected slot(s), instead of
+ * being broadcast to all objects. 
+
+ * Usually it is a parent that connects one of its slots with a signal from a child object.
+ * 
+ * =======Example 1: connecting sub-object's signal to parent's slot ===========
+ * usefulObject...
+ * getSomeName: function
+ * {
+ * 	this.addSubObject( NameFinderGUI, [], 'myNameFinderGUI' );
+ * 	this.myNameFinderGUI.connectSignal( 'nameFound', this.getCallback('nameFoundHandler') );
+ * }
+ * nameFoundHandler: function( sigType, dataObj )
+ * {
+ * 	// note "this" refers to this object, as you'd expect
+ * 	// because you created the callback with getCallback()
+ * 	var name = dataObj.name;
+
+ * 	// do something with name
+ * 	this.myNamesList.push( name );
+
+ * 	// destroy the nameFinderGUI object
+ * 	this.destroySubObject( this.myNameFinderGUI );
+ * }
+ * 
+ * nameFinderGUI ...
+ * userFinishedSelectingName: function()
+ * {
+ * 	this.shout( 'nameFound', {name:this.nameTheySelected} );
+ * }
+ * ==================================================
+ * 
+ *
+ * }}}	*/
+// Global collection of arlObjects
+artfulrobot.arlObjects = {};
+// Main class: all ARLObject classes must inherit from this
+artfulrobot.ARLObject = artfulrobot.defineClass(
+{
+	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
+	debugLevel: 1,
+	sharedMethods: {},
+	initialise: function( parentItem, myName, session, argsArray )// {{{
+	{
+		// needs to know the parent object, in case it needs to shout (to siblings)
+		// this will be undefined for the first object created.
+		this.myParent = parentItem;
+
+		// class name
+		this.name = ( typeof myName == 'undefined' 
+				? 'ARLObject' // first/main object will be this one
+				: myName);
+
+		if (this.debugLevel>1) console.info(this.name + '.initialize');
+		if (this.debugLevel>1) console.log(' session: ', session );
+
+		// increment nextId so all Ajah_rl_AbstractObjects will have unique ids
+		artfulrobot.ARLObject.prototype.nextId++;
+		this.myId = 'arlObjId' + this.nextId;  
+
+		// container object  - by defining it here it's not part of the prototype
+		this.subObjects   = {}; 
+
+		// signals - methods that send signals from other objects
+		this.signals = {};
+
+		this.initialiseSession(session);
+
+		// local initialize:
+		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
+		if (artfulrobot.typeof(argsArray)!='array') argsArray = [];
+		this.localInitialise.apply(this, argsArray);
+		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
+		if (this.debugLevel>1) console.log('ends');
+	}, // }}}
+	initialiseSession: function(session) // override if necessary {{{
+	{
+		// console.log(this.name + '.initializeSession() called')
+		this._SESSION = (typeof session == 'object' ? session : {} );
+	}, // override this including setting this.name to the name of the object that extends this }}}
+	localInitialise: function(  )// abstract - must override {{{
+	{ }, // override this including setting this.name to the name of the object that extends this }}}
+	getId: function() { return this.myId; },
+	shout: function( sigType, dataObj ) // {{{
+	{ 
+		if (this.debugLevel>1) console.info(this.name + '.shout called for '+sigType);
+
+		// append reference to self to dataObject
+		if ( typeof dataObj == 'undefined' ) dataObj = {};
+		if ( typeof dataObj.shoutedBy == 'undefined' ) dataObj.shoutedBy = this;
+
+		// check if this sigType is connected to particular slot(s)
+		if ( typeof this.signals[ sigType ] != 'undefined' )
+		{
+			var signalTo = this.signals[ sigType ];
+			var l =signalTo.length;
+			if (this.debugLevel>1) console.log( 'signalling direct to ' + l + ' slots ');
+			for ( i=0; i<l ; i++ ) signalTo[i]( sigType, dataObj );
+		}
+		else if (this.myParent ) this.myParent.shout( sigType, dataObj );  // pass on shouts to parent.
+		else this.abstractHear( sigType, dataObj ); // _we_ are oldest ancestor start hearing and telling children
+
+		if (this.debugLevel>1) console.log('ends');
+	}, // }}}
+	abstractHear: function(sigType, dataObj)  // {{{
+	{
+		// default, pass it down to subObjects
+		if (this.debugLevel>0) console.info(this.name + '.hear with sigType: ' + sigType);
+		if (dataObj.shoutedBy.myId != this.myId ) this.hear(sigType, dataObj);
+		if (this.debugLevel>1) console.log('back from local hear, calling abstractHear on subobjects..');
+		for (var id in this.subObjects)
+			this.subObjects[id].abstractHear(sigType,dataObj); 
+		if (this.debugLevel>1) console.log('ends');
+	}, // }}}
+	hear: function(sigType, dataObj)  // override this {{{
+	{ }, // }}}
+	addSubObject: function( objClass, argsArray, localAlias ) // {{{
+	{ 
+		if (this.debugLevel>1) console.info(this.name + '.addSubObject called for objClass: ' + objClass);
+		// objClass should be string name for the class
+		// argsArray should be an array that is passed to the class constructor
+
+		// get name of class
+		var soName = 'unknown';
+		if (typeof objClass == 'string') 
+		{
+			soName   = objClass; 		// store name
+			if ( ! window[objClass] ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: Class '"+objClass+"' is unknown");
+			objClass = window[objClass];// reference 'class' itself
+		}
+		if ( ! artfulrobot.typeof(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
+		// create new abstract object
+		// Arguments:
+		// 		this, 		reference will be saved in object's myParent property
+		// 		soName,		name of subObject class, stored in object's name property
+		//		session 	object given from this to the sub object
+		//		argsArray	as passed to us
+		var newObj = new objClass( this, soName, this.getSessionForSubObject(soName), argsArray ); 
+		if (this.debugLevel>1) console.log(this.name + '.addSubObject: new object created', newObj);
+		
+		// connect child signal 'saveSession' to our slotSaveSession
+		newObj.connectSignal( 'saveSession', this.getCallback('saveSubObjSession') );
+
+		// keep reference to our subObject in our subObjects collection
+		this.subObjects[newObj.myId] = newObj ;  // used for shouting.
+
+		// keep global reference to object so it can be accessed directly
+		// by knowing it's 'arlObjId' 
+		artfulrobot.arlObjects[newObj.myId] = newObj; 			// global reference 
+
+		// aliasing makes a property with that name that references the
+		// object. When the object is destroyed, this is set false.
+		if (localAlias)
+		{
+			newObj.aliasedAs = localAlias;
+			this[localAlias] = newObj;
+		}
+
+
+		if (this.debugLevel>1) console.info(this.name + '.addSubObject done');
+		if (this.debugLevel>1) console.log('ends');
+		// return new object for chaining.
+		return newObj; 
+	}, // }}}
+
+	getSessionForSubObject: function ( soName ) // {{{
+	{ 
+		var x = {};
+		if (   typeof this._SESSION.subObjects != 'undefined'  )
+		{
+		    if ( typeof this._SESSION.subObjects[soName] != 'undefined' )
+			{
+			   x= this._SESSION.subObjects[soName];
+			}
+			else if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined for ' + soName );
+		}
+		else if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject _SESSION.subObjects undefined' );
+		if (this.debugLevel>1) console.log(this.name + '.getSessionForSubObject: ' , this._SESSION );
+		if (this.debugLevel>1) console.info(this.name + '.getSessionForSubObject: returning ' , x );
+		return x;
+	}, // }}}
+	saveSession: function ( newFriendlyName, newTitle ) // {{{
+	{ 
+
+		/**saveSession shouts 'saveSession' signal which should be received directly 
+		 * by parent object's saveSubObjSession()
+		 */
+		if (this.debugLevel>1) console.info( this.name+'.saveSession');
+		if (this.debugLevel>1) console.log(  this._SESSION );
+		if ( this.myParent ) this.shout('saveSession', 
+				{
+					'id' : this.myId,
+					'name' : this.name,
+					'sessionObj' : this._SESSION,
+					'newFriendlyName' : newFriendlyName,
+					'newTitle' : newTitle,
+				} );
+	}, // }}}
+	saveSubObjSession : function (sigType, obj) // hears subObject's saveSession call {{{
+	{ 
+		if (this.debugLevel>1) console.info(this.name + '.slotSaveSession');
+		if (this.debugLevel>1) console.info(obj);
+		// obj contains:
+		// 	'id' subObject id
+		// 	'sessionObj' : _SESSION
+		if ( typeof this._SESSION.subObjects == 'undefined' ) this._SESSION.subObjects = {};
+		this._SESSION.subObjects[ obj.name ] = obj.sessionObj;
+
+		// pass up the chain of parents
+		// the main controller parent would override the saveSession method
+		// with code that would stringify it's this._SESSION variable
+		// and send an ajax request to store it.
+		this.saveSession( obj.newFriendlyName, obj.newTitle );
+	}, // }}}
+
+	destroySubObject: function ( objOrObjId ) // {{{
+	{ 
+		if (!objOrObjId) return;
+		// takes a string id or the object
+		var argType = artfulrobot.typeof(objOrObjId);
+		var objId;
+		var obj;
+		
+		if (argType == 'string' ) 
+		{
+			objId = objOrObjId;
+			obj = this.subObjects[objId];
+			if (typeof('ojb')=='undefined')
+			   throw new artfulrobot.Exception(
+					   'destroySubObject called for "'
+					   +objOrObjId+'" which is not valid id. I have: '
+					   +artfulrobot.objectKeys(this.subObjects).join(', '),
+				this.subObjects);
+		}
+		else if (argType == 'object') 
+		{
+			objId = objOrObjId.getId();
+			obj = objOrObjId;
+		}
+		else  throw "destroySubObject got type " + argType + " needed id or object of an ARL object (PS. also, I ignore null/false)";
+
+		if (this.debugLevel>1) console.info(this.name + '.destroySubObject called for '+objId);
+		// possible for this to fail if the calling code has somehow messed something up,
+		// so we do the test for the subObject before destroy()ing it.
+		if (obj)
+		{
+			// if we have a localAlias to this object, we need to drop that
+			var localAlias = obj.aliasedAs ;
+
+			obj.destroy();
+			delete this.subObjects[objId];	// our reference
+			delete artfulrobot.arlObjects[objId];			// global reference
+			delete obj;
+			if (localAlias) this[localAlias]=false;
+		}
+	}, // }}}
+	destroySubObjects: function () // {{{
+	{ 
+		if (this.debugLevel>-1) console.info(this.name + '.destroySubObjects '+this.myId, this.subObjects);
+		// recursive bit: call .destroySubObject() on any subObjects
+		for (var id in this.subObjects) 
+			this.destroySubObject( id );
+	}, // }}}
+	destroy: function()  // {{{
+	{
+		if (this.debugLevel>1) console.log( this.name + '->destroy called');
+		// called by parent's destroySubObject method.
+		// we are being destroyed.
+		this.destroySubObjects();
+
+		// call .cleanup() which should be over-ridden by 
+	    // classes extending this one to remove html etc. that they created.
+		this.cleanup();	
+	}, // }}}
+	cleanup: function( )// -override this- {{{
+	{ }, // }}}
+	connectSignal: function( sigType, receivingSlotMethod ) // {{{
+	{
+		if ( typeof this.signals[sigType] == 'undefined' ) this.signals[sigType] = [];
+		this.signals[sigType].push( receivingSlotMethod );
+	}, // }}}
+	toString: function() // {{{
+	{
+		msg =  "[" + this.name + "] Object";
+		return msg;
+	}, // }}}
+	setSessionDefaults: function( defs ) // {{{
+	{
+		/** setSessionDefaults checks that each key of defs exists in this._SESSION
+		 *  and if not, creates it with the value from defs.
+		 *  Does not overwrite anything that is there.
+		 */
+		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
+		for (key in defs)
+		{
+			if ( typeof this._SESSION[ key ] == 'undefined' )
+				this._SESSION[ key ] = defs[ key ];
+		};
+	}, // }}}
+	getObjectByName: function (name) //{{{
+	{
+		// go through all objects looking for one of class 'name'
+		// return reference to it.
+		// or null
+		for (i in artfulrobot.arlObjects)
+		{
+			if ( artfulrobot.arlObjects[i].name == name ) return artfulrobot.arlObjects[i];
+		}
+		return undefined;
+	}, // }}}
+});
+// }}}
+ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{
+{
+	localInitialise: function()  // {{{
+	{ 
+		this.pingInABit();
+	}, // }}}
+	pingInABit:function()//{{{
+	{
+		// ping every 2 minutes
+		this.timer = setTimeout( this.getCallback('ping'), 1000*60*2 );
+	},//}}}
+	ping: function()  // {{{
+	{ 
+		artfulrobot.ajax.request( {arlClass: 'keepalive'}, '', this.getCallback('pingRtn') );
+	}, // }}}
+	pingRtn: function(obj)  // {{{
+	{ 
+		if (! obj.success)
+		{
+			alert("Keep alive failed!");
+			throw "Keep alive failed!";
+		}
+		else 
+		{	
+			this.pingInABit();
+		}
+	}, // }}}
+	cleanup: function()  // {{{
+	{ 
+		if (this.timer) clearTimeout( this.timer );
+	} // }}}
+}); // }}}
+
