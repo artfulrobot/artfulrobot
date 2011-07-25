@@ -667,7 +667,7 @@ artfulrobot.arlObjects = {};
 artfulrobot.ARLObject = artfulrobot.defineClass(
 {
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
-	debugLevel: 1,
+	debugLevel: 0,
 	sharedMethods: {},
 	initialise: function( parentItem, myName, session, argsArray )// {{{
 	{
