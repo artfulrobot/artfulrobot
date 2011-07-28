@@ -150,10 +150,10 @@ class ARL_Debug
 		// figure out scope {{{
 		$tmp='';
 		$backtrace = debug_backtrace();
-		if ($backtrace = isgiven($backtrace,1))
+		if ($backtrace = ARL_Array::value(1,$backtrace))
 		{
-			$tmp=isgiven($backtrace,'function');
-			if ( $tmp!='debug' ) $tmp= isgiven($backtrace,'class')	. isgiven($backtrace,'type') .$tmp ;
+			$tmp=ARL_Array::value('function',$backtrace);
+			if ( $tmp!='debug' ) $tmp= ARL_Array::value('class',$backtrace)	. ARL_Array::value('type',$backtrace) .$tmp ;
 		}
 		$newRow['scope'] = $tmp;
 		unset($backtrace); // conserve memory? }}}
@@ -205,10 +205,10 @@ class ARL_Debug
 
 		return true;
 	}//}}}
-	static public function set_on($v)   //{{{
+	static public function set_on($v=true)   //{{{
 	{
-		self::init();
 		self::$running = (bool) $v;
+		self::init();
 	}//}}}
 	static public function set_silent($v)   //{{{
 	{
@@ -273,7 +273,7 @@ class ARL_Debug
 		foreach ($backtrace as $row)
 		{
 			$tmp .= "<tr>";
-			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(isgiven($row,$f)) . "</td>";
+			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(ARL_Array::value($f,$row)) . "</td>";
 			$tmp .= "</tr>";
 		}
 		$tmp .= "</table>";
@@ -350,7 +350,7 @@ class ARL_Debug
 		/* Don't execute PHP internal error handler */
 		return true;
 	} // }}}
-	// static public function handle_exception($errno, $errstr, $errfile, $errline) // {{{
+	// static public function handle_exception($exception) // {{{
 	/** exception handler 
 	 */
 	static public function handle_exception($exception)
@@ -362,17 +362,56 @@ class ARL_Debug
 		if(0){
 			$tmp = "<table border=\"1\"><tr>";
 			foreach($cols as $f) $tmp.= "<th>$f</th>";
-			$backtrace = $exception->getBacktrace();
+			$backtrace = $exception->getTrace();
 			foreach ($backtrace as $row)
 			{
 				$tmp .= "<tr>";
-				foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(isgiven($row,$f)) . "</td>";
+				foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(ARL_Array::value($f,$row)) . "</td>";
 				$tmp .= "</tr>";
 			}
 			$tmp .= "</table>";
 		}
 		self::log("TOP Uncaught Exception: ". ( $exception->getCode() ? '(code ' . $exception->getCode() . ')' : '' ) . $exception->getMessage() , $exception->getTraceAsString());
 		self::fatal("FATAL: Uncaught exception");
+	} // }}}
+	// static public function backtrace() // {{{
+	/** insert backtrace
+	  * @param $exception Exception|string message
+	 */
+	static public function backtrace($exception=null)
+	{
+		self::init();
+
+		if ($exception instanceof Exception) 
+		{
+			$backtrace = debug_backtrace();
+			$row = array(
+				'line' => $exception->getLine(),
+				'file' => $exception->getFile());
+			array_unshift($backtrace,$row);
+			$message = $exception->getMessage();
+		}
+		else 
+		{
+			$backtrace = $exception->getTrace();
+			$message = $exception;
+		}
+		if (! $message) $message = "Backtrace";
+
+		// make table for backtrace
+		$cols=explode('|','file|line|function|class');
+
+		$tmp = "<table border=\"1\"><tr>";
+		foreach($cols as $f) $tmp.= "<th>$f</th>";
+		foreach ($backtrace as $row)
+		{
+			$tmp .= "<tr>";
+			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(ARL_Array::value($f,$row)) . "</td>";
+			$tmp .= "</tr>";
+		}
+		$tmp .= "</table>";
+
+		self::log("TOP $message".$tmp,$backtrace,false);
 	} // }}}
 	static public function legacy_api( $command , $args=false ) // {{{
 	{
