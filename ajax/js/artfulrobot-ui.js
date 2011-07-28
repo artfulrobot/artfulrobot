@@ -235,7 +235,9 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 						});
 			} );
 
-		if ( artfulrobot.typeof(options.filterable) == 'object' ) {
+		options = options || {};
+
+		if ( artfulrobot.typeof(options.filterable) == 'array' ) {
 			for(i in options.filterable) this.filterable( options.filterable[i] );
 		}
 		else if ( artfulrobot.typeof(options.filterable) == 'number' )
@@ -433,8 +435,7 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 	reset: function() // {{{
 	{
 		// unselect any row
-		var rows = $A(this.table.getElementsByTagName('tr'));
-		rows.each( function (tr) { tr.removeClass('selected'); });
+		this.table.find('tr').removeClass('selected');
 		this.lastSelected = false;
 	}, //}}}
 	selectRow: function(needle, colIndex) // {{{
@@ -445,140 +446,4 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 		for (i=0;i<m;i++) { if ( needle == this.nodesArray[i][colIndex].textContent ) { found=i;break;} }
 		this.clicked( { target: this.nodesArray[found][colIndex] }, found, colIndex );
 	}, // }}}
-}); // }}}
-// ARLObjectWithHistory -- for session/history/back button {{{
-var ARLObjectWithHistory = artfulrobot.defineClass( artfulrobot.ARLObject,
-{
-/** ARLObjectWithHistory 
- *  This inherits from artfulrobot.ARLObject and provides additional functionality for
- *  sessions and history (i.e. helps get the back button working again)
- */
-	initialise: function(parentItem, myName, session, argsArray )// {{{
-	{
-		console.warn('ARLObjectWithHistory');
-		// as we're being set up, we should discard the history part of the hash
-		// get friendlyName used to dispatch the initial page.
-		hash = window.location.hash;
-		friendlyName = hash.replace( /^#/ , '').replace( /\.h\d+$/ , '' );
-
-		this.history = 
-		{
-			sessions       : {},
-			intervalId     : 0,
-			currentHash    : hash,
-			id             : 1,
-			friendlyName   : friendlyName,
-			ignoreNextSave : false,
-		};
-		this.sessionHisory = {};
-		// call our parent initialze method now.
-		console.warn('ARLObjectWithHistory2');
-		this.$initialise( parentItem, myName, session, argsArray );
-		console.warn('ARLObjectWithHistory3');
-	},//}}}
-	saveSession: function ( newFriendlyName, newTitle ) // Overrides the abstract {{{
-	{ 
-		/** We are at the top, the trunk. 
-		 *	We have to actually do the saving.
-		 *	For time being, this is just pushing it onto an array
-		 */
-		if (this.debugLevel>0) console.group(this.name + '.saveSession called with ' + newFriendlyName);
-
-		if (this.history.ignoreNextSave)
-		{	
-			this.history.ignoreNextSave = false;
-			if (this.debugLevel>0) console.log(this.name + '.saveSession ignoring request (because dealing with a Back button) ');
-		}
-		else
-		{
-
-			// generate new history Id
-			this.history.id++;
-
-			// store current session in history
-			this.history.sessions[ this.history.id ] = JSON.stringify( this._SESSION );
-		
-			// update friendly name 
-			if ( typeof newFriendlyName == 'string' ) this.history.friendlyName = newFriendlyName;
-
-			// update location
-			this.historyUpdateHash();
-
-		}
-
-
-		// update page title (must be done after location update so that correct title is stored in browser history)
-		if ( newTitle ) document.title = newTitle;	
-
-		if (this.debugLevel>0) console.groupEnd();
-	}, // }}}
-	historySetFriendlyName: function( newHash ) // {{{
-	{
-		/** some process is changing the hash
-		 *  as opposed to the user changing it with "back" 
-		 *  
-		 *  Needs to append current history version at end
-		 */
-
-		// remember this friendlyName
-		// check newHash does not contain .hNNN and remove if so.
-		// check it doesn't start with a hash
-		this.history.friendlyName = newHash.replace( /^\.h\d+$/, '' ).replace( /^#/ , '' );
-
-		// add to browser history
-		this.historyUpdateHash();
-	},// }}}
-	historyUpdateHash: function( ) // {{{
-	{
-		/** (would-be private method)
-		 *  Add to browser history by setting 
-		 *  window.location.hash based on template
-		 *
-		 */
-		clearInterval( this.history.intervalId );
-		this.history.currentHash = window.location.hash =
-		   	  '#'  + this.history.friendlyName  
-			+ '.h' + this.history.id ;
-		this.historyObserver();
-
-	},// }}}
-	historyObserver: function( ) // {{{
-	{
-		/** (would-be private method)
-		 *  start monitoring 
-		 */
-		this.history.intervalId  = setInterval( this.historyCheck.bind(this), 300);
-		if (this.debugLevel>0) console.info(this.name + '.historyObserver called, interval now: ' + this.history.intervalId);
-	},// }}}
-	historyCheck: function() // {{{
-	{
-		/** check if the window hash has changed (i.e. user clicked Back)
-		 */
-		// console.log( this.name + '.historyCheck');
-		if (this.history.currentHash == window.location.hash) return false;
-		if (this.debugLevel>0) console.group('User pressed back/forward. expecting, got follow:', this.history.currentHash, window.location.hash);
-		// change has happened.
-		var hash = this.history.currentHash = window.location.hash;
-		var historyId = hash.replace( /^#.*\.h(\d)$/ , '$1' );
-		// strip any history and first #
-		this.history.friendlyName = hash.replace( /\.h(\d)$/ , '' ).replace( /^#/, '' );
-
-		if (this.debugLevel>0) console.log('Going back to session history id : ' +historyId);
-
-		// first split off #.NNN and try to load that session
-		if ( typeof this.history.sessions[historyId] !== 'undefined' )
-		{
-			this._SESSION = this.history.sessions[historyId].evalJSON(true);
-			if (this.debugLevel>0) console.info( 'Loaded previous session data: ' + Object.toJSON(this._SESSION));
-		}
-		else if (this.debugLevel>0) console.log('No previous session data');
-
-		this.history.ignoreNextSave = true;
-		// second, call dispatcher for friendlyName 
-		this.dispatch( this.history.friendlyName );
-		if (this.debugLevel>0) console.groupEnd();
-	}, //}}}
-	dispatch: function ( code ) // override this {{{
-    {
-    } // }}}
 }); // }}}

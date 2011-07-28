@@ -112,6 +112,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 
 	// add in our getCallback method 
 	arlClass.prototype.getCallback = function (method) {/*{{{*/
+		if (! this[method]) throw new artfulrobot.Exception("getCallback: Object does not have '"+method+"'",this);
 		// reference to our instance
 		var context=this;
 		// if we were passed any other arguments beyond method,
@@ -329,6 +330,13 @@ artfulrobot.setSelectOptionByValue = function( selectNode, val ) // {{{
 	jQuery( selectNode ).find('option').each( function(i,optNode)
 		{ 
 			optNode.selected = (optNode.value==val); 
+		});
+} // }}}
+artfulrobot.setSelectOptionByText = function( selectNode, text ) // {{{
+{
+	jQuery( selectNode ).find('option').each( function(i,optNode)
+		{
+			optNode.selected = (jQuery(optNode).text()==text); 
 		});
 } // }}}
 
@@ -667,7 +675,7 @@ artfulrobot.arlObjects = {};
 artfulrobot.ARLObject = artfulrobot.defineClass(
 {
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
-	debugLevel: 1,
+	debugLevel: 0,
 	sharedMethods: {},
 	initialise: function( parentItem, myName, session, argsArray )// {{{
 	{
@@ -749,6 +757,9 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		// objClass should be string name for the class
 		// argsArray should be an array that is passed to the class constructor
 
+		// if adding an aliased subobject, we can only have one, so if there's already one, get rid of it.
+		if (localAlias && this[localAlias]) this.destroySubObject(localAlias);
+
 		// get name of class
 		var soName = 'unknown';
 		if (typeof objClass == 'string') 
@@ -758,7 +769,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 			objClass = window[objClass];// reference 'class' itself
 		}
 		if ( ! artfulrobot.typeof(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
-		// create new abstract object
+		// create new object
 		// Arguments:
 		// 		this, 		reference will be saved in object's myParent property
 		// 		soName,		name of subObject class, stored in object's name property

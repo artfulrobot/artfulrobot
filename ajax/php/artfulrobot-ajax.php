@@ -162,7 +162,11 @@ class ARL_Ajax_Request
 			return;
 		}
 
-		try { $processor = new $todo($response); }
+		try {
+			if (!class_exists($todo))
+				throw new Exception("Class $todo does not exist");
+		   	$processor = new $todo($response); 
+		}
 		catch (Exception $e)
 		{
 			$response->error = 'Code missing for ' . $todo;
