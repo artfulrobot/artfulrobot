@@ -72,10 +72,17 @@ class ARL_Debug
 		else $multiplier = 1;
 		self::$iniMemoryLimit = $number * $multiplier;
 
-		if ( ! $reset) self::log('TOP Start');
+		if ( ! $reset) 
+		{
+			$state = self::$running;
+			self::$running = true;
+			self::log('TOP Start');
+			self::$running = $state;
+		}
 	} // }}}
 	static public function log($t, $vars=null, $applyhtmlspecialchars=null)   //{{{
 	{
+		error_log((self::$running?'on ':'NOT on ') . $t);
 		self::init();
 		// debugger can be turned off.
 		if ( ! self::$running ) return true;
@@ -208,12 +215,14 @@ class ARL_Debug
 	static public function set_on($v=true)   //{{{
 	{
 		self::$running = (bool) $v;
+		error_log('set: ' . ($v?'ON':'OFF'));
 		self::init();
 	}//}}}
 	static public function set_silent($v)   //{{{
 	{
 		self::init();
 		self::$silent = (bool) $v;
+		error_log('set silent: ' . ($v?'yes':'no'));
 	}//}}}
 	static public function set_error_log($v)   //{{{
 	{
