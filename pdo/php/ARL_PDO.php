@@ -490,36 +490,35 @@ class ARL_PDO_Query
 	private $sql;
 	private $params;
 	private $array_params;
-	function __construct($comment, $sql, $params=null, $has_array_params=false)/*{{{*/
+	function __construct($comment, $sql, $params=null, $has_array_params='deprecated')/*{{{*/
 	{
 		$this->comment = $comment;
 		$this->sql     = $sql;
 		$this->params  = $params;
 
-		if ($has_array_params)
-		{
-			if ( ! is_array($params) ) throw new Exception("No parameter array provided; has_array_params meaningless");
-			foreach ($this->params as $key=>$value)
-			{
-				if (!is_array($value)) continue;
+		if ( ! is_array($params) ) return;
 
-				$c = count($value);
-				if ($c==0) $this->params[$key] = null;
-				elseif ($c==1) $this->params[$key] = reset($value);
-				else
+		// scan params for array values
+		foreach ($this->params as $key=>$value)
+		{
+			if (!is_array($value)) continue;
+
+			$c = count($value);
+			if ($c==0) $this->params[$key] = null;
+			elseif ($c==1) $this->params[$key] = reset($value);
+			else
+			{
+				$i=0;
+				$replacement_params = array();
+				while( $single_val = array_shift($value) )
 				{
-					$i=0;
-					$replacement_params = array();
-					while( $single_val = array_shift($value) )
-					{
-						$single_key = $key . "__" . $i++;
-						$this->params[$single_key] = $single_val;
-						$replacement_params[] = $single_key;
-					}
-					$this->sql = preg_replace("/" . preg_quote($key,'/') . '\b/', implode(", ", $replacement_params), $this->sql);
-					// remove original parameter
-					unset($this->params[$key]);
+					$single_key = $key . "__" . $i++;
+					$this->params[$single_key] = $single_val;
+					$replacement_params[] = $single_key;
 				}
+				$this->sql = preg_replace("/" . preg_quote($key,'/') . '\b/', implode(", ", $replacement_params), $this->sql);
+				// remove original parameter
+				unset($this->params[$key]);
 			}
 		}
 	}/*}}}*/
