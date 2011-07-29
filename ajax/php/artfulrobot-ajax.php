@@ -109,6 +109,8 @@ abstract class ARL_Ajax_Module/*{{{*/
 ARL_Ajax_Request::process();
 </code>
  *
+ * Nb. put debug=1 in the request params to turn on debugging via ARL_Debug.
+ *     On production sites, ARL_Debug should be silent, but if not, this would be a security risk. 
  */
 class ARL_Ajax_Request
 {
@@ -145,7 +147,8 @@ class ARL_Ajax_Request
 		else self::run_process( $todo );
 
 		// send response and exit now unless debugging
-		if ( ! $debugging ) $response->send();
+		if (!ARL_Array::value('debug', self::$request))
+		   	$response->send();
 
 		ARL_Debug::log("TOP Response object:", $response);
 		ARL_Debug::legacy_api('print_full');
