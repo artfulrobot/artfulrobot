@@ -61,7 +61,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 		return true;
 		})();/*}}}*/
 	var subclass = function() {};
-	// arlClass is the class that we're crafting
+	// arlClass is the class that we're crafting xxx ie?
 	function arlClass() { this.initialise.apply(this, arguments); }
 	var addMethods = function(obj, source) {/*{{{*/
 		var ancestor   = obj.prototype.superclass && obj.prototype.superclass,
@@ -97,7 +97,8 @@ artfulrobot.defineClass = function() {/*{{{*/
 	// Start process
 	var superclass = null, properties=[];
 	// convert arguments to a more manageable array
-	for (var i in arguments) properties.push(arguments[i]);
+	// decided jQuery read cleaner than this: properties = Array.prototype.slice.call(arguments);
+	properties = jQuery.makeArray(arguments);
 
 	// if first arg is function, store as superclass and remove it from properties
 	if ( typeof(properties[0]) == 'function') {
@@ -117,13 +118,13 @@ artfulrobot.defineClass = function() {/*{{{*/
 		var context=this;
 		// if we were passed any other arguments beyond method,
 	    // these become the first args onto the callback
-		var fixedArgs = Array.prototype.slice.call(arguments);
+		var fixedArgs = jQuery.makeArray(arguments);
 		// remove 1st, method argument
 		fixedArgs.shift();
 
 		return (function() {
 				// prepend fixedArgs
-				var args = fixedArgs.concat(Array.prototype.slice.call(arguments));
+				var args = fixedArgs.concat(jQuery.makeArray(arguments));
 				// store original context (e.g. a jQuery object)
 				context.origContext = this;
 				// call method from object context
@@ -180,7 +181,7 @@ artfulrobot.objectKeys = function( obj ) {/*{{{*/
 	for (var k in obj) a.push(k);
 	return a;
 };/*}}}*/
-artfulrobot.typeof = function( thing ) // {{{
+artfulrobot.typeOf = function( thing ) // {{{
 {
 	var type = typeof thing;
 	if ( type === 'object' ) // arrays and objects and null!
@@ -195,7 +196,7 @@ artfulrobot.htmlentities = {/*{{{*/
 	hellip : '\u2026',
 	nbsp   : '\u00a0',
 	otimes : '\u2297',
-	pound  : '\u00A3',
+	pound  : '\u00A3'
 };/*}}}*/
 artfulrobot.createFragmentFromArray = function( arr ) // {{{
 {
@@ -215,7 +216,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 			] ));
    */
 	var myDebug=0;
-	var type = artfulrobot.typeof(arr);
+	var type = artfulrobot.typeOf(arr);
 	if ( type === 'string' ) 
 	{
 		myDebug && console.log('Called with string: returning TextNode:' + arr );
@@ -244,7 +245,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 	for (var i=0;i<arrLen;i++) // process each element of array: either an object or a string
 	{
 		var part = arr[i];
-		type = artfulrobot.typeof( part );
+		type = artfulrobot.typeOf( part );
 		myDebug && console.warn('part:', part);
 		if (type == 'string' || type == 'number')
 		{
@@ -268,7 +269,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 
 						// if part[key] is an array, then the first part is the handler and the 2nd is data for jQuery.
 						var evtName = key.substr(2); // lop off the 'on'
-						if (artfulrobot.typeof(part[key]) == 'array')
+						if (artfulrobot.typeOf(part[key]) == 'array')
 						{
 							// include the data in the jQuery bind call:
 							jQuery(tmp).bind(evtName,part[key][1],part[key][0]);
@@ -305,7 +306,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 	initialise: function()
 	{
-		for (var i in arguments) this.details.push(arguments[i]);
+		this.details = jQuery.makeArray(arguments);
 		this.message = this.details[0];
 		console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
 	},
@@ -426,7 +427,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 			live: 1,
 			stage: 'request'
 		};
-		console.info(requestId + ' debug: ' + debugURI);
 
 		// override this method if needed
 		this.requestStarts( this.requests[ requestId ] );
@@ -438,7 +438,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 				data:parms,
 				type:this.method,
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
-				success: this.getCallback('onSuccess',requestId), // know which request failed/succeeded.
+				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
 			} );
 
 		return requestId;
@@ -527,7 +527,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		catch(e)
 		{
 			rqst.stage = 'response-parse FAIL';
-			console.error(e);
 			this.seriousError('Bad ajax response.', requestId, rsp );
 			return;
 		}
@@ -585,7 +584,8 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	requestStarts: function( requestObj ) { },
 	dump:function() // {{{
 	{
-		console.log(this.requests);
+		if (console && console.log ) console.log(this.requests);
+		else alert("No console object available");
 	} // }}}
 });
 // set up default instance
@@ -705,7 +705,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 
 		// local initialize:
 		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
-		if (artfulrobot.typeof(argsArray)!='array') argsArray = [];
+		if (artfulrobot.typeOf(argsArray)!='array') argsArray = [];
 		this.localInitialise.apply(this, argsArray);
 		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
 		if (this.debugLevel>1) console.log('ends');
@@ -768,7 +768,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 			if ( ! window[objClass] ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: Class '"+objClass+"' is unknown");
 			objClass = window[objClass];// reference 'class' itself
 		}
-		if ( ! artfulrobot.typeof(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
+		if ( ! artfulrobot.typeOf(objClass) == 'object' ) throw new artfulrobot.Exception("artfulrobot.ARLObject.addSubObject: supplied class is not a class.", objClass);
 		// create new object
 		// Arguments:
 		// 		this, 		reference will be saved in object's myParent property
@@ -833,7 +833,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 					'name' : this.name,
 					'sessionObj' : this._SESSION,
 					'newFriendlyName' : newFriendlyName,
-					'newTitle' : newTitle,
+					'newTitle' : newTitle
 				} );
 	}, // }}}
 	saveSubObjSession : function (sigType, obj) // hears subObject's saveSession call {{{
@@ -857,7 +857,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	{ 
 		if (!objOrObjId) return;
 		// takes a string id or the object
-		var argType = artfulrobot.typeof(objOrObjId);
+		var argType = artfulrobot.typeOf(objOrObjId);
 		var objId;
 		var obj;
 		
@@ -947,7 +947,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 			if ( artfulrobot.arlObjects[i].name == name ) return artfulrobot.arlObjects[i];
 		}
 		return undefined;
-	}, // }}}
+	} // }}}
 });
 // }}}
 ARLKeepAlive = artfulrobot.defineClass( artfulrobot.ARLObject, // {{{

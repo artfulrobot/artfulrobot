@@ -237,10 +237,10 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 
 		options = options || {};
 
-		if ( artfulrobot.typeof(options.filterable) == 'array' ) {
+		if ( artfulrobot.typeOf(options.filterable) == 'array' ) {
 			for(i in options.filterable) this.filterable( options.filterable[i] );
 		}
-		else if ( artfulrobot.typeof(options.filterable) == 'number' )
+		else if ( artfulrobot.typeOf(options.filterable) == 'number' )
 			this.filterable( options.filterable );
 
 		this.filtersChanged();
