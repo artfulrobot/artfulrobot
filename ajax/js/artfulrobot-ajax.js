@@ -321,9 +321,9 @@ artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 /* functions for making forms easier */
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
 {
-	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a nodeId. Got:", radioGroupName);
+	if (! radioGroupName) throw new artfulrobot.Exception( "getRadioValue called without a radio group name. Got:", radioGroupName);
 	var selectedElement = jQuery('input[name="' + radioGroupName+ '"]:checked');
-	if ( selectedElement  ) return selectedElement[0].value;
+	if ( selectedElement.length  ) return selectedElement[0].value;
 	return null; 
 } // }}}
 artfulrobot.setSelectOptionByValue = function( selectNode, val ) // {{{
