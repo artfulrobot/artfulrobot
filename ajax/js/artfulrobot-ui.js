@@ -247,7 +247,9 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 	}, // }}}
 	clicked: function(evt) // xxx {{{
 	{
-		if (this.frozen) { console.warn('clicked frozen table'); return;}
+		if (this.frozen) { 
+		//	console.warn('clicked frozen table'); 
+			return;}
 		var rowNode=jQuery(this.origContext).closest('tr');
 		var rowIndex=evt.data.rowIndex;
 		var colIndex=evt.data.colIndex;
@@ -259,7 +261,7 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 		row = jQuery.map( rowNode.find('td'), function(node) { return jQuery(node).text(); } );
 
 		/* Because this is an event handler, the first argument is an event object.  */
-		if ( this.lastSelected!==false && this.lastSelected.rowNode.eq(rowNode) ) // deselect
+		if ( this.lastSelected!==false && this.lastSelected.rowNode.is(rowNode) ) // deselect
 		{
 			this.lastSelected.rowNode.removeClass(this.class_selected);
 			this.lastSelected = false;
