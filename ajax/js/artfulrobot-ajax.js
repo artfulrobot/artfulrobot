@@ -297,7 +297,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 		}
 		else 
 		{
-			alert("error: " + type + " type encountered, expected string or object");
+			alert("Error:\nartfulrobot.createElement '" + type + "' type encountered within content array, expected string or object");
 		}
 	}
 	myDebug && console.log('Complete');

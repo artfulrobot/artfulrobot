@@ -449,3 +449,67 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 		this.clicked( { target: this.nodesArray[found][colIndex] }, found, colIndex );
 	}, // }}}
 }); // }}}
+
+// ARLEditableTable -- for working with a table that the user can edit rows in {{{
+var ARLEditableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
+{
+/**
+ *  fieldDefs = {
+ *  	fieldName1 : { 
+ *  		head: html
+ *  		edit: fn() | text | textarea | undef,
+ *  		view: fn() | undef,
+ *  		},
+ *  	fieldName2 ... }
+ *
+ *  shouts the following signals: 
+ *      rowSelected		with the following object:
+						tableId :
+						event: 
+						trNode: 
+						rowData: array 
+						rowIndex:
+						colIndex:
+						thNode:
+ */ 
+	localInitialise: function( nodeId, defs, data, options) // {{{
+	{
+		this.myHTML = jQuery('#' +nodeId);
+		this.defs = defs;
+		this.data = data;
+		options = options || {};
+		this.options = {
+			tableId : options.tableId || this.myId+'_t'
+			};
+		this.render();
+	}, // }}}
+	render :function()//{{{
+	{
+		var rows = [];
+		var dataLength = this.data.length;
+		var thr = jQuery.map(this.defs, function(obj, key) {
+				return { element: 'th', content:obj.head || key  } } );
+		
+		for (i in this.data)
+		{
+			var data = this.data[i]; // reference for closure:
+
+			var row = jQuery.map( this.defs, function(def,field) {
+				return { element: 'td', content: 
+					(def.view 
+					 ? def.view(data[field], field, data )
+					 : data[field] )
+					};
+				});
+			if (row) rows.push( { element: 'tr', content: row } );
+		}
+
+		this.myHTML.empty().append( artfulrobot.createFragmentFromArray(
+			{ element: 'table', id: this.options.tableId, content: [
+				{ element: 'thead', content: 
+					{ element: 'tr', content: thr } },
+				{ element: 'tbody', content: rows }
+			]}));
+	}//}}}
+}); // }}}
+
