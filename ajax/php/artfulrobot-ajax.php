@@ -100,6 +100,28 @@ abstract class ARL_Ajax_Module/*{{{*/
 	}
 
 }/*}}}*/
+// abstract class ARL_Ajax_Module_Group extends ARL_Ajax_Module //{{{
+/** 
+  * Simple way to group ajax functions, e.g. arlClass=GroupName, task=methodname
+  */
+abstract class ARL_Ajax_Module_Group extends ARL_Ajax_Module
+{
+	function run_module()
+	{
+		$task = ARL_Array::value('task', $this->request);
+		if (! $task )
+		{
+			$this->response->error = get_class($this) . " Task '$task' invalid";
+			return;
+		}
+		if (! method_exists($this,$task))
+		{
+			$this->response->error = get_class($this) . " Task '$task' unknown";
+			return;
+		}
+		$this->$task();
+	}
+} //}}}
 
 // ARL_Ajax_Request::process() /*{{{*/
 /** this class deals with requests, handing them on to the correct module and sending the response.
