@@ -375,7 +375,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		// count this.requests
 		return artfulrobot.countKeys(this.requests);
 	}, // }}}
-	request: function( parmsObject, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
+	request: function( givenParams, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
 	{
 		/* We number requests, and return this number. 
 		 * 
@@ -389,18 +389,33 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 
 		var requestId = 'ajax' + this.uniqueCounter++;
 
-		var parms;
-		if ( typeof parmsObject == 'string' ) parms = parmsObject;
-		else 
+		var params;
+		var paramsType = artfulrobot.typeOf(givenParams);
+		// given (what we assume to be a) url-encoded string, just pass it along
+		if ( paramsType = 'string' ) params = givenParams;
+		// given an object { key1: val1, key2: val2 ... }
+		else if (paramsType == 'object' )
 		{
 			// map false|undefined to zls because it's likely parsed as a string
 			// the other end, so 'false' == true.
-			for (k in parmsObject)
-			{
-				if (parmsObject[k]===false
-					|| parmsObject[k]===undefined) parmsObject[k]='';
-			}
-			parms = jQuery.param(parmsObject);
+			jQuery.each(givenParams, function(i,v)
+				{ if (v===false || v===undefined) givenParams[i]=''; });
+			// url-encode it
+			params = jQuery.param(givenParams);
+		}
+		// given array of objects with {name:..., value:....}, {...}
+		// as comes from jQuery('form').serializeArray()
+		else if (paramsType == 'array')
+		{
+			jQuery.each(givenParams, function(i,o)
+				{ if (o.value===false || o.value===undefined) givenParams[i].value=''; });
+			// url-encode it
+			params = jQuery.param(givenParams);
+		}
+		else
+		{
+			throw Error("artfulrobot.AjaxClass.request called with params as unkonwn type: '"+paramsType+"'");
+			return;
 		}
 
 		// create absolute debug uri
@@ -416,7 +431,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 				+ window.location.pathname.replace( /^(.+\/)[^\/]*?$/,'$1' )
 				+ this.requestFrom ;
 		}
-		debugURI += '?' + parms + '&ajax=2',
+		debugURI += '?' + params + '&debug=1',
 
 		this.requests[ requestId ] = 
 		{ 
@@ -435,7 +450,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		jQuery.ajax( 
 			this.requestFrom,
 			{
-				data:parms,
+				data:params,
 				type:this.method,
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
 				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
@@ -537,7 +552,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		rqst.stage = "replace element innerHTML...";
 		// update the element if given, and if there's html 
 		// returned from the ajax call
-		if (text!='' && rqst.outputHtmlInsideElement!='') 
+		if (text!='' && rqst.outputHtmlInsideElement) 
 		{
 			var node = rqst.outputHtmlInsideElement;
 			if ( typeof node == 'string' ) node = jQuery('#'+node);
