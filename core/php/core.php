@@ -1,6 +1,6 @@
 <?php
 /*
-	Copyright 2007-2011 © Rich Lott 
+	Copyright 2007-2011 Rich Lott 
 
 This file is part of Artful Robot Libraries.
 
@@ -155,14 +155,17 @@ class ARL_Debug
 
 		// figure out scope {{{
 		$tmp='';
-		$backtrace = debug_backtrace();
-		if ($backtrace = ARL_Array::value(1,$backtrace))
+		$trace = debug_backtrace();
+		while ($backtrace=array_shift($trace))
 		{
-			$tmp=ARL_Array::value('function',$backtrace);
-			if ( $tmp!='debug' ) $tmp= ARL_Array::value('class',$backtrace)	. ARL_Array::value('type',$backtrace) .$tmp ;
+			$scope=ARL_Array::value('function',$backtrace);
+			$class=ARL_Array::value('class',$backtrace);
+			if ($class) $scope = $class . ARL_Array::value('type',$backtrace)  . $scope;
+			if ($scope == 'debug' || $scope == 'ARL_Debug::log') continue;
+			break;
 		}
-		$newRow['scope'] = $tmp;
-		unset($backtrace); // conserve memory? }}}
+		$newRow['scope'] = $scope;
+		//}}}
 
 		// hierarchy and classes {{{
 		if ($endBlock) // return false if << before >> (used by myexit)
