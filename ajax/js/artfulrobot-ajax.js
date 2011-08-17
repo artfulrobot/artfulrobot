@@ -375,17 +375,20 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		// count this.requests
 		return artfulrobot.countKeys(this.requests);
 	}, // }}}
-	request: function( givenParams, outputHtmlInsideElement, onSuccessCallback, statusText ) // {{{
+	request: function( givenParams, outputHtmlInsideElement, onSuccessCallback, method ) // {{{
 	{
 		/* We number requests, and return this number. 
 		 * 
 		 * Requests are stored in the object (hash) this.requests, which is an 
-		 * object of objects containing statusText (optional string for debugging) and requestURI
+		 * object of objects containing various details
 		 *
 		 */
 		
 		// need onSuccessCallback fundction, even if it is blank
-		if ( typeof(onSuccessCallback) == 'undefined' )  onSuccessCallback=function(){};
+		if ( typeof(onSuccessCallback) == 'undefined' 
+				|| onSuccessCallback == false
+				|| onSuccessCallback === null
+				)  onSuccessCallback=function(){};
 
 		var requestId = 'ajax' + this.uniqueCounter++;
 
@@ -435,7 +438,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 
 		this.requests[ requestId ] = 
 		{ 
-			statusText:	( statusText ? statusText : '' ),
 			debugURI: debugURI,
 			outputHtmlInsideElement: outputHtmlInsideElement,
 			onSuccessCallback: onSuccessCallback,
@@ -451,7 +453,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 			this.requestFrom,
 			{
 				data:params,
-				type:this.method,
+				type:method || this.method,
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
 				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
 			} );
@@ -466,7 +468,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	}, // }}}
 	onFailure: function(requestId, t)  // {{{
 	{ 
-		alert( requestId + ': Problem! error: '+t.status+'--'+t.statusText );
+		alert( requestId + ': Problem! error: '+t.status);
 		t.responseText='';
 		this.requestEnded();
 	}, // }}}
