@@ -1753,19 +1753,39 @@ class Markdown_Parser {
 
 		// echo "orig :<pre>" . htmlspecialchars($text). "</pre><br />";
 		$inlineClasses = false;
-		if (preg_match_all('/::(?:(\w+)\.)?(\w+)::/', $text, $inlineClasses, PREG_SET_ORDER) )
+		if (preg_match_all('/::(?:(\w+)\.)?(\w+)::/', $text, $inlineClasses, 
+					PREG_SET_ORDER | PREG_OFFSET_CAPTURE) )
 		{
+			$offset_adjust = 0;
 			foreach ($inlineClasses as $match)
 			{
-				//echo "<hr/> Doing $match[0]<br />text<br/><pre>" .htmlspecialchars($text) . "</pre><br />";
-				$offset = strpos($text, $match[0]);
-				$textEnd = substr($text, $offset + strlen($match[0]));
+				//echo "<hr/> Doing {$match[0][0]} <br />text<br/><pre>" ; print_r($match); echo "</pre><br />";
+				$whole_match = $match[0][0];
+				$offset = $offset_adjust + $match[0][1]; // start of whole match
+				$textEnd = substr($text, 
+						$offset // start of whole match
+						+ strlen($whole_match) // skip the whole match
+						);
 				$text = substr( $text, 0, $offset) ;
+				// we've removed this
+				$offset_adjust -= strlen($whole_match);
+//				echo "text now:<div style='border:solid 1px #ddd;padding:8px;'>" . htmlspecialchars($text) . "</div>"; continue;
+
+				// if character before is backslash, assume we're escaped, 
+				// remove the backslash and use an entity for the first colon
+				// which won't be picked up in subsequent calls
+				if ($offset>0 && substr($text,$offset-1,1)=='\\')
+				{
+					$text = substr($text, 0, $offset-1) . $whole_match . $textEnd;
+					// we added back in whole_match, just took out one character
+					$offset_adjust += strlen($whole_match) - 1 ;
+					continue;
+				}
 
 				// scan back for opening of tag
 				$found = 0;
 				$offset--;
-				$look_for = strtolower($match[1]);
+				$look_for = strtolower($match[1][0]);
 				$len = strlen($look_for);
 				while (!$found)
 				{
@@ -1790,10 +1810,11 @@ class Markdown_Parser {
 				}
 				if ($offset<0)  
 				{ 
-					$text .= '<span style="background-color:red;" >No match for: ' 
-						. str_replace(':','&#58;', $match[0])
-						. '</span>' 
-						. $textEnd; 
+					$error = '<span style="background-color:red;" >No match for: ' 
+						. str_replace(':','&#58;', $whole_match)
+						. '</span>' ;
+					$text .= $error . $textEnd; 
+					$offset_adjust += strlen($error);
 					unset($textEnd) ; 
 					continue;
 				}
@@ -1803,14 +1824,15 @@ class Markdown_Parser {
 				$o3 = strpos( $text, ">", $offset);
 				if ($o3<$o2) $o2=$o3;
 				//echo "insert offset $o2 : <pre>" . htmlspecialchars(substr($text, 0,$o2) ). "|||</pre><br />";
-				$text = substr($text, 0, $o2) . " class='$match[2]' " . substr($text, $o2);
+				$insertion =" class='{$match[2][0]}' ";
+				$text = substr($text, 0, $o2) . $insertion . substr($text, $o2);
+				$offset_adjust += strlen($insertion);
 				//echo "new text: <pre>" . htmlspecialchars($text) . "</pre>";
 			}
 		}
-
 		# Rich Lott 20 Sep 2005 v 0.1
 		// look for anchor:: after tag, go back and put id="anchor" on previous tag
-		$text =  preg_replace( '/>(\w+?)::[ \t]*/', ' id="$1">', $text );
+//		$text =  preg_replace( '/>(\w+?)::[ \t]*/', ' id="$1">', $text );
 
 		return $text;
 	} // }}}
