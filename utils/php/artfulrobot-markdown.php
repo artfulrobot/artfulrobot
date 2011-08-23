@@ -1832,7 +1832,7 @@ class Markdown_Parser {
 		}
 		# Rich Lott 20 Sep 2005 v 0.1
 		// look for anchor:: after tag, go back and put id="anchor" on previous tag
-//		$text =  preg_replace( '/>(\w+?)::[ \t]*/', ' id="$1">', $text );
+		$text =  preg_replace( '/>(\w+?)::[ \t]*/', ' id="$1">', $text );
 
 		return $text;
 	} // }}}
