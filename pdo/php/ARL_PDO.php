@@ -228,7 +228,7 @@ abstract class ARL_PDO_Model/*{{{*/
 
 		if ($value === null)
 		{
-			if (!$null) throw new Exception( get_class($this) . ' tried to set null, but not null');
+			if (!$null) throw new Exception( get_class($this) . ' tried to set `' . $name . '` to null, but defined as not null');
 			return null;
 		}
 		if ( $cast == 'int' )

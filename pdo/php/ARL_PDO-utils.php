@@ -43,7 +43,7 @@ class ARL_PDO_Model_Creator
 				|| $t == 'float'
 				|| $t == 'numeric')
 				$line .= "'cast' => 'float'        ";
-			elseif (preg_match('/^varchar\((\d+)\)/', $t, $matches))
+			elseif (preg_match('/^(?:var)?char\((\d+)\)/', $t, $matches))
 				$line .= "'cast' => 'string'      "
 					. ($matches[1] ? ", 'size' => $matches[1] ":"");
 			elseif (preg_match('/^text/', $t, $matches))
