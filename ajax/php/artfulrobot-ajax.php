@@ -59,8 +59,9 @@ abstract class ARL_Ajax_Module/*{{{*/
 	protected $response;
 	/** array of authgroups that the person must be in
 	 *  in order to run this module
+	 *  if empty, anyone can run it.
 	 */ 
-	protected $groups_required = array('staff'); 
+	protected $groups_required = array(); 
 
 	/** reference to either _POST or _GET, set in  */
 	public $request;
@@ -93,7 +94,10 @@ abstract class ARL_Ajax_Module/*{{{*/
 		// if no minimal CMS class, no security(!)
 		if (! class_exists('CMS')) return true;
 
-		if (! $this->groups_required) throw new Exception( get_class($this) . ' has no groups_required -- security risk.');
+		// no groups_required = ok
+		if (! $this->groups_required) return true;
+
+		// all must match
 		foreach ($this->groups_required as $group_name)
 			if (!CMS::user_in_group($group_name)) return false;
 		return true;
