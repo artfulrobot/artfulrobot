@@ -772,19 +772,58 @@ class ARL_Array
 		if (!array_key_exists($key, $array)) $array[$key] = $default;
 		return $array[$key];
 	}/*}}}*/
-
+	//public static function value_recursive( $keys, &$array, $default=null, $create_if_missing=false)/*{{{*/
 	/** return value from an array nested key array, or default.
 	 *  
+	 *  @param array $keys 
 	 *  @param array &$array reference to array
-	 *  @param array $key
 	 *  @param mixed $default defaults to null
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	public static function value_recursive( &$array, $keys, $default=null, $create_if_missing=false)
+	public static function value_recursive( $keys, &$array, $default=null, $create_if_missing=false)
 	{
-		throw new exception("value_recursive not written yet!");
-	}
+		if (! is_array($array)) throw new Exception( "ARL_Array::value_recursive called with something other than an array");
+
+		$ptr = &$array;
+
+		$parent_keys = $keys;
+		$child_key = array_pop($parent_keys);
+
+		while (isset($ptr) && count($parent_keys))
+		{
+			$key = array_shift($parent_keys);
+			if (array_key_exists($key, $ptr)) 
+			{
+				$ptr = &$ptr[$key];
+				if (! is_array($ptr)) throw new Exception(
+					"ARL_Array::value_recursive failed, something in the chain is not an array.");
+			}
+			else unset($ptr);
+		}
+		if (! $create_if_missing) 
+		{
+			if (! isset($ptr)) return $default;
+			else return self::value($child_key, $ptr, $default, false);
+		}
+
+		// create_if_missing is required
+		// chain exists.
+		if (isset($ptr))
+			return self::value($child_key, $ptr, $default, true);
+
+		// chain failed
+		$ptr = &$array;
+		foreach (array_slice($keys,0,-1) as $key)
+		{
+			if (! array_key_exists($key, $ptr))
+				$ptr[$key] = array();
+			$ptr = &$ptr[$key];
+		}
+		$ptr[$child_key] = $default;
+			
+		return $default;
+	}/*}}}*/
 
 	// public static function tokenise_search_string( $search_text )/*{{{*/
 	/** tokenise a search string into an array, preserving phrases in quotes as individual tokens
