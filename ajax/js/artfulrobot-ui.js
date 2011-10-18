@@ -490,6 +490,8 @@ var ARLEditableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 		var thr = jQuery.map(this.defs, function(obj, key) {
 				return { element: 'th', content:obj.head || key  } } );
 		
+		// for each record we loop through the columns in defs
+		// and present the view for each bit of data.
 		for (i in this.data)
 		{
 			var data = this.data[i]; // reference for closure:
@@ -504,12 +506,18 @@ var ARLEditableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 			if (row) rows.push( { element: 'tr', content: row } );
 		}
 
-		this.myHTML.empty().append( artfulrobot.createFragmentFromArray(
+		this.myHTML.empty().append( artfulrobot.createFragmentFromArray([
 			{ element: 'table', id: this.options.tableId, content: [
 				{ element: 'thead', content: 
 					{ element: 'tr', content: thr } },
 				{ element: 'tbody', content: rows }
-			]}));
-	}//}}}
+				]},
+			{ element: 'button', content: 'Add', onclick:this.getCallback('addRow') }
+			]));
+	},//}}}
+	addRow:function()//{{{
+	{
+	},//}}}
+	the:'end'
 }); // }}}
 
