@@ -41,7 +41,8 @@ class ARL_PDO_Model_Creator
 			elseif ($t == 'decimal'
 				|| $t == 'double'
 				|| $t == 'float'
-				|| $t == 'numeric')
+				|| $t == 'decimal'
+				|| preg_match('/^(decimal|numeric)[(]\d+,\d+\)/', $t, $matches))
 				$line .= "'cast' => 'float'        ";
 			elseif (preg_match('/^(?:var)?char\((\d+)\)/', $t, $matches))
 				$line .= "'cast' => 'string'      "
@@ -52,6 +53,10 @@ class ARL_PDO_Model_Creator
 				$line .= "'cast' => 'string'      "; // limit is 4Gb!
 			elseif (preg_match('/^enum\((.+)\)/', $t, $matches))
 				$line .= "'cast' => 'enum'        , 'enum' => array( $matches[1] )";
+			else {
+				echo "Encountered $t type - unknown";
+				exit;
+			}
 
 			//null?
 			$line .= ", 'null' => " . ($row->Null == 'YES' ? 'TRUE ' : 'FALSE' );
@@ -66,7 +71,7 @@ class ARL_PDO_Model_Creator
 
 			$def[] = "$line )";
 		}
-		$def = implode(",\n\t\t", $def);
+		$def = implode(",\n\t\t", $def).',';
 
 		$tmp = explode("_", $tablename);
 		$tmp = array_map('ucfirst', $tmp);
@@ -82,7 +87,8 @@ class Model_$classname extends ARL_PDO_Model
 {
 	protected \$TABLE_NAME = '$tablename';
 	protected \$definition = array(
-		$def);
+		$def
+		);
 	protected function getter(\$name) {}
 	protected function setter(\$name, \$value) {}
 	/** this function must initialise an ARL_PDO object in \$this->conn */
