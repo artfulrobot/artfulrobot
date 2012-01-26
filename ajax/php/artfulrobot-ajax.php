@@ -110,6 +110,9 @@ abstract class ARL_Ajax_Module/*{{{*/
   */
 abstract class ARL_Ajax_Module_Group extends ARL_Ajax_Module
 {
+	/** undefined, or list of allowed task methods */
+	private $task_methods;
+
 	function run_module()
 	{
 		$task = ARL_Array::value('task', $this->request);
@@ -121,6 +124,11 @@ abstract class ARL_Ajax_Module_Group extends ARL_Ajax_Module
 		if (! method_exists($this,$task))
 		{
 			$this->response->error = get_class($this) . " Task '$task' unknown";
+			return;
+		}
+		if ( $this->task_methods && ! in_array($task, $this->task_methods))
+		{
+			$this->response->error = get_class($this) . " '$task' Method not a Task";
 			return;
 		}
 		$this->$task();
