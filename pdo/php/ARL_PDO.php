@@ -252,6 +252,10 @@ abstract class ARL_PDO_Model/*{{{*/
 			if (!is_string($value)) $value = (string) $value;
 			return $value;
 		}
+		elseif ($cast == 'blob')
+		{
+			return $value;
+		}
 		elseif ($cast == 'datetime'
 				|| $cast == 'date'
 				|| $cast == 'time'

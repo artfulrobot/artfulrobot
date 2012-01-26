@@ -51,6 +51,8 @@ class ARL_PDO_Model_Creator
 				$line .= "'cast' => 'string'      , 'size' => 65535";
 			elseif (preg_match('/^longtext/', $t, $matches))
 				$line .= "'cast' => 'string'      "; // limit is 4Gb!
+			elseif (preg_match('/^blob/', $t, $matches))
+				$line .= "'cast' => 'blob'      , 'size' => 65535";
 			elseif (preg_match('/^enum\((.+)\)/', $t, $matches))
 				$line .= "'cast' => 'enum'        , 'enum' => array( $matches[1] )";
 			else {
