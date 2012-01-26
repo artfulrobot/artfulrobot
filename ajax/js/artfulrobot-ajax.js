@@ -181,6 +181,20 @@ artfulrobot.objectKeys = function( obj ) {/*{{{*/
 	for (var k in obj) a.push(k);
 	return a;
 };/*}}}*/
+artfulrobot.objectToSerializeArray = function( obj ) {/*{{{*/
+	// returns the object as an array of objects as returned by jQuery.serializeArray()
+	// { a: 5, b: 6} --> [ { name:'a', value: 5}, {key:'b', value:6} ];
+	var a=[];
+	for (var k in obj) a.push( {name: k, value:obj[k]} );
+	return a;
+};/*}}}*/
+artfulrobot.serializeArrayToObject = function( a ) {/*{{{*/
+	// opposite of objectToSerializeArray
+	var l = a.length;
+	var o = {};
+	for (var i=0;i<l;i++) o[ a[i]['name'] ] = a[i]['value'];
+	return o;
+};/*}}}*/
 artfulrobot.typeOf = function( thing ) // {{{
 {
 	var type = typeof thing;
