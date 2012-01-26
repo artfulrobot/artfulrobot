@@ -101,17 +101,27 @@ abstract class ARL_PDO_Model/*{{{*/
 				"Fetch all fields from $this->TABLE_NAME for record $id",
 				"SELECT * FROM `$this->TABLE_NAME` WHERE id = $id"));
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+		$this->load_postprocess();
 	}/*}}}*/
 	public function load_from_array( Array $src )/*{{{*/
 	{
 		$this->load_defaults();
 		foreach ($src as $key=>$value)
 			$this->$key = $value;
-		/*
+		/* hmmm, or maybe this is better:
 		foreach (array_keys($this->myData) as $key)
 			if (array_key_exists($key, $src))
 				$this->$key = $src[$key];
 				*/
+
+		$this->load_postprocess();
+	}/*}}}*/
+	//protected function load_postprocess() {{{
+	/** hook for altering object once loaded, e.g. if data needs formatting/unpacking.
+	  */
+	protected function load_postprocess()
+	{
 	}/*}}}*/
 	public function load_defaults()/*{{{*/
 	{
@@ -129,8 +139,11 @@ abstract class ARL_PDO_Model/*{{{*/
 	public function save()/*{{{*/
 	{
 		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
+
 		// do nothing if unsaved changes
 		if (!$this->unsaved_changes) return;
+
+		$this->save_preprocess();
 
 		// new data - build insert
 		if ( ! $this->myData['id'] ) /*{{{*/
@@ -181,12 +194,24 @@ abstract class ARL_PDO_Model/*{{{*/
 					$sql,
 					$data));
 		}/*}}}*/
+
+		$this->load_postprocess();
+	}/*}}}*/
+	//protected function save_preprocess() {{{
+	/** hook for altering object before saving, e.g. serialize objects into fields
+	  */
+	protected function save_preprocess()
+	{
 	}/*}}}*/
 	public function delete()/*{{{*/
 	{
 		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-		// new data - build insert
-		if ( ! $this->myData['id'] ) return;
+		// new data
+		if ( ! $this->myData['id'] )
+		{
+			ARL_Debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
+			return;
+		}
 
 		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
 					"Delete row in $this->TABLE_NAME",
@@ -536,5 +561,4 @@ class ARL_PDO_Query
 			. print_r($this->params,1);
 	}
 }/*}}}*/
-
 ?>
