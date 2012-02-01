@@ -117,12 +117,6 @@ abstract class ARL_PDO_Model/*{{{*/
 
 		$this->load_postprocess();
 	}/*}}}*/
-	//protected function load_postprocess() {{{
-	/** hook for altering object once loaded, e.g. if data needs formatting/unpacking.
-	  */
-	protected function load_postprocess()
-	{
-	}/*}}}*/
 	public function load_defaults()/*{{{*/
 	{
 		$this->myData = array('id' => 0);
@@ -135,6 +129,13 @@ abstract class ARL_PDO_Model/*{{{*/
 			// otherwise use zls.
 			else $this->$field = '';
 		}
+		$this->load_postprocess();
+	}/*}}}*/
+	//protected function load_postprocess() {{{
+	/** hook for altering object once loaded, e.g. if data needs formatting/unpacking.
+	  */
+	protected function load_postprocess()
+	{
 	}/*}}}*/
 	public function save()/*{{{*/
 	{
