@@ -1,7 +1,9 @@
 <?php
 /**
   * @file
-  * class for dealing with CSV
+  * class for dealing with creating CSV
+  * 
+  * @todo rename and bring in importer code from rlcore
   */
 
 class ARL_CSV
