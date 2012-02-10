@@ -7,8 +7,8 @@
 $token = ARL_Onceler::new_token();
 echo "<a href='?do=something&oncelerToken=$token' >go</a>;
 
-// check a link (unsets _GET if token has been seen before
-ARL_Onceler::check_get();
+// check a link 
+if (!ARL_Onceler::check_get()) unset($_GET['do']);
 if ($_GET['do'] == 'something') do_something();
 </code>
 
@@ -42,21 +42,22 @@ class ARL_Onceler
 		return self::check($_POST,  $altKey);;
 	}
 
-	/** reset source to empty array if token seen before
+	/** has token been used before?
 	 *
 	 * @var &array $source Source array
 	 * @var string $key    key to find token in source array, e.g. oncelerToken
+	 * @return bool|null true (not seen before), false (seen before), null (no token)
 	 */ 
 	public static function check( &$source, $key )
 	{
 		if (! $key) throw new Exception("ARL_Onceler::check - no key given");
 		if (! is_array($source)) throw new Exception("ARL_Onceler::check - source is not an array");
 		$token = ARL_Array::value($key, $source);
-		// no token - no action, assume bad
+		// no token - return null;
 		if (! $token )
 		{
-			ARL_Debug::log("TOP Warning: ARL_Onceler::check - no token at key $key");
-			return false;
+			ARL_Debug::log("TOP Warning: ARL_Onceler::check - no token at key $key returning null");
+			return null;
 		}
 
 		$spent_tokens = & ARL_Array::reference('ARL_Onceler::spent_tokens', $_SESSION, array() );
