@@ -42,6 +42,7 @@ class ARL_Debug
 	static protected $running          = false; // class does nothing if not enabled.
 	static protected $init 		   	   = false; // class is initialised
 	static protected $top_only 		   = true; // drop all data unless TOP'ed
+	static protected $dump_file		   = false; // just write to text file only
 	static protected $error_log		   = false; // call error_log for each debug call (emergency debugging)
 	static protected $stderr		   = false; // write error_log output to stderr (CLI debugging)
 	static protected $silent 		   = 0; // whether to ever output to browser (or fetch)
@@ -72,12 +73,36 @@ class ARL_Debug
 		else $multiplier = 1;
 		self::$iniMemoryLimit = $number * $multiplier;
 
+
 		if ( ! $reset) 
 		{
 			$state = self::$running;
 			self::$running = true;
 			self::log('TOP Start');
 			self::$running = $state;
+		}
+	} // }}}
+	static public function set_dump_file($dump_file=null) // {{{
+	{
+		$dump_file = ($dump_file?$dump_file:null);
+
+		if ($dump_file===null) 
+		{
+			self::$dump_file = null;
+			return;
+		}
+
+		if (!file_exists(dirname($dump_file))) throw new Exception(
+				"Directory does not exist: '$dump_file' ");
+	
+		self::$dump_file = $dump_file;
+
+		// backup old logs so we can reuse the file.
+		if (file_exists(self::$dump_file))
+		{
+			$i=1;
+			while(file_exists(self::$dump_file . ".$i")) $i++;
+			rename(self::$dump_file, self::$dump_file . ".$i");
 		}
 	} // }}}
 	static public function log($t, $vars=null, $applyhtmlspecialchars=null)   //{{{
@@ -99,6 +124,7 @@ class ARL_Debug
 		if ( $turnItOff = (memory_get_usage()/self::$iniMemoryLimit >$limit) )
 			$t = "TOP XXX Memory usage exceeded $limit, debugger turned off! XXX";
 
+
 		if (self::$error_log) 
 		{
 			$error_log_msg = sprintf("Mem: %0.1f/%0.1fMb ", memory_get_usage()/1024/1024, self::$iniMemoryLimit/1024/1024 )
@@ -109,6 +135,34 @@ class ARL_Debug
 			unset($error_log_msg);
 		}
 		if ($applyhtmlspecialchars===null) $applyhtmlspecialchars = self::$htmlspecialchars;
+
+
+		if (self::$dump_file)
+		{
+			if ($vars) {
+				ob_start(); var_dump( $vars ); $vars = (ob_get_contents()); ob_end_clean();
+			}
+
+			file_put_contents(self::$dump_file, 
+					strtr($t ,array('>>'=>'{{{','<<'=>'}}}'))
+					."\n". 
+					($vars===null?'': 
+						"\t" . str_replace("\n","\n\t",$vars) 
+						."\n")
+				,FILE_APPEND);
+			// exit here 
+			return;
+		}
+
+		// prepare vars html {{{
+		if ( $vars !==null )
+		{
+			ob_start();                    // Start output buffering
+			var_dump( $vars );
+			$vars = htmlspecialchars(ob_get_contents()); // Get the contents of the buffer
+			ob_end_clean();                // End buffering and discard
+		} 
+		// }}}
 
 		// parse initial keyword {{{
 		$startBlock	=(substr($t,0,2)=='>>');
@@ -144,8 +198,7 @@ class ARL_Debug
 		self::$log[] = array( 'top'=>0, 'time'=>self::getmicrotime(), 'class'=>'normal', 'scope'=>'', 'message'=>'', 'vars'=>'','parent'=>self::$last_parent,'lastChild'=>0 );
 		$newRow = & self::$log[$newRowId];
 		$newRow['top'] = $myTopSetting;
-
-
+		$newRow['vars'] = $vars;
 
 		if ($applyhtmlspecialchars) $newRow['message']=htmlspecialchars(trim($t));
 		else $newRow['message']=trim($t);
@@ -200,15 +253,6 @@ class ARL_Debug
 		elseif($dull        ) $newRow['class'] = 'shhh';
 		// }}}
 
-		// prepare vars html {{{
-		if ( $vars !==null )
-		{
-			ob_start();                    // Start output buffering
-			var_dump( $vars );
-			$vars = htmlspecialchars(ob_get_contents()); // Get the contents of the buffer
-			ob_end_clean();                // End buffering and discard
-			$newRow['vars'] = $vars;
-		} // }}}
 
 		if ( $turnItOff ) self::$running = false;  
 
@@ -278,7 +322,15 @@ class ARL_Debug
 
 		$tmp = "<table border=\"1\"><tr>";
 		foreach($cols as $f) $tmp.= "<th>$f</th>";
+
+		if (self::$dump_file) 
+		{
+			ob_start(); debug_print_backtrace(); $backtrace = (ob_get_contents()); ob_end_clean();
+			self::log("FATAL: Backtrace:\n\t" . str_replace("\n","\n\t", $backtrace));
+			exit();
+		}
 		$backtrace = debug_backtrace();
+
 		foreach ($backtrace as $row)
 		{
 			$tmp .= "<tr>";
@@ -289,6 +341,7 @@ class ARL_Debug
 
 		self::log("TOP}Backtrace table: $tmp",null,false);
 		while (self::log('<<')) {}; // (will fail if not self::$running)
+
 		self::legacy_api( 'print_full' );	
 		exit();
 	} //}}}
@@ -482,7 +535,7 @@ class ARL_Debug
 			} // }}}
 			if (self::$silent) return ;
 			if ($command =='fetch') return $chunk;
-			elseif ($command =='fetch_full') return "$head$chunk</body></html>";
+			elseif ($command =='fetch_full') return "$chunk</body></html>";
 			elseif ($command == 'print' ) echo self::template('', $chunk); 
 			elseif ($command == 'print_full' ) echo self::template('', $chunk); 
 		}
