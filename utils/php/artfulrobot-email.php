@@ -10,13 +10,21 @@ class ARL_Email/*{{{*/
 	protected $from;
 	protected $body=array();
 	protected $attachments=array();
+	protected $uid;
 
 	//function __construct($to=null, $subject=null, $message=null)/*{{{*/
 	/** constructor
 	  */
 	function __construct($to=null, $subject=null, $message=null)
 	{
+		// init blank body parts
 		$this->body = array('text'=>'','html'=>'');
+		// create hash for boundaries
+		$this->uid = md5(serialize($this->body) . time());
+		// set up default headers
+		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARL_Email-mixed-$this->uid\"";
+		$this->headers['MIME-Version']='1.0';
+
 		if ($to!==null) $this->set_to($to);
 		if ($subject!==null) $this->set_subject($subject);
 		if ($message!==null) $this->add_message($message);
@@ -47,16 +55,25 @@ class ARL_Email/*{{{*/
 	{
 		$this->subject = $subject;
 	}/*}}}*/
-	//public function add_message_text( $message)/*{{{*/
-	/** adds text or html message */
-	public function add_message( $message)
+	//public function set_header($header)/*{{{*/
+	/** set header */
+	public function set_header($header, $value)
+	{
+		// don't overwrite stuff we need
+		if ($header == 'Content-Type' || $header=='MIME-Version') return false;
+		ARL_Debug::log("TOP setting $header: $value");
+		$this->headers[$header] = $value;
+	}/*}}}*/
+	//public function set_message_text( $message)/*{{{*/
+	/** adds text message */
+	public function set_message_text( $message)
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
 		$message = mb_convert_encoding($message, 'UTF-8', $this->mb_detect_encoding($message));
 		$this->body['text'] = $message;
 	}/*}}}*/
-	//public function add_message_html( $message, $related_files )/*{{{*/
+	//public function set_message_html( $message, $related_files )/*{{{*/
 	/** adds html message
 	  * 
 	  * the related_files is an array(
@@ -66,7 +83,7 @@ class ARL_Email/*{{{*/
 	  * and the html message must include references like {name}
 	  * 
 	 */
-	public function add_message_html( $message, $related_files=null )
+	public function set_message_html( $message, $related_files=null )
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
@@ -84,52 +101,36 @@ class ARL_Email/*{{{*/
 		if (in_array($filename, $this->attachments)) return ;
 		$this->attachments[] = $filename;
 	}/*}}}*/
-	//public function send()/*{{{*/
-	/** create and send email */
-	public function send()
+	public function get_headers($include_to=FALSE)/*{{{*/
 	{
-		$headers = array();
-
-		$to = implode(", ", $this->to);
-
+		if ($include_to) $this->headers['To'] = implode(", ", $this->to);
 
 		//define the headers we want passed. Note that they are separated with \r\n
 		if ($this->from) 
 		{
-			$headers[]= "From: $this->from";
-			$headers[]= "Sender: $this->from";
+			$this->headers['From'] = $this->from;
+			$this->headers['Sender']= $this->from;
 		}
-		else throw new Exception ("No from address set");
+		if ($this->reply_to) $this->headers["Reply-To"] = $this->reply_to;
 
-		if ($this->reply_to) $headers[] = "Reply-To: $this->reply_to";
-
-		//add boundary string and mime type specification
-		//create a boundary string. It must be unique
-		//so we use the MD5 algorithm to generate a random hash
-		$random_hash = md5(serialize($this->body) . time());
-		$headers[]= "Content-Type: multipart/mixed; boundary=\"ARL_Email-mixed-".$random_hash."\"\r\n";
-			//."MIME-Version: 1.0\r\n"
-
-		// compile headers
-		$headers = implode("\r\n", $headers);
-
-		// ensure subject is properly encoded
-		$encoding = $this->mb_detect_encoding($this->subject);
-		$subject = mb_encode_mimeheader($this->subject,$encoding);
-		//	this does something like: 
-		//	$subject = "=?UTF-8?B?".base64_encode(mb_convert_encoding($subject,'UTF-8'))		."?=\n";
-
+		return $this->headers;
+	}/*}}}*/
+	//public function get_body()/*{{{*/
+	/** create body */
+	public function get_body()
+	{
 		// if html email, make sure text is there as alternative.
 		if ($this->body['html'] && ! $this->body['text'])
 				$this->create_text_from_html();
 		elseif ($this->body['text'] && ! $this->body['html'])
 				$this->create_html_from_text();
 
+		$uid =$this->uid;
 		$body = 
-			 "--ARL_Email-mixed-$random_hash\r\n"
-			."Content-Type: multipart/alternative; boundary=\"ARL_Email-alt-$random_hash\"\r\n"
+			 "--ARL_Email-mixed-$uid\r\n"
+			."Content-Type: multipart/alternative; boundary=\"ARL_Email-alt-$uid\"\r\n"
 			."\r\n"
-			."--ARL_Email-alt-$random_hash\r\n"
+			."--ARL_Email-alt-$uid\r\n"
 			."Content-Type: text/plain; charset=\"utf-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['text']
@@ -138,7 +139,7 @@ class ARL_Email/*{{{*/
 		// html
 		if (!$this->body['related'])
 			$body .=
-			 "--ARL_Email-alt-$random_hash\r\n"
+			 "--ARL_Email-alt-$uid\r\n"
 			."Content-Type: text/html; charset=\"utf-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['html']
@@ -146,12 +147,12 @@ class ARL_Email/*{{{*/
 		else
 		{
 			$body .=
-				 "\r\n--ARL_Email-alt-$random_hash\r\n"
-				."Content-Type: multipart/related; boundary=ARL_Email-rel-$random_hash\r\n"
+				 "\r\n--ARL_Email-alt-$uid\r\n"
+				."Content-Type: multipart/related; boundary=ARL_Email-rel-$uid\r\n"
 				."\r\n"
-				."--ARL_Email-rel-$random_hash\r\n"
+				."--ARL_Email-rel-$uid\r\n"
 				."Content-Type: text/html; charset=\"utf-8\"\r\n"
-				."Content-Transfer-Encoding: 8bit\r\n\r\n"
+				."Content-Transfer-Encoding: 8bit\r\n"
 				."\r\n";
 			$html = $this->body['html'];
 			foreach ($this->body['related'] as $name => $filename)
@@ -161,17 +162,17 @@ class ARL_Email/*{{{*/
 
 			foreach ($this->body['related'] as $name => $filename)
 				$body .=
-				 "--ARL_Email-rel-$random_hash\r\n"
+				 "--ARL_Email-rel-$uid\r\n"
 				. $this->attach($filename, $name)
 				. "\r\n";
 
 			$body .=
-				 "--ARL_Email-rel-$random_hash\r\n"
+				 "--ARL_Email-rel-$uid\r\n"
 				. "\r\n";
 			
 		}
 		$body .=
-			 "--ARL_Email-alt-$random_hash\r\n"
+			 "--ARL_Email-alt-$uid\r\n"
 			."\r\n";
 
 		if ($this->attachments)
@@ -181,14 +182,26 @@ class ARL_Email/*{{{*/
 			//and split it into smaller chunks
 			foreach ($this->attachments as $_)
 				$body .= 
-					 "--ARL_Email-mixed-$random_hash\r\n"
+					 "--ARL_Email-mixed-$uid\r\n"
 					 . $this->attach($_);
 		}
-		$body .= "--ARL_Email-mixed-$random_hash\r\n";
+		$body .= "--ARL_Email-mixed-$uid\r\n";
 
-		$result = mail($to, $subject, $body, $headers);
-		ARL_Debug::log("Email sent:", $headers . $body);
-		return $result;
+		return $body;
+	}/*}}}*/
+	//public function send()/*{{{*/
+	/** create and send email */
+	public function send()
+	{
+		$headers = '';
+		foreach ($this->get_headers() as $k=>$v)
+			$headers .= "$k: $v\r\n";
+
+		$body = $this->get_body();
+
+		$message = "$headers\r\n$body";
+
+		// send
 	}/*}}}*/
 
 	//protected function attach($filename, $cid=null)/*{{{*/
@@ -362,7 +375,7 @@ function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{
 	debug('<<', $retVal);
 	return $retVal;
 } // }}}
-
+/*
 $email = new ARL_Email('rl6@shinyblue.net', 'hello');
 $email->set_from('rich.lott@peopleandplanet.org');
 //$email->add_attachment( '/var/www/peopleandplanet.org/format/101010animated.gif');
@@ -375,3 +388,4 @@ html
 		, array(
 			'test' => '/var/www/peopleandplanet.org/format/101010animated.gif'));
 $email->send();
+*/
