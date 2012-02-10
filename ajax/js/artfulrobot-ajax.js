@@ -395,7 +395,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		var params;
 		var paramsType = artfulrobot.typeOf(givenParams);
 		// given (what we assume to be a) url-encoded string, just pass it along
-		if ( paramsType = 'string' ) params = givenParams;
+		if ( paramsType == 'string' ) params = givenParams;
 		// given an object { key1: val1, key2: val2 ... }
 		else if (paramsType == 'object' )
 		{
@@ -571,7 +571,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		}
 		catch(e)
 		{
-			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, artfulrobot.ajax.requests[requestId]);
+			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, requestId,rsp);
 			return;
 		}
 
@@ -596,6 +596,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 				+ responseText
 				+'</div></body></html>');
 
+		errorReport.document.close();
 	}, // }}}
 	requestEnds: function( requestObj ) { },
 	requestStarts: function( requestObj ) { },
