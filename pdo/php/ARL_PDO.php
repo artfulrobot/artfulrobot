@@ -75,7 +75,10 @@ abstract class ARL_PDO_Model/*{{{*/
 		{
 			if ( $this->myData[$lookup] !== $newValue )
 			{
-				$this->myData[$lookup] = $this->cast_data( $lookup, $newValue );
+				// attempt cast, might throw exeption
+				$cast = $this->cast_data( $lookup, $newValue );
+				// only set if no exception
+				$this->myData[$lookup] = $cast;
 				$this->unsaved_changes = true; //only when changed.
 			}
 			return;
