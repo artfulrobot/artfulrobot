@@ -806,7 +806,11 @@ class ARL_Array
 	 */
 	static public function value( $key, &$array, $default=null, $create_if_missing=false)
 	{
-		if (! is_array($array)) throw new Exception( "ARL_Array::value called with something other than an array");
+		if (! is_array($array)) 
+		{
+			trigger_error( "ARL_Array::value called with something other than an array",E_USER_NOTICE);
+			return null;
+		}
 		if (array_key_exists($key, $array)) return $array[$key];
 		if ($create_if_missing) $array[$key] = $default;
 		return $default;
