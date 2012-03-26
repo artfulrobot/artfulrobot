@@ -187,7 +187,7 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
  *  
  *  shouts the following signals: 
  *      rowSelected		with the following object:
-						tableId :
+						tableId : (string Id, or node or jQuery node)
 						event: 
 						trNode: 
 						rowData: array 
@@ -203,7 +203,7 @@ var ARLSelectableTable = artfulrobot.defineClass( artfulrobot.ARLObject,
 		this.filterableCols = [];
 		this.nodesArray     = []; // nodesArray[ rowIndex ][ colIndex ] = td 
 		this.headerRowNodes = []; 
-		this.table          = jQuery('#'+tableId);
+		this.table          = (artfulrobot.typeOf( tableId )=='string') ? jQuery('#'+tableId) : jQuery(tableId);
 		this.class_selected = 'selected';
 		this.lastSelected   = false;
 		this.isUnfiltered   = true;
