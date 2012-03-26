@@ -11,6 +11,7 @@ class ARL_Email/*{{{*/
 	protected $body=array();
 	protected $attachments=array();
 	protected $uid;
+	protected $line_endings="\r\n";
 
 	//function __construct($to=null, $subject=null, $message=null)/*{{{*/
 	/** constructor
@@ -43,6 +44,13 @@ class ARL_Email/*{{{*/
 	{
 		$this->from = $from;
 	}/*}}}*/
+	//public function set_line_endings($line_endings)/*{{{*/
+	/** configure line_endings
+	  */
+	public function set_line_endings($line_endings)
+	{
+		$this->line_endings = $line_endings;
+	}/*}}}*/
 	//public function set_reply_to($from)/*{{{*/
 	/** set Reply-To field */
 	public function set_reply_to($from)
@@ -61,7 +69,6 @@ class ARL_Email/*{{{*/
 	{
 		// don't overwrite stuff we need
 		if ($header == 'Content-Type' || $header=='MIME-Version') return false;
-		ARL_Debug::log("TOP setting $header: $value");
 		$this->headers[$header] = $value;
 	}/*}}}*/
 	//public function set_message_text( $message)/*{{{*/
@@ -189,19 +196,72 @@ class ARL_Email/*{{{*/
 
 		return $body;
 	}/*}}}*/
-	//public function send()/*{{{*/
-	/** create and send email */
+	//public function send() /*{{{*/
+	/** create and send email 
+	 * 
+	 * Thanks to Drupal for some of this code
+	 */
 	public function send()
 	{
-		$headers = '';
-		foreach ($this->get_headers() as $k=>$v)
-			$headers .= "$k: $v\r\n";
+		// If 'Return-Path' isn't already set in php.ini, we pass it separately
+		// as an additional parameter instead of in the header.
+		// However, if PHP's 'safe_mode' is on, this is not allowed.
+		if (isset($this->headers['Return-Path']) && !ini_get('safe_mode')) 
+		{
+			 $return_path_set = strpos(ini_get('sendmail_path'), ' -f');
+			 if (!$return_path_set) {
+				 $return_path = $this->headers['Return-Path'];
+				 unset($this->headers['Return-Path']);
+			 }
+		 }
 
-		$body = $this->get_body();
+		 $mail_headers = '';
+		 // prefer Drupal's mime_header_encode if we have it
+		 if (function_exists('mime_header_encode'))
+		 {
+			 $mail_subject = mime_header_encode($this->subject);
+			 foreach ($this->get_headers() as $k=>$v)
+				$mail_headers .= "$k: " . mime_header_encode($v) . "\n";
+		 }
+		 else
+		 {
+			 $mail_subject = self::mime_header_encode($this->subject);
+			 foreach ($this->get_headers() as $k=>$v)
+				$mail_headers .= "$k: " . self::mime_header_encode($v) . "\n";
+		 }
 
-		$message = "$headers\r\n$body";
+		 // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+		 // on Unix and CRLF on Windows. Configure objects if needed with set_line_endings()
+		 $mail_body = preg_replace('@\r?\n@', $this->line_endings, $this->get_body());
 
-		// send
+		 $mail_to = implode(", ", $this->to);
+
+		 file_put_contents(DRUPAL_ROOT . '/tmp.html', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
+
+		 if (isset($return_path)) {
+			 //ARL_Debug::log("TOP sending with -f");
+			 $mail_result = mail(
+					 $mail_to,
+					 $mail_subject, 
+					 $mail_body, 
+					 $mail_headers, 
+					 // Pass the Return-Path via sendmail's -f command.
+					 '-f ' . $return_path
+					 );
+		 }
+		 else {
+			 //ARL_Debug::log("TOP sending without -f");
+			 // The optional $additional_parameters argument to mail() is not allowed
+			 // if safe_mode is enabled. Passing any value throws a PHP warning and
+			 // makes mail() return FALSE.
+			 $mail_result = mail(
+					 $mail_to,
+					 $mail_subject, 
+					 $mail_body, 
+					 $mail_headers
+					 );
+		 }
+		 return $mail_result;
 	}/*}}}*/
 
 	//protected function attach($filename, $cid=null)/*{{{*/
@@ -212,7 +272,7 @@ class ARL_Email/*{{{*/
 		$file = basename($filename);
 		$attachment = 
 				 "Content-Type: $mime"
-				.( $cid ? '' : "name=\"$filename\"\r\n" )
+				.( $cid ? '' : "name=\"$file\"\r\n" )
 				."Content-Transfer-Encoding: base64\r\n"
 				.( $cid ? "Content-ID: <ARL_Email-CID-$cid>\r\n" 
 						: "Content-Disposition: attachment\r\n")
@@ -231,105 +291,111 @@ class ARL_Email/*{{{*/
 	{
 		$this->body['html'] = preg_replace('/(\r\n|\n|\r)/','<br />',$this->body['text']);
 	}/*}}}*/
-private function mb_detect_encoding( $string, $detect_order=null ) // {{{
-{
-	/** php's native mb_detect_encoding is riddled with bugs.
-   	 * see the comments for the online documentation for proof
-	 *
-	 * one bug in mb_detect_encoding reported in 2005 
-	 * http://uk2.php.net/manual/en/function.mb-detect-encoding.php#55228
-	 * and still present in 2009:
-	 * example, e-acute (byte value 233 in Latin1) mb_detect_encoding will tell you
-	 * it's UTF-8. The work around is to append an ASCII character at the end of the string.
-	 * then it works properly. 
-	 *
-	 * mb_detect_encoding also detects a string
-	 * with (e.g.) 149 in as Latin1 when Latin1 is undefined for 128-159.
-	 * (could be cp1252)
-	 * 
 
-	 * confusion arrises in definitions of detection
-	 * Q1: is this string a valid encoding-X string?
-	 *		Note: most UTF-8 byte sequences validate against ISO-8859-1 (Latin1)
-	 * 		because that charset only excludes the range 128-159
-	 * Q2: what's the minimal charset we can represent the string in?
-
-	 * Q2 is because UTF8 encumbers various processes, 
-	 * so if we can avoid this overhead/complication
-	 * we usually want to.
-	 *
-
-	 * The w3 regexp fails (causes php a segfault) on strings >~3.5kb !
-	 * 
-
-Unit Test
-$a="just plain old text." ; 
-$encoding = mb_detect_encrl($a);
-echo "ASCII test : " .  ( ( $encoding == 'ASCII' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
-$a="caf" . chr(233); 
-$encoding = mb_detect_encrl($a);
-echo "ISO-8859-1 test : " .  ( ( $encoding == 'ISO-8859-1' ) ? 'pass' : 'FAIL: '.$encoding ) . "<br />";
-$a="caf" . chr(195) . chr(169);
-$encoding = mb_detect_encrl($a);
-echo "UTF-8 test : " .  ( ( $encoding == 'UTF-8' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
-$a="bullet" . chr(149); // outside of Latin1
-$encoding = mb_detect_encrl($a);
-echo "Windows-1252 test : " .  ( ( $encoding == 'WINDOWS-1252' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
-
-$a="caf" . chr(195) . chr(169) . chr(169); //invalid utf8 \xC3\xA9\xA9 should show up as ISO-8859-1
-$encoding = mb_detect_encrl($a);
-echo "binary/invalid UTF8 test : detected as $encoding. " .  ( ( $encoding == 'ISO-8859-1' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
-
-
-	 */
-
-	// coding check
-	if ($detect_order!==null) throw new Exception(" mb_detect_encrl does not take detect_order, unlike php's native function.");
-	// first, is it ASCII?
-	if (mb_check_encoding( $string, 'ASCII' )) return 'ASCII';
-
-	// now, is it valid utf8 and does it need to be?
-	if (
-		//first, does it need to be UTF-8? (this is the faster of the 2 regexps so we do it first)
-		//source: http://uk2.php.net/manual/en/function.mb-detect-encoding.php#68607
-		preg_match("%(?:
-        [\xC2-\xDF][\x80-\xBF]        # non-overlong 2-byte
-        |\xE0[\xA0-\xBF][\x80-\xBF]               # excluding overlongs
-        |[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}      # straight 3-byte
-        |\xED[\x80-\x9F][\x80-\xBF]               # excluding surrogates
-        |\xF0[\x90-\xBF][\x80-\xBF]{2}    # planes 1-3
-        |[\xF1-\xF3][\x80-\xBF]{3}                  # planes 4-15
-        |\xF4[\x80-\x8F][\x80-\xBF]{2}    # plane 16
-        )+%xs", $string) )
+	static public function mb_detect_encoding( $string, $detect_order=null ) // {{{
 	{
+		/** php's native mb_detect_encoding is riddled with bugs.
+		 * see the comments for the online documentation for proof
+		 *
+		 * one bug in mb_detect_encoding reported in 2005 
+		 * http://uk2.php.net/manual/en/function.mb-detect-encoding.php#55228
+		 * and still present in 2009:
+		 * example, e-acute (byte value 233 in Latin1) mb_detect_encoding will tell you
+		 * it's UTF-8. The work around is to append an ASCII character at the end of the string.
+		 * then it works properly. 
+		 *
+		 * mb_detect_encoding also detects a string
+		 * with (e.g.) 149 in as Latin1 when Latin1 is undefined for 128-159.
+		 * (could be cp1252)
+		 * 
 
-		if ( mb_detect_encoding($string,'UTF-8') === 'UTF-8' )
+		 * confusion arrises in definitions of detection
+		 * Q1: is this string a valid encoding-X string?
+		 *		Note: most UTF-8 byte sequences validate against ISO-8859-1 (Latin1)
+		 * 		because that charset only excludes the range 128-159
+		 * Q2: what's the minimal charset we can represent the string in?
+
+		 * Q2 is because UTF8 encumbers various processes, 
+		 * so if we can avoid this overhead/complication
+		 * we usually want to.
+		 *
+
+		 * The w3 regexp fails (causes php a segfault) on strings >~3.5kb !
+		 * 
+
+		 Unit Test
+		 $a="just plain old text." ; 
+		$encoding = mb_detect_encrl($a);
+		echo "ASCII test : " .  ( ( $encoding == 'ASCII' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
+		$a="caf" . chr(233); 
+		$encoding = mb_detect_encrl($a);
+		echo "ISO-8859-1 test : " .  ( ( $encoding == 'ISO-8859-1' ) ? 'pass' : 'FAIL: '.$encoding ) . "<br />";
+		$a="caf" . chr(195) . chr(169);
+		$encoding = mb_detect_encrl($a);
+		echo "UTF-8 test : " .  ( ( $encoding == 'UTF-8' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
+		$a="bullet" . chr(149); // outside of Latin1
+		$encoding = mb_detect_encrl($a);
+		echo "Windows-1252 test : " .  ( ( $encoding == 'WINDOWS-1252' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
+
+		$a="caf" . chr(195) . chr(169) . chr(169); //invalid utf8 \xC3\xA9\xA9 should show up as ISO-8859-1
+		$encoding = mb_detect_encrl($a);
+		echo "binary/invalid UTF8 test : detected as $encoding. " .  ( ( $encoding == 'ISO-8859-1' ) ? 'pass' : 'FAIL:' . $encoding) . "<br />";
+
+
+		 */
+
+		// coding check
+		if ($detect_order!==null) throw new Exception(" mb_detect_encrl does not take detect_order, unlike php's native function.");
+		// first, is it ASCII?
+		if (mb_check_encoding( $string, 'ASCII' )) return 'ASCII';
+
+		// now, is it valid utf8 and does it need to be?
+		if (
+			//first, does it need to be UTF-8? (this is the faster of the 2 regexps so we do it first)
+			//source: http://uk2.php.net/manual/en/function.mb-detect-encoding.php#68607
+			preg_match("%(?:
+			[\xC2-\xDF][\x80-\xBF]        # non-overlong 2-byte
+			|\xE0[\xA0-\xBF][\x80-\xBF]               # excluding overlongs
+			|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}      # straight 3-byte
+			|\xED[\x80-\x9F][\x80-\xBF]               # excluding surrogates
+			|\xF0[\x90-\xBF][\x80-\xBF]{2}    # planes 1-3
+			|[\xF1-\xF3][\x80-\xBF]{3}                  # planes 4-15
+			|\xF4[\x80-\x8F][\x80-\xBF]{2}    # plane 16
+		)+%xs", $string) )
 		{
-			if (
-				// now is it valid?
-				// From http://w3.org/International/questions/qa-forms-utf-8.html
-				preg_match("%^(?:(?>				 # the ?> means the subpattern will not be recursed into IMPORTANT
-				  [\x09\x0A\x0D\x20-\x7E]            # ASCII
-				| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
-				|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
-				| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
-				|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
-				|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
-				| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
-				|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
-					))*$%xs", $string)
+
+			if ( mb_detect_encoding($string,'UTF-8') === 'UTF-8' )
+			{
+				if (
+					// now is it valid?
+					// From http://w3.org/International/questions/qa-forms-utf-8.html
+					preg_match("%^(?:(?>				 # the ?> means the subpattern will not be recursed into IMPORTANT
+					[\x09\x0A\x0D\x20-\x7E]            # ASCII
+					| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+					|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
+					| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+					|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
+					|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
+					| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+					|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+				))*$%xs", $string)
 			) return 'UTF-8';
+			}
 		}
-	}
 
-	// other encodings are trickier. For our purposes we're likely to get windows 1252.
-	// I'll "detect" this by looking for non-Latin1 characters
-	if ( preg_match("/[\x80-\x9F]/", $string) ) return "WINDOWS-1252";
+		// other encodings are trickier. For our purposes we're likely to get windows 1252.
+		// I'll "detect" this by looking for non-Latin1 characters
+		if ( preg_match("/[\x80-\x9F]/", $string) ) return "WINDOWS-1252";
 
-	// ok let's call it Latin1 now
-	return "ISO-8859-1";
-} // }}}
-	
+		// ok let's call it Latin1 now
+		return "ISO-8859-1";
+	} // }}}
+	static public function mime_header_encode($data)/*{{{*/
+	{
+		$encoding = self::mb_detect_encoding($data);
+		$data = mb_encode_mimeheader($data,$encoding);
+		return $data;
+	}/*}}}*/
 
 } /*}}}*/
 
