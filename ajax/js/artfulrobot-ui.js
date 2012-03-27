@@ -125,7 +125,11 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		li.find('button').click( handler);
 
 	}, // }}}
-	clicked: function( e ) // {{{
+	//clicked: function( e ) // {{{
+	/** e must include e.data.idx - index to item to select.
+	 *     can include e.data.scrollIntoView which calls this on the item if selected.
+	 */
+	clicked: function( e ) 
 	{
 		// look out for old code whoopsies
 		if ( ! ( e && e.data && typeof(e.data.idx)!='undefined') ) console.error(this.name+'.clicked requires event.data.idx');
@@ -140,6 +144,9 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		else // select something
 		{
 			this.select(i);
+			if ( e.data.scrollIntoView 
+					&& jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView )
+					 jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView();
 			this.shout( 'selected', { record: this.selectedRecord, evt: e, index:i } );
 		}
 	}, // }}}
