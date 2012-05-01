@@ -236,7 +236,7 @@ class ARL_Email/*{{{*/
 
 		 $mail_to = implode(", ", $this->to);
 
-		 file_put_contents(DRUPAL_ROOT . '/tmp.html', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
+		 //file_put_contents(DRUPAL_ROOT . '/tmp.html', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
 
 		 if (isset($return_path)) {
 			 //ARL_Debug::log("TOP sending with -f");
