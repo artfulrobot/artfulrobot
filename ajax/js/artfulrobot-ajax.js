@@ -790,7 +790,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		// argsArray should be an array that is passed to the class constructor
 
 		// if adding an aliased subobject, we can only have one, so if there's already one, get rid of it.
-		if (localAlias && this[localAlias]) this.destroySubObject(localAlias);
+		if (localAlias && this[localAlias]) this.destroySubObject(this[localAlias]);
 
 		// get name of class
 		var soName = 'unknown';
@@ -897,7 +897,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		{
 			objId = objOrObjId;
 			obj = this.subObjects[objId];
-			if (typeof('ojb')=='undefined')
+			if (typeof(obj)=='undefined')
 			   throw new artfulrobot.Exception(
 					   'destroySubObject called for "'
 					   +objOrObjId+'" which is not valid id. I have: '
