@@ -268,14 +268,15 @@ class ARL_Email/*{{{*/
 	/** internal function to create attachment */
 	protected function attach($filename, $cid=null)
 	{
-		$mime = shell_exec("file -bi " . escapeshellarg( $filename ));
+		$mime = trim(shell_exec("file -bi " . escapeshellarg( $filename )));
 		$file = basename($filename);
 		$attachment = 
 				 "Content-Type: $mime"
-				.( $cid ? '' : "name=\"$file\"\r\n" )
+				.( $cid ? '' : ";\r\n name=\"$file\"\r\n" )
 				."Content-Transfer-Encoding: base64\r\n"
 				.( $cid ? "Content-ID: <ARL_Email-CID-$cid>\r\n" 
-						: "Content-Disposition: attachment\r\n")
+						: "Content-Disposition: attachment\r\n"
+						 ." filename=\"$file\"\r\n")
 				."\r\n"
 				.chunk_split(base64_encode(file_get_contents($filename)))
 				."\r\n";
