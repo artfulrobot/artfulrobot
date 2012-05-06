@@ -8,6 +8,7 @@ class ARL_Email/*{{{*/
 	protected $to;
 	protected $reply_to;
 	protected $from;
+	protected $return_path;
 	protected $body=array();
 	protected $attachments=array();
 	protected $uid;
@@ -43,6 +44,12 @@ class ARL_Email/*{{{*/
 	public function set_from($from)
 	{
 		$this->from = $from;
+	}/*}}}*/
+	//public function set_return_path($return_path)/*{{{*/
+	/** set return path */
+	public function set_return_path($return_path)
+	{
+		$this->return_path = $return_path;
 	}/*}}}*/
 	//public function set_line_endings($line_endings)/*{{{*/
 	/** configure line_endings
@@ -203,17 +210,30 @@ class ARL_Email/*{{{*/
 	 */
 	public function send()
 	{
-		// If 'Return-Path' isn't already set in php.ini, we pass it separately
-		// as an additional parameter instead of in the header.
-		// However, if PHP's 'safe_mode' is on, this is not allowed.
-		if (isset($this->headers['Return-Path']) && !ini_get('safe_mode')) 
+		// Return Path
+		// if set with set_return_path, this is used.
+		// if set in headers as Return-Path, this is used.
+
+		$return_path = (!empty($this->return_path)
+				? $this->return_path
+				: (!empty($this->headers['Return-Path'])
+					? $this->headers['Return-Path']
+					: null));
+
+		// best to pass the return path in 5th arg of mail()
+		// can't though if PHP in safe mode, or the -f flag is
+		// hard-coded in the php.ini.
+		if ($return_path)
 		{
-			 $return_path_set = strpos(ini_get('sendmail_path'), ' -f');
-			 if (!$return_path_set) {
-				 $return_path = $this->headers['Return-Path'];
-				 unset($this->headers['Return-Path']);
-			 }
-		 }
+			if (ini_get('safe_mode') 
+				 || strpos(ini_get('sendmail_path'), ' -f')!==false)
+			{
+				// can't use 5th param, put in headers (incase that works?!)
+				$this->headers['Return-Path'] = $return_path;
+				unset($return_path);
+			}
+			else unset($this->headers['Return-Path']);
+		}
 
 		 $mail_headers = '';
 		 // prefer Drupal's mime_header_encode if we have it
