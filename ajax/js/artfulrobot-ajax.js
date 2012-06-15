@@ -463,7 +463,21 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		this.requestStarts( this.requests[ requestId ] );
 
 		// make request
-		jQuery.ajax( 
+		if (jQuery().jquery<'1.5')
+		{
+			console && console.warn && console.warn("Running old version of jQuery");
+			jQuery.ajax( 
+			{
+				url:this.requestFrom,
+				data:params,
+				type: (method|| this.method).toUpperCase(),
+				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
+				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
+			} );
+		}
+		else
+		{
+			jQuery.ajax( 
 			this.requestFrom,
 			{
 				data:params,
@@ -471,6 +485,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
 				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
 			} );
+		}
 
 		return requestId;
 	}, // }}}
@@ -720,7 +735,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 				? 'ARLObject' // first/main object will be this one
 				: myName);
 
-		if (this.debugLevel>1) console.info(this.name + '.initialize');
+		if (this.debugLevel>1) console.info(this.name + '.initialise');
 		if (this.debugLevel>1) console.log(' session: ', session );
 
 		// increment nextId so all Ajah_rl_AbstractObjects will have unique ids
@@ -807,6 +822,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		// 		soName,		name of subObject class, stored in object's name property
 		//		session 	object given from this to the sub object
 		//		argsArray	as passed to us
+		if (this.debugLevel>1) console.log(this.name + '.addSubObject: About to create subobject:', { 'type': soName, 'args':argsArray });
 		var newObj = new objClass( this, soName, this.getSessionForSubObject(soName), argsArray ); 
 		if (this.debugLevel>1) console.log(this.name + '.addSubObject: new object created', newObj);
 		
