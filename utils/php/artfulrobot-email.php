@@ -295,7 +295,7 @@ class ARL_Email/*{{{*/
 				.( $cid ? '' : ";\r\n name=\"$file\"\r\n" )
 				."Content-Transfer-Encoding: base64\r\n"
 				.( $cid ? "Content-ID: <ARL_Email-CID-$cid>\r\n" 
-						: "Content-Disposition: attachment\r\n"
+						: "Content-Disposition: attachment;\r\n"
 						 ." filename=\"$file\"\r\n")
 				."\r\n"
 				.chunk_split(base64_encode(file_get_contents($filename)))
