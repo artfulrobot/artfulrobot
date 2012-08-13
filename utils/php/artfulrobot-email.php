@@ -292,7 +292,8 @@ class ARL_Email/*{{{*/
 		$file = basename($filename);
 		$attachment = 
 				 "Content-Type: $mime"
-				.( $cid ? '' : ";\r\n name=\"$file\"\r\n" )
+				.( $cid ? '' : ";\r\n name=\"$file\"" )
+				. "\r\n"
 				."Content-Transfer-Encoding: base64\r\n"
 				.( $cid ? "Content-ID: <ARL_Email-CID-$cid>\r\n" 
 						: "Content-Disposition: attachment;\r\n"
