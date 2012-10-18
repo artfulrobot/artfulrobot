@@ -66,6 +66,7 @@ class ARL_Debug
 		self::$errors_to_ignore = E_NOTICE + E_STRICT + E_WARNING;
 		// figure out memory limit in bytes
 		$memLimit = ini_get('memory_limit');
+		if ($memLimit == -1 ) $memLimit = "250M";
 		$number = preg_replace('/[^0-9.]/','',$memLimit);
 		$multiplier = strtoupper(preg_replace('/[0-9.]/','',$memLimit));
 		if ($multiplier == 'K') $multiplier = 1024;
@@ -529,7 +530,7 @@ class ARL_Debug
 
 			if (self::$file) // {{{
 			{
-				$f = fopen( $_SERVER['DOCUMENT_ROOT'] . "/logs/$filename.html" ,'w' );
+				$f = fopen( "/var/www/" . $_SERVER['HTTP_HOST'] . "/logs/$filename.html" ,'w' );
 				fwrite ($f, self::template($filename, $chunk));
 				fclose( $f);
 			} // }}}
