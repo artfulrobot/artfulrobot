@@ -23,7 +23,7 @@ class ARL_PDO_Model_Creator
 				."=> array( ";
 			//cast?
 			$t = strtolower($row->Type);
-			if (preg_match('/^(?:tiny|long|med|big|)int\((\d+)\)\s?(unsigned)?/', $t, $matches))
+			if (preg_match('/^(?:tiny|small|long|med|big|)int\((\d+)\)\s?(unsigned)?/', $t, $matches))
 			{
 				$line .= "'cast' => 'int"
 					. ($matches[2]  ? "_unsigned'" 
