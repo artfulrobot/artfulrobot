@@ -12,7 +12,7 @@ class ARL_Email/*{{{*/
 	protected $body=array();
 	protected $attachments=array();
 	protected $uid;
-	protected $line_endings="\r\n";
+	protected $line_endings="\n";
 
 	//function __construct($to=null, $subject=null, $message=null)/*{{{*/
 	/** constructor
@@ -24,8 +24,8 @@ class ARL_Email/*{{{*/
 		// create hash for boundaries
 		$this->uid = md5(serialize($this->body) . time());
 		// set up default headers
-		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARL_Email-mixed-$this->uid\"";
 		$this->headers['MIME-Version']='1.0';
+		$this->headers['Content-Type']= "multipart/mixed;\r\n boundary=\"ARL_Email-mixed-$this->uid\"";
 
 		if ($to!==null) $this->set_to($to);
 		if ($subject!==null) $this->set_subject($subject);
@@ -142,10 +142,10 @@ class ARL_Email/*{{{*/
 		$uid =$this->uid;
 		$body = 
 			 "--ARL_Email-mixed-$uid\r\n"
-			."Content-Type: multipart/alternative; boundary=\"ARL_Email-alt-$uid\"\r\n"
+			."Content-Type: multipart/alternative;\r\n boundary=\"ARL_Email-alt-$uid\"\r\n"
 			."\r\n"
 			."--ARL_Email-alt-$uid\r\n"
-			."Content-Type: text/plain; charset=\"utf-8\"\r\n"
+			."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['text']
 			."\r\n";
@@ -154,7 +154,7 @@ class ARL_Email/*{{{*/
 		if (!$this->body['related'])
 			$body .=
 			 "--ARL_Email-alt-$uid\r\n"
-			."Content-Type: text/html; charset=\"utf-8\"\r\n"
+			."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['html']
 			."\r\n";
@@ -162,10 +162,10 @@ class ARL_Email/*{{{*/
 		{
 			$body .=
 				 "\r\n--ARL_Email-alt-$uid\r\n"
-				."Content-Type: multipart/related; boundary=ARL_Email-rel-$uid\r\n"
+				."Content-Type: multipart/related;\r\n boundary=\"ARL_Email-rel-$uid\"\r\n"
 				."\r\n"
 				."--ARL_Email-rel-$uid\r\n"
-				."Content-Type: text/html; charset=\"utf-8\"\r\n"
+				."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 				."Content-Transfer-Encoding: 8bit\r\n"
 				."\r\n";
 			$html = $this->body['html'];
@@ -181,12 +181,12 @@ class ARL_Email/*{{{*/
 				. "\r\n";
 
 			$body .=
-				 "--ARL_Email-rel-$uid\r\n"
+				 "--ARL_Email-rel-$uid--\r\n"
 				. "\r\n";
 			
 		}
 		$body .=
-			 "--ARL_Email-alt-$uid\r\n"
+			 "--ARL_Email-alt-$uid--\r\n"
 			."\r\n";
 
 		if ($this->attachments)
@@ -199,7 +199,7 @@ class ARL_Email/*{{{*/
 					 "--ARL_Email-mixed-$uid\r\n"
 					 . $this->attach($_);
 		}
-		$body .= "--ARL_Email-mixed-$uid\r\n";
+		$body .= "--ARL_Email-mixed-$uid--\r\n";
 
 		return $body;
 	}/*}}}*/
@@ -241,13 +241,17 @@ class ARL_Email/*{{{*/
 		 {
 			 $mail_subject = mime_header_encode($this->subject);
 			 foreach ($this->get_headers() as $k=>$v)
-				$mail_headers .= "$k: " . mime_header_encode($v) . "\n";
+				$mail_headers .= "$k: " . mime_header_encode($v) . "\r\n";
 		 }
 		 else
 		 {
 			 $mail_subject = self::mime_header_encode($this->subject);
 			 foreach ($this->get_headers() as $k=>$v)
-				$mail_headers .= "$k: " . self::mime_header_encode($v) . "\n";
+			 {
+				 // xxx why is content type getting encoded weird?
+				 if ($k=='Content-Type') $mail_headers .= "$k: $v\r\n";
+				 else $mail_headers .= "$k: " . self::mime_header_encode($v) . "\r\n";
+			 }
 		 }
 
 		 // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
@@ -256,7 +260,7 @@ class ARL_Email/*{{{*/
 
 		 $mail_to = implode(", ", $this->to);
 
-		 //file_put_contents(DRUPAL_ROOT . '/tmp.html', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
+		 // file_put_contents('/tmp/arl-email', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
 
 		 if (isset($return_path)) {
 			 //ARL_Debug::log("TOP sending with -f");
@@ -462,17 +466,3 @@ function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{
 	debug('<<', $retVal);
 	return $retVal;
 } // }}}
-/*
-$email = new ARL_Email('rl6@shinyblue.net', 'hello');
-$email->set_from('rich.lott@peopleandplanet.org');
-//$email->add_attachment( '/var/www/peopleandplanet.org/format/101010animated.gif');
-$email->add_message_html( <<<html
-<p>Hello</p>
-<img src="{test}" />
-<p>This is an <strong>html</strong> email</p>
-
-html
-		, array(
-			'test' => '/var/www/peopleandplanet.org/format/101010animated.gif'));
-$email->send();
-*/
