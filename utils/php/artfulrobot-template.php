@@ -52,7 +52,7 @@ class Template {
 	 * @return void
 	 */
 	public function __construct($path = null) {
-		if ($path === null) $path = preg_replace('@(/?)$@','/',$_SERVER['DOCUMENT_ROOT']);
+		if ($path === null) $path = preg_replace('@(/?)$@','/',"/var/www/" . $_SERVER['HTTP_HOST']);
 		$this->set_path($path);
 	} //}}}
 

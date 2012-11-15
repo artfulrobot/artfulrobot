@@ -322,7 +322,7 @@ artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 	{
 		this.details = jQuery.makeArray(arguments);
 		this.message = this.details[0];
-		console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
+		window.console && console.error && console.error.apply(this, ['exception args: '].concat(this.details) );
 	},
 	details:[],
 	toString:function()
@@ -465,7 +465,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		// make request
 		if (jQuery().jquery<'1.5')
 		{
-			console && console.warn && console.warn("Running old version of jQuery");
+			window.console && console.warn && console.warn("Running old version of jQuery");
 			jQuery.ajax( 
 			{
 				url:this.requestFrom,
@@ -608,7 +608,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	}, // }}}
 	seriousError: function( errorMsg, requestId, responseText ) // {{{
 	{
-		console && console.error && console.error( errorMsg, requestId, " ",  responseText);
+		window.console && console.error && console.error( errorMsg, requestId, " ",  responseText);
 		var errorReport = window.open();
 		errorReport.document.write( 
 				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
@@ -631,7 +631,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	requestStarts: function( requestObj ) { },
 	dump:function() // {{{
 	{
-		if (console && console.log ) console.log(this.requests);
+		if (window.console && console.log ) console.log(this.requests);
 		else alert("No console object available");
 	} // }}}
 });
