@@ -112,6 +112,7 @@ class ARL_Email/*{{{*/
 	{
 		$filename = realpath($filename);
 		if (!file_exists($filename)) throw new Exception("File $filename not found.");
+		if (!is_readable($filename)) throw new Exception("File $filename not readable.");
 		if (in_array($filename, $this->attachments)) return ;
 		$this->attachments[] = $filename;
 	}/*}}}*/
@@ -138,6 +139,11 @@ class ARL_Email/*{{{*/
 				$this->create_text_from_html();
 		elseif ($this->body['text'] && ! $this->body['html'])
 				$this->create_html_from_text();
+
+
+		// email should be 70 characters max
+		$this->body['html'] = wordwrap($this->body['html'], 70);
+		$this->body['text'] = wordwrap($this->body['text'], 70);
 
 		$uid =$this->uid;
 		$body = 
@@ -247,11 +253,7 @@ class ARL_Email/*{{{*/
 		 {
 			 $mail_subject = self::mime_header_encode($this->subject);
 			 foreach ($this->get_headers() as $k=>$v)
-			 {
-				 // xxx why is content type getting encoded weird?
-				 if ($k=='Content-Type') $mail_headers .= "$k: $v\r\n";
-				 else $mail_headers .= "$k: " . self::mime_header_encode($v) . "\r\n";
-			 }
+				 $mail_headers .= "$k: " . self::mime_header_encode($v) . "\r\n";
 		 }
 
 		 // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
@@ -292,6 +294,7 @@ class ARL_Email/*{{{*/
 	/** internal function to create attachment */
 	protected function attach($filename, $cid=null)
 	{
+		if (!file_exists($filename)) throw new Exception("File $filename not found.");
 		$mime = trim(shell_exec("file -bi " . escapeshellarg( $filename )));
 		$file = basename($filename);
 		$attachment = 
@@ -310,8 +313,13 @@ class ARL_Email/*{{{*/
 	//protected function create_text_from_html()/*{{{*/
 	protected function create_text_from_html()
 	{
-		$this->body['text'] = strip_tags($this->body['html']);
+		// convert end of block-level things to \n\n
+		$this->body['text'] = strip_tags(
+			preg_replace('@<br( */)?' . '>@i',"\n", 
+				preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n", $this->body['html']
+			)));
 	}/*}}}*/
+	
 	//protected function create_html_from_text()/*{{{*/
 	protected function create_html_from_text()
 	{
@@ -419,6 +427,7 @@ class ARL_Email/*{{{*/
 	static public function mime_header_encode($data)/*{{{*/
 	{
 		$encoding = self::mb_detect_encoding($data);
+		if ($encoding == 'ASCII') return $data;
 		$data = mb_encode_mimeheader($data,$encoding);
 		return $data;
 	}/*}}}*/
