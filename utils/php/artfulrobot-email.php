@@ -243,7 +243,8 @@ class ARL_Email/*{{{*/
 
 		 $mail_headers = '';
 		 // prefer Drupal's mime_header_encode if we have it
-		 if (function_exists('mime_header_encode'))
+		 // no - inconsistent behaviour see http://api.drupal.org/api/drupal/includes%21unicode.inc/function/mime_header_encode/7#comment-44358
+		 if (function_exists('mime_header_encode') && false)
 		 {
 			 $mail_subject = mime_header_encode($this->subject);
 			 foreach ($this->get_headers() as $k=>$v)
