@@ -25,7 +25,7 @@ class ARL_Email/*{{{*/
 		$this->uid = md5(serialize($this->body) . time());
 		// set up default headers
 		$this->headers['MIME-Version']='1.0';
-		$this->headers['Content-Type']= "multipart/mixed;\r\n boundary=\"ARL_Email-mixed-$this->uid\"";
+		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARL_Email-mixed-$this->uid\"";
 
 		if ($to!==null) $this->set_to($to);
 		if ($subject!==null) $this->set_subject($subject);
@@ -70,7 +70,7 @@ class ARL_Email/*{{{*/
 	{
 		$this->subject = $subject;
 	}/*}}}*/
-	//public function set_header($header)/*{{{*/
+	//public function set_header($header, $value)/*{{{*/
 	/** set header */
 	public function set_header($header, $value)
 	{
@@ -148,7 +148,7 @@ class ARL_Email/*{{{*/
 		$uid =$this->uid;
 		$body = 
 			 "--ARL_Email-mixed-$uid\r\n"
-			."Content-Type: multipart/alternative;\r\n boundary=\"ARL_Email-alt-$uid\"\r\n"
+			."Content-Type: multipart/alternative; boundary=\"ARL_Email-alt-$uid\"\r\n"
 			."\r\n"
 			."--ARL_Email-alt-$uid\r\n"
 			."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
@@ -157,7 +157,7 @@ class ARL_Email/*{{{*/
 			."\r\n";
 
 		// html
-		if (!$this->body['related'])
+		if (empty($this->body['related']))
 			$body .=
 			 "--ARL_Email-alt-$uid\r\n"
 			."Content-Type: text/html; charset=\"UTF-8\"\r\n"
@@ -168,7 +168,7 @@ class ARL_Email/*{{{*/
 		{
 			$body .=
 				 "\r\n--ARL_Email-alt-$uid\r\n"
-				."Content-Type: multipart/related;\r\n boundary=\"ARL_Email-rel-$uid\"\r\n"
+				."Content-Type: multipart/related; boundary=\"ARL_Email-rel-$uid\"\r\n"
 				."\r\n"
 				."--ARL_Email-rel-$uid\r\n"
 				."Content-Type: text/html; charset=\"UTF-8\"\r\n"
@@ -254,7 +254,7 @@ class ARL_Email/*{{{*/
 		 {
 			 $mail_subject = self::mime_header_encode($this->subject);
 			 foreach ($this->get_headers() as $k=>$v)
-				 $mail_headers .= "$k: " . self::mime_header_encode($v) . "\r\n";
+				 $mail_headers .= self::mime_header_encode("$k: $v") . "\r\n";
 		 }
 
 		 // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
@@ -314,10 +314,13 @@ class ARL_Email/*{{{*/
 	//protected function create_text_from_html()/*{{{*/
 	protected function create_text_from_html()
 	{
-		// convert end of block-level things to \n\n
 		$this->body['text'] = strip_tags(
+			// convert brs to single \n
 			preg_replace('@<br( */)?' . '>@i',"\n", 
-				preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n", $this->body['html']
+				// convert end of block-level things to \n\n
+				preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n",
+					// remove whitespace at start of lines before tag   
+					preg_replace('@^\s+<@m','<', $this->body['html'])
 			)));
 	}/*}}}*/
 	
@@ -428,13 +431,22 @@ class ARL_Email/*{{{*/
 	static public function mime_header_encode($data)/*{{{*/
 	{
 		$encoding = self::mb_detect_encoding($data);
-		if ($encoding == 'ASCII') return $data;
-		$data = mb_encode_mimeheader($data,$encoding);
-		return $data;
+
+		if ($encoding == 'ASCII') {
+			return str_replace("\n","\r\n ",wordwrap($data,70));
+		}
+
+		// http://uk1.php.net/mb_encode_mimeheader says that we need to set internal encoding to 
+		// the same as is being used here.
+		$orig_encoding = mb_internal_encoding();
+		mb_internal_encoding($encoding);
+		$encoded = mb_encode_mimeheader($data,$encoding);
+		// restore original encoding
+		mb_internal_encoding($orig_encoding);
+		return $encoded;
 	}/*}}}*/
 
 } /*}}}*/
-
 function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{{
 {
 	/** mail_rl( to, subject, message, fakeFrom, headers, options )
