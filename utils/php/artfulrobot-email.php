@@ -447,6 +447,8 @@ class ARL_Email/*{{{*/
 	}/*}}}*/
 
 } /*}}}*/
+
+if (!function_exists('mail_rl')) {
 function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{{
 {
 	/** mail_rl( to, subject, message, fakeFrom, headers, options )
@@ -489,3 +491,4 @@ function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{
 	debug('<<', $retVal);
 	return $retVal;
 } // }}}
+}
