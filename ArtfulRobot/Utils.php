@@ -27,7 +27,7 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
   */
 class Utils
 {
-	// static public function ArrayValue( $key, &$array, $default=null, $create_if_missing=false)/*{{{*/
+	// static public function arrayValue( $key, &$array, $default=null, $create_if_missing=false)/*{{{*/
 	/** return value from an array for given key, or default.
 	 *  
 	 *  @param string $key
@@ -36,18 +36,18 @@ class Utils
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	static public function ArrayValue( $key, &$array, $default=null, $create_if_missing=false)
+	static public function arrayValue( $key, &$array, $default=null, $create_if_missing=false)
 	{
 		if (! is_array($array)) 
 		{
-			trigger_error( "\ArtfulRobot\ArrayUtilsUtils::value called with something other than an array",E_USER_NOTICE);
+			trigger_error( "\ArtfulRobot\Utils::arrayValue called with something other than an array",E_USER_NOTICE);
 			return null;
 		}
 		if (array_key_exists($key, $array)) return $array[$key];
 		if ($create_if_missing) $array[$key] = $default;
 		return $default;
 	}/*}}}*/
-	// static public function ArrayReference( $key, &$array, $default=null )/*{{{*/
+	// static public function arrayReference( $key, &$array, $default=null )/*{{{*/
 	/** return reference to an array for given key, initialising default value if necessary.
 	 *  
 	 *  @param string $key
@@ -57,11 +57,11 @@ class Utils
 	 */
 	static public function & ArrayReference( $key, &$array, $default=null)
 	{
-		if (! is_array($array)) throw new Exception( "\ArtfulRobot\ArrayUtilsUtils::reference called with something other than an array");
+		if (! is_array($array)) throw new Exception( "\ArtfulRobot\Utils::arrayReference called with something other than an array");
 		if (!array_key_exists($key, $array)) $array[$key] = $default;
 		return $array[$key];
 	}/*}}}*/
-	//public static function ArrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)/*{{{*/
+	//public static function arrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)/*{{{*/
 	/** return value from an array nested key array, or default.
 	 *  
 	 *  @param array $keys 
@@ -70,9 +70,9 @@ class Utils
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	public static function ArrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)
+	public static function arrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)
 	{
-		if (! is_array($array)) throw new Exception( "\ArtfulRobot\ArrayUtilsUtils::value_recursive called with something other than an array");
+		if (! is_array($array)) throw new Exception( "\ArtfulRobot\Utils::arrayValue_recursive called with something other than an array");
 
 		$ptr = &$array;
 
@@ -86,7 +86,7 @@ class Utils
 			{
 				$ptr = &$ptr[$key];
 				if (! is_array($ptr)) throw new Exception(
-					"\ArtfulRobot\ArrayUtilsUtils::value_recursive failed, something in the chain is not an array.");
+					"\ArtfulRobot\Utils::arrayValue_recursive failed, something in the chain is not an array.");
 			}
 			else unset($ptr);
 		}
@@ -137,7 +137,7 @@ class Utils
 		}
 		return $tokens;
 	}/*}}}*/
-	// static public function ObjectProperty( $property, $object, $default=null, $create_if_missing=false)/*{{{*/
+	// static public function objectProperty( $property, $object, $default=null, $create_if_missing=false)/*{{{*/
 	/** return given property of object, or default if not exists.
 	 *  
 	 *  @param string $property
@@ -146,14 +146,14 @@ class Utils
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	static public function ObjectProperty( $property, $object, $default=null, $create_if_missing=false)
+	static public function objectProperty( $property, $object, $default=null, $create_if_missing=false)
 	{
 		if (! is_object($object)) throw new Exception( "\ArtfulRobot\Object::value called with something other than an object");
 		if (array_key_exists($property, $object)) return $object->$property;
 		if ($create_if_missing) $object->$property = $default;
 		return $default;
 	}/*}}}*/
-	// static public function ObjectPropertyReference( $property, &$object, $default=null )/*{{{*/
+	// static public function objectPropertyReference( $property, &$object, $default=null )/*{{{*/
 	/** return reference to an object's property, initialising default value if necessary.
 	 *  
 	 *  @param string $property

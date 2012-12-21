@@ -19,7 +19,7 @@ class PDO extends \PDO
 		else
 		{
 			$row = $stmt->fetch( PDO::FETCH_ASSOC );
-			$output = ARL_Array::value( $col_name, $row);
+			$output = \ArtfulRobot\Utils::arrayValue( $col_name, $row);
 		}
 
 		ARL_Debug::log("! fetch_single returning: $output");

@@ -52,7 +52,7 @@ class Onceler
 	{
 		if (! $key) throw new Exception("ARL_Onceler::check - no key given");
 		if (! is_array($source)) throw new Exception("ARL_Onceler::check - source is not an array");
-		$token = ARL_Array::value($key, $source);
+		$token = \ArtfulRobot\Utils::arrayValue($key, $source);
 		// no token - return null;
 		if (! $token )
 		{
@@ -60,7 +60,7 @@ class Onceler
 			return null;
 		}
 
-		$spent_tokens = & ARL_Array::reference('ARL_Onceler::spent_tokens', $_SESSION, array() );
+		$spent_tokens = & \ArtfulRobot\Utils::arrayReference('ARL_Onceler::spent_tokens', $_SESSION, array() );
 		if ( array_key_exists( $token, $spent_tokens ) )
 		{
 			ARL_Debug::log("TOP ARL_Onceler: recognised spent token, resetting source token.");
@@ -77,7 +77,7 @@ class Onceler
 	 */
 	public static function new_token()
 	{
-		$spent_tokens = ARL_Array::reference('ARL_Onceler::spent_tokens', $_SESSION, array() );
+		$spent_tokens = \ArtfulRobot\Utils::arrayReference('ARL_Onceler::spent_tokens', $_SESSION, array() );
 		
 		while ( array_key_exists( 
 			$new = md5(++self::$count . 'NaCl' . time()),

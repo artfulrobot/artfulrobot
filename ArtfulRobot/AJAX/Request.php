@@ -47,12 +47,12 @@ class Ajax_Request
 
 		if ($_POST)
 		{
-			$todo = \ArtfulRobot\ArrayUtilsUtils::value('arlClass',  $_POST);
+			$todo = \ArtfulRobot\Utils::arrayValue('arlClass',  $_POST);
 			self::$request = & $_POST;
 		}
 		else
 		{
-			$todo = \ArtfulRobot\ArrayUtilsUtils::value('arlClass',  $_GET);
+			$todo = \ArtfulRobot\Utils::arrayValue('arlClass',  $_GET);
 			self::$request = & $_GET;
 		}
 
@@ -66,7 +66,7 @@ class Ajax_Request
 		else self::run_process( $todo );
 
 		// send response and exit now unless debugging
-		if (!\ArtfulRobot\ArrayUtilsUtils::value('debug', self::$request))
+		if (!\ArtfulRobot\Utils::arrayValue('debug', self::$request))
 		   	$response->send();
 
 		\ArtfulRobot\Debug::log("TOP Response object:", $response);
