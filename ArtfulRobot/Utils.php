@@ -23,11 +23,11 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 //class Array
-/** \ArtfulRobot\Array provides various functions for dealing with arrays
+/** provides various utility functions mostly for dealing with arrays, objects
   */
-class Array
+class Utils
 {
-	// static public function value( $key, &$array, $default=null, $create_if_missing=false)/*{{{*/
+	// static public function ArrayValue( $key, &$array, $default=null, $create_if_missing=false)/*{{{*/
 	/** return value from an array for given key, or default.
 	 *  
 	 *  @param string $key
@@ -36,18 +36,18 @@ class Array
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	static public function value( $key, &$array, $default=null, $create_if_missing=false)
+	static public function ArrayValue( $key, &$array, $default=null, $create_if_missing=false)
 	{
 		if (! is_array($array)) 
 		{
-			trigger_error( "\ArtfulRobot\Array::value called with something other than an array",E_USER_NOTICE);
+			trigger_error( "\ArtfulRobot\ArrayUtilsUtils::value called with something other than an array",E_USER_NOTICE);
 			return null;
 		}
 		if (array_key_exists($key, $array)) return $array[$key];
 		if ($create_if_missing) $array[$key] = $default;
 		return $default;
 	}/*}}}*/
-	// static public function reference( $key, &$array, $default=null )/*{{{*/
+	// static public function ArrayReference( $key, &$array, $default=null )/*{{{*/
 	/** return reference to an array for given key, initialising default value if necessary.
 	 *  
 	 *  @param string $key
@@ -55,13 +55,13 @@ class Array
 	 *  @param mixed $default defaults to null
 	 *  @return mixed
 	 */
-	static public function & reference( $key, &$array, $default=null)
+	static public function & ArrayReference( $key, &$array, $default=null)
 	{
-		if (! is_array($array)) throw new Exception( "\ArtfulRobot\Array::reference called with something other than an array");
+		if (! is_array($array)) throw new Exception( "\ArtfulRobot\ArrayUtilsUtils::reference called with something other than an array");
 		if (!array_key_exists($key, $array)) $array[$key] = $default;
 		return $array[$key];
 	}/*}}}*/
-	//public static function value_recursive( $keys, &$array, $default=null, $create_if_missing=false)/*{{{*/
+	//public static function ArrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)/*{{{*/
 	/** return value from an array nested key array, or default.
 	 *  
 	 *  @param array $keys 
@@ -70,9 +70,9 @@ class Array
 	 *  @param bool $create_if_missing 
 	 *  @return mixed
 	 */
-	public static function value_recursive( $keys, &$array, $default=null, $create_if_missing=false)
+	public static function ArrayValueRecursive( $keys, &$array, $default=null, $create_if_missing=false)
 	{
-		if (! is_array($array)) throw new Exception( "\ArtfulRobot\Array::value_recursive called with something other than an array");
+		if (! is_array($array)) throw new Exception( "\ArtfulRobot\ArrayUtilsUtils::value_recursive called with something other than an array");
 
 		$ptr = &$array;
 
@@ -86,7 +86,7 @@ class Array
 			{
 				$ptr = &$ptr[$key];
 				if (! is_array($ptr)) throw new Exception(
-					"\ArtfulRobot\Array::value_recursive failed, something in the chain is not an array.");
+					"\ArtfulRobot\ArrayUtilsUtils::value_recursive failed, something in the chain is not an array.");
 			}
 			else unset($ptr);
 		}
@@ -114,12 +114,12 @@ class Array
 		return $default;
 	}/*}}}*/
 
-	// public static function tokenise_search_string( $search_text )/*{{{*/
+	// public static function TokeniseSearchString( $search_text )/*{{{*/
 	/** tokenise a search string into an array, preserving phrases in quotes as individual tokens
 	 *  
 	 *  this taken from http://www.php.net/manual/en/function.strtok.php#94463
 	 */
-	public static function tokenise_search_string( $search_text )
+	public static function TokeniseSearchString( $search_text )
 	{
 		$tokens = array();
 		$token = strtok($search_text, ' ');
@@ -136,6 +136,36 @@ class Array
 			$token = strtok(' ');
 		}
 		return $tokens;
+	}/*}}}*/
+	// static public function ObjectProperty( $property, $object, $default=null, $create_if_missing=false)/*{{{*/
+	/** return given property of object, or default if not exists.
+	 *  
+	 *  @param string $property
+	 *  @param object $object
+	 *  @param mixed $default defaults to null
+	 *  @param bool $create_if_missing 
+	 *  @return mixed
+	 */
+	static public function ObjectProperty( $property, $object, $default=null, $create_if_missing=false)
+	{
+		if (! is_object($object)) throw new Exception( "\ArtfulRobot\Object::value called with something other than an object");
+		if (array_key_exists($property, $object)) return $object->$property;
+		if ($create_if_missing) $object->$property = $default;
+		return $default;
+	}/*}}}*/
+	// static public function ObjectPropertyReference( $property, &$object, $default=null )/*{{{*/
+	/** return reference to an object's property, initialising default value if necessary.
+	 *  
+	 *  @param string $property
+	 *  @param object $object
+	 *  @param mixed $default defaults to null
+	 *  @return mixed
+	 */
+	static public function & ObjectPropertyReference( $property, &$object, $default=null)
+	{
+		if (! is_object($object)) throw new Exception( "\ArtfulRobot\Object::reference called with something other than an object");
+		if (!array_key_exists($property, $object)) $object->$property = $default;
+		return $object->$property;
 	}/*}}}*/
 }
 
