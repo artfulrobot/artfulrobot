@@ -32,7 +32,7 @@ abstract class Ajax_Module_Group extends \ArtfulRobot\Ajax_Module
 
 	function run_module()
 	{
-		$task = \ArtfulRobot\Array::value('task', $this->request);
+		$task = \ArtfulRobot\ArrayUtilsUtils::value('task', $this->request);
 		if (! $task )
 		{
 			$this->response->error = get_class($this) . " Task '$task' invalid";

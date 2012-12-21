@@ -214,9 +214,9 @@ class Debug
 		$trace = debug_backtrace();
 		while ($backtrace=array_shift($trace))
 		{
-			$scope=\ArtfulRobot\Array::value('function',$backtrace);
-			$class=\ArtfulRobot\Array::value('class',$backtrace);
-			if ($class) $scope = $class . \ArtfulRobot\Array::value('type',$backtrace)  . $scope;
+			$scope=\ArtfulRobot\ArrayUtilsUtils::value('function',$backtrace);
+			$class=\ArtfulRobot\ArrayUtilsUtils::value('class',$backtrace);
+			if ($class) $scope = $class . \ArtfulRobot\ArrayUtilsUtils::value('type',$backtrace)  . $scope;
 			if ($scope == 'debug' || $scope == '\ArtfulRobot\Debug::log') continue;
 			break;
 		}
@@ -337,7 +337,7 @@ class Debug
 		foreach ($backtrace as $row)
 		{
 			$tmp .= "<tr>";
-			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\Array::value($f,$row)) . "</td>";
+			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\ArrayUtilsUtils::value($f,$row)) . "</td>";
 			$tmp .= "</tr>";
 		}
 		$tmp .= "</table>";
@@ -431,7 +431,7 @@ class Debug
 			foreach ($backtrace as $row)
 			{
 				$tmp .= "<tr>";
-				foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\Array::value($f,$row)) . "</td>";
+				foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\ArrayUtilsUtils::value($f,$row)) . "</td>";
 				$tmp .= "</tr>";
 			}
 			$tmp .= "</table>";
@@ -471,7 +471,7 @@ class Debug
 		foreach ($backtrace as $row)
 		{
 			$tmp .= "<tr>";
-			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\Array::value($f,$row)) . "</td>";
+			foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\ArrayUtilsUtils::value($f,$row)) . "</td>";
 			$tmp .= "</tr>";
 		}
 		$tmp .= "</table>";

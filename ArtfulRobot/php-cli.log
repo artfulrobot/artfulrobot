@@ -1,0 +1,13 @@
+[21-Dec-2012 10:17:58] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:17:58] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/ModuleGroup.php on line 35
+[21-Dec-2012 10:17:59] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./Debug.php on line 217
+[21-Dec-2012 10:17:59] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./Array.php on line 28
+[21-Dec-2012 10:18:11] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:18:16] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:19:56] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:20:02] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:20:30] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:21:03] PHP Parse error:  syntax error, unexpected T_ARRAY, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:33:00] PHP Parse error:  syntax error, unexpected T_NS_SEPARATOR, expecting T_STRING in ./AJAX/Request.php on line 50
+[21-Dec-2012 10:33:00] PHP Parse error:  syntax error, unexpected T_NS_SEPARATOR, expecting T_STRING in ./AJAX/ModuleGroup.php on line 35
+[21-Dec-2012 10:33:01] PHP Parse error:  syntax error, unexpected T_NS_SEPARATOR, expecting T_STRING in ./Debug.php on line 217
