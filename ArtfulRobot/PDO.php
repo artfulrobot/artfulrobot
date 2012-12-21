@@ -8,11 +8,11 @@ class PDO extends \PDO
 	const FORMAT_TIME = 'G.i.s';
 	const FORMAT_DATE = 'Y-m-d';
 	const FORMAT_DATETIME = 'Y-m-d G.i.s';
-	//public function fetch_single(ARL_PDO_Query $query, $col_name=null)/*{{{*/
+	//public function fetchSingle(ARL_PDO_Query $query, $col_name=null)/*{{{*/
 	/** Run the ARL_PDO_Query supplied and return first (or $col_name) field from first row */
-	public function fetch_single(ARL_PDO_Query $query, $col_name=null)
+	public function fetchSingle(ARL_PDO_Query $query, $col_name=null)
 	{
-		$stmt = $this->prep_and_execute($query);
+		$stmt = $this->prepAndExecute($query);
 
 		if (!$stmt) $output = null;
 		elseif ($col_name===null) $output = $stmt->fetch( PDO::FETCH_COLUMN );
@@ -22,14 +22,14 @@ class PDO extends \PDO
 			$output = \ArtfulRobot\Utils::arrayValue( $col_name, $row);
 		}
 
-		ARL_Debug::log("! fetch_single returning: $output");
+		ARL_Debug::log("! fetchSingle returning: $output");
 		return $output;
 	}/*}}}*/
-	public function fetch_row_assoc(ARL_PDO_Query $query )/*{{{*/
+	public function fetchRowAssoc(ARL_PDO_Query $query )/*{{{*/
 	{
 		ARL_Debug::log(">>$query->comment");
 
-		$stmt = $this->prep_and_execute( $query );
+		$stmt = $this->prepAndExecute( $query );
 		if (!$stmt) 
 		{
 			ARL_Debug::log("<< failed to run");
@@ -45,7 +45,7 @@ class PDO extends \PDO
 	{
 		ARL_Debug::log(">>$query->comment");
 
-		$stmt = $this->prep_and_execute( $query );
+		$stmt = $this->prepAndExecute( $query );
 		if (!$stmt) 
 		{
 			ARL_Debug::log("<< failed to run");
@@ -61,16 +61,16 @@ class PDO extends \PDO
 		ARL_Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
-	// public function fetch_rows_single(ARL_PDO_Query $query , $col_name = null, $key_field = null )/*{{{*/
+	// public function fetchRowsSingle(ARL_PDO_Query $query , $col_name = null, $key_field = null )/*{{{*/
 	/** fetch array of single fields (defaults to first field), optionally indexed by another field 
 	 * 
 	 *  Nb. specifying key_field is quite different to not.
 	 */
-	public function fetch_rows_single(ARL_PDO_Query $query , $col_name = null, $key_field = null )
+	public function fetchRowsSingle(ARL_PDO_Query $query , $col_name = null, $key_field = null )
 	{
 		ARL_Debug::log(">>$query->comment");
 
-		$stmt = $this->prep_and_execute( $query );
+		$stmt = $this->prepAndExecute( $query );
 		if (!$stmt) 
 		{
 			ARL_Debug::log("<< failed to run");
@@ -81,7 +81,7 @@ class PDO extends \PDO
 		if ($col_name === null && $key_field===null)
 			$output = $stmt->fetchAll(PDO::FETCH_COLUMN);
 		elseif ($col_name === null && $key_field!==null)
-			throw new Exception("fetch_rows_single requires \$col_name if \$key_field given");
+			throw new Exception("fetchRowsSingle requires \$col_name if \$key_field given");
 		else
 		{
 			if ($key_field) while ($row = $stmt->fetch( PDO::FETCH_ASSOC ))
@@ -93,14 +93,14 @@ class PDO extends \PDO
 		ARL_Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
-	// public function fetch_affected_count(ARL_PDO_Query $query )/*{{{*/
+	// public function fetchAffectedCount(ARL_PDO_Query $query )/*{{{*/
 	/** fetch number of rows affected by the INSERT, DELETE, UPDATE query given
 	 */
-	public function fetch_affected_count(ARL_PDO_Query $query )
+	public function fetchAffectedCount(ARL_PDO_Query $query )
 	{
 		ARL_Debug::log(">>$query->comment");
 
-		$stmt = $this->prep_and_execute( $query );
+		$stmt = $this->prepAndExecute( $query );
 		if (!$stmt) 
 		{
 			ARL_Debug::log("<< failed to run");
@@ -111,14 +111,14 @@ class PDO extends \PDO
 		ARL_Debug::log("<< $count affected");
 		return $count;
 	}/*}}}*/
-	// public function fetch_insert_id(ARL_PDO_Query $query )/*{{{*/
+	// public function fetchInsertId(ARL_PDO_Query $query )/*{{{*/
 	/** run an INSERT query and return just the new insert_id
 	 */
-	public function fetch_insert_id(ARL_PDO_Query $query )
+	public function fetchInsertId(ARL_PDO_Query $query )
 	{
 		ARL_Debug::log(">>$query->comment");
 
-		$stmt = $this->prep_and_execute( $query );
+		$stmt = $this->prepAndExecute( $query );
 		if (!$stmt) 
 		{
 			ARL_Debug::log("<< failed to run");
@@ -129,19 +129,19 @@ class PDO extends \PDO
 		ARL_Debug::log("<< id: $id");
 		return $id;
 	}/*}}}*/
-	//public function fetch_found_rows()/*{{{*/
+	//public function fetchFoundRows()/*{{{*/
 	/** executes SELECT FOUND_ROWS() which will return the count of rows from the last SQL_CALC_FOUND_ROWS query
 	 */
-	public function fetch_found_rows()
+	public function fetchFoundRows()
 	{
-		return $this->fetch_single(new ARL_PDO_Query( "Get FOUND_ROWS()", "SELECT FOUND_ROWS();"));
+		return $this->fetchSingle(new ARL_PDO_Query( "Get FOUND_ROWS()", "SELECT FOUND_ROWS();"));
 	}/*}}}*/
-	//public function prep_and_execute( ARL_PDO_Query $query )/*{{{*/
+	//public function prepAndExecute( ARL_PDO_Query $query )/*{{{*/
 	/** prepare the ARL_PDO_Query given, then execute it and return a PDOStatement object
 	 */
-	public function prep_and_execute( ARL_PDO_Query $query )
+	public function prepAndExecute( ARL_PDO_Query $query )
 	{
-		ARL_Debug::log( "prep_and_execute: $query->comment",  strtr($query->sql, array("\t" => '  ')) );
+		ARL_Debug::log( "prepAndExecute: $query->comment",  strtr($query->sql, array("\t" => '  ')) );
 		if (! $query->params) $stmt = $this->query($query->sql);
 		else
 		{
@@ -154,14 +154,14 @@ class PDO extends \PDO
 		return $stmt;
 	}/*}}}*/
 
-	//public static function cast_datetime( $date, $format='datetime', $false_value=null)/*{{{*/
+	//public static function castDatetime( $date, $format='datetime', $false_value=null)/*{{{*/
 	/** prepare a string that should be a date|datetime|time
 	 * 
 	 * @param string $date
 	 * @param string $format one of datetime(default), date or time
 	 * @param mixed $false_value returned if $date is ZLS/null/0/false
 	 */
-	public static function cast_datetime( $date, $format='datetime', $false_value=null)
+	public static function castDatetime( $date, $format='datetime', $false_value=null)
 	{
 		// nothing sent?
 		if (! $date) 
@@ -171,7 +171,7 @@ class PDO extends \PDO
 		}
 
 		$time = strtotime($date);
-		if ($time === false) throw new Exception("ARL_PDO::cast_datetime cannot parse $date");
+		if ($time === false) throw new Exception("ARL_PDO::castDatetime cannot parse $date");
 
 		if     ($format == 'datetime') $format = self::FORMAT_DATETIME;
 		elseif ($format == 'date') $format = self::FORMAT_DATE;

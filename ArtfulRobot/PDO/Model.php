@@ -28,14 +28,14 @@ abstract class PDO_Model
 	   (php5.2 can't cope with this, so they're normal properties here) */
 	/** @var string optional alias, e.g. surveyId */
 	protected $ID_ALIAS = false;
-	/** @var string table name used in default save() and load_from_database() methods */
+	/** @var string table name used in default save() and loadFromDatabase() methods */
 	protected $TABLE_NAME = false;
 
 	public function __construct( $id=null )/*{{{*/
 	{
 		$this->db_connect();
-		if (is_int($id)) $this->load_from_database( $id );
-		else $this->load_defaults();
+		if (is_int($id)) $this->loadFromDatabase( $id );
+		else $this->loadDefaults();
 	}/*}}}*/
 	public function __get($name)  // {{{
 	{
@@ -78,7 +78,7 @@ abstract class PDO_Model
 			if ( $this->myData[$lookup] !== $newValue )
 			{
 				// attempt cast, might throw exeption
-				$cast = $this->cast_data( $lookup, $newValue );
+				$cast = $this->castData( $lookup, $newValue );
 				// only set if no exception
 				$this->myData[$lookup] = $cast;
 				$this->unsaved_changes = true; //only when changed.
@@ -94,24 +94,24 @@ abstract class PDO_Model
 	abstract protected function setter($name, $newValue) ;
 	/** this function must initialise an ARL_PDO object in $this->conn */
 	abstract protected function db_connect();
-	public function load_from_database( $id )/*{{{*/
+	public function loadFromDatabase( $id )/*{{{*/
 	{
 		// clear current data first
-		$this->load_defaults();
+		$this->loadDefaults();
 
 		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-		if (($id = (int)$id)<1) throw new Exception( get_class($this) . "::load_from_database called without proper id");
+		if (($id = (int)$id)<1) throw new Exception( get_class($this) . "::loadFromDatabase called without proper id");
 
 		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
 				"Fetch all fields from $this->TABLE_NAME for record $id",
 				"SELECT * FROM `$this->TABLE_NAME` WHERE id = $id"));
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
-	public function load_from_array( Array $src )/*{{{*/
+	public function loadFromArray( Array $src )/*{{{*/
 	{
-		$this->load_defaults();
+		$this->loadDefaults();
 		foreach ($src as $key=>$value)
 			$this->$key = $value;
 		/* hmmm, or maybe this is better:
@@ -120,9 +120,9 @@ abstract class PDO_Model
 				$this->$key = $src[$key];
 				*/
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
-	public function load_defaults()/*{{{*/
+	public function loadDefaults()/*{{{*/
 	{
 		$this->myData = array('id' => 0);
 		// note that these will be done through the setter function, so cast correctly.
@@ -134,12 +134,12 @@ abstract class PDO_Model
 			// otherwise use zls.
 			else $this->$field = '';
 		}
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
-	//protected function load_postprocess() {{{
+	//protected function loadPostprocess() {{{
 	/** hook for altering object once loaded, e.g. if data needs formatting/unpacking.
 	  */
-	protected function load_postprocess()
+	protected function loadPostprocess()
 	{
 	}/*}}}*/
 	public function save()/*{{{*/
@@ -149,7 +149,7 @@ abstract class PDO_Model
 		// do nothing if unsaved changes
 		if (!$this->unsaved_changes) return;
 
-		$this->save_preprocess();
+		$this->savePreprocess();
 
 		// new data - build insert
 		if ( ! $this->myData['id'] ) /*{{{*/
@@ -175,7 +175,7 @@ abstract class PDO_Model
 			// if ( ! $stmt ) throw new Exception( get_class($this) . " failed to create row :" . print_r($this->conn->errorInfo(),1));
 
 			$_ = $this->conn->lastInsertId();
-			ARL_Debug::log("TOP lastInsertId" ,$_);
+			ARL_debug::log("TOP lastInsertId" ,$_);
 			$this->myData['id'] = (int) $_;
 			if (! $this->myData['id']) throw new Exception( get_class($this) . " failed to create row");
 		}/*}}}*/
@@ -201,12 +201,12 @@ abstract class PDO_Model
 					$data));
 		}/*}}}*/
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
-	//protected function save_preprocess() {{{
+	//protected function savePreprocess() {{{
 	/** hook for altering object before saving, e.g. serialize objects into fields
 	  */
-	protected function save_preprocess()
+	protected function savePreprocess()
 	{
 	}/*}}}*/
 	public function delete()/*{{{*/
@@ -215,20 +215,20 @@ abstract class PDO_Model
 		// new data
 		if ( ! $this->myData['id'] )
 		{
-			ARL_Debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
+			ARL_debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
 			return;
 		}
 
 		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
-					"Delete row in $this->TABLE_NAME",
-					"DELETE FROM `$this->TABLE_NAME` WHERE id = :id",
+					"delete row in $this->TABLE_NAME",
+					"delete FROM `$this->TABLE_NAME` WHERE id = :id",
 					array(':id' => $this->myData['id'] )));
 
 		// zero the id, so if saved it would create a new record
 		$this->myData['id'] = 0;
 	}/*}}}*/
 
-	public function print_data() // {{{
+	public function printData() // {{{
 	{
 		echo "<pre>Record properties:\n";
 		var_dump($this->myData);
@@ -246,12 +246,12 @@ abstract class PDO_Model
 		/**
 		 *
 		 */
-		ARL_Debug::log($msg, $this->myData);
+		ARL_debug::log($msg, $this->myData);
 	} // }}}
 
-	//private function cast_data($name, $value)/*{{{*/
+	//private function castData($name, $value)/*{{{*/
 	/** cast supplied data into required type. Throw exception if can't be done */
-	private function cast_data($name, $value)
+	private function castData($name, $value)
 	{
 		if (!array_key_exists($name, $this->definition))
 			throw new Exception(get_class($this) . " no definition for field '$name'");

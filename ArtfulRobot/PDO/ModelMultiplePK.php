@@ -11,16 +11,16 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 	public function __construct( $id=null )/*{{{*/
 	{
 		$this->db_connect();
-		if (is_array($id) && $id) $this->load_from_database( $id );
-		else $this->load_defaults();
+		if (is_array($id) && $id) $this->loadFromDatabase( $id );
+		else $this->loadDefaults();
 	}/*}}}*/
-	public function load_from_database( $id )/*{{{*/
+	public function loadFromDatabase( $id )/*{{{*/
 	{
 		// clear current data first
-		$this->load_defaults();
+		$this->loadDefaults();
 
 		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-		if (!$id || !is_array($id)) throw new Exception( get_class($this) . "::load_from_database called without proper id");
+		if (!$id || !is_array($id)) throw new Exception( get_class($this) . "::loadFromDatabase called without proper id");
 
 		$params = array();
 		$pk_where = $this->preparePK($params, $id);
@@ -32,7 +32,7 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 
 		$this->load_postprocess();
 	}/*}}}*/
-	public function load_defaults()/*{{{*/
+	public function loadDefaults()/*{{{*/
 	{
 		$this->myData = array();
 		// note that these will be done through the setter function, so cast correctly.

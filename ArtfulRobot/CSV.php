@@ -10,13 +10,13 @@ namespace ArtfulRobot;
 
 class CSV
 {
-	// 	static public function csv_safe($str)  {{{
+	// 	static public function csvSafe($str)  {{{
 	/** returns csv field, quoted if string.
 	 *
 	 * @param string $str
 	 * @return string
 	 */
-	static public function csv_safe($str)  
+	static public function csvSafe($str)  
 	{
 		if ( $str === null || $str === false || $str === '') $out = '';
 		// identify numbers and output as is, no quotes
@@ -28,7 +28,7 @@ class CSV
 		else  $out = '"' . strtr($str, array('"'=>'""')) . '"';
 		return $out ;
 	} // }}}
-	static public function output_csv_file( $csv, $filename='' ) // {{{
+	static public function outputCsvFile( $csv, $filename='' ) // {{{
 	{
 		// text/csv
 		header("Pragma: public"); // required
@@ -41,7 +41,7 @@ class CSV
 		print $csv ;
 		exit;
 	} // }}}
-	//static public function pdo_result_to_csv($result) {{{
+	//static public function pdoResultToCsv($result) {{{
 	/** fetches from PDOStatement object, outputs to csv string.
 	  *
 	  * @param PDOStatement $result
@@ -49,7 +49,7 @@ class CSV
 	  *
 	  * @return string|null
 	  */
-	static public function pdo_result_to_csv($result, $headers=TRUE)
+	static public function pdoResultToCsv($result, $headers=TRUE)
 	{
 		if ($result->rowCount()==0) return null;
 
@@ -62,15 +62,15 @@ class CSV
 			if ($headers===TRUE && ! $csv_headers)
 				$csv_headers = array_keys($record);
 
-			$csv_body[] = self::array_to_csv_line($record);
+			$csv_body[] = self::arrayToCsvLine($record);
 		}
 
-		if ($csv_headers) array_unshift($csv_body, self::array_to_csv_line($csv_headers));
+		if ($csv_headers) array_unshift($csv_body, self::arrayToCsvLine($csv_headers));
 
 		$csv = implode("\n", $csv_body);
 		return $csv;
 	}//}}}
-	//static public function array_to_csv($result, $headers=TRUE) {{{
+	//static public function arrayToCsv($result, $headers=TRUE) {{{
 	/** outputs array to csv string.
 	  *
 	  * @param array $result
@@ -78,7 +78,7 @@ class CSV
 	  *
 	  * @return string|null
 	  */
-	static public function array_to_csv($result, $headers=TRUE)
+	static public function arrayToCsv($result, $headers=TRUE)
 	{
 		if (count($result)==0) return null;
 
@@ -87,22 +87,22 @@ class CSV
 
 		// grab headers if needed
 		if ($headers===TRUE) $csv_headers = array_keys(reset($result));
-		if ($csv_headers) $csv_body[] = self::array_to_csv_line($csv_headers);
+		if ($csv_headers) $csv_body[] = self::arrayToCsvLine($csv_headers);
 
 		foreach ($result as $record)
-			$csv_body[] = self::array_to_csv_line($record);
+			$csv_body[] = self::arrayToCsvLine($record);
 
 		$csv = implode("\n", $csv_body);
 		return $csv;
 	}//}}}
-	//static public function array_to_csv_line($result)/*{{{*/
+	//static public function arrayToCsvLine($result)/*{{{*/
 	/** map a record to a csv line
 	  */
-	static public function array_to_csv_line($result)
+	static public function arrayToCsvLine($result)
 	{
 		$row = array();
 		foreach ($result as $_)
-			$row[] = self::csv_safe($_);
+			$row[] = self::csvSafe($_);
 
 		return implode(',',$row);
 	}/*}}}*/

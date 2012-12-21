@@ -75,7 +75,7 @@ class Onceler
 
 	/** Generate a token we've not used before
 	 */
-	public static function new_token()
+	public static function newToken()
 	{
 		$spent_tokens = \ArtfulRobot\Utils::arrayReference('ARL_Onceler::spent_tokens', $_SESSION, array() );
 		

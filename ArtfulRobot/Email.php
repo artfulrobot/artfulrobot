@@ -29,67 +29,67 @@ class Email
 		$this->headers['MIME-Version']='1.0';
 		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARL_Email-mixed-$this->uid\"";
 
-		if ($to!==null) $this->set_to($to);
-		if ($subject!==null) $this->set_subject($subject);
+		if ($to!==null) $this->setTo($to);
+		if ($subject!==null) $this->setSubject($subject);
 		if ($message!==null) $this->add_message($message);
 		return $this;
 	}/*}}}*/
-	//public function set_to($to)/*{{{*/
+	//public function setTo($to)/*{{{*/
 	/** append 'to' address
 	  */
-	public function set_to($to)
+	public function setTo($to)
 	{
 		$this->to[] = $to;
 	}/*}}}*/
-	//public function set_from($from)/*{{{*/
+	//public function setFrom($from)/*{{{*/
 	/** set from address */
-	public function set_from($from)
+	public function setFrom($from)
 	{
 		$this->from = $from;
 	}/*}}}*/
-	//public function set_return_path($return_path)/*{{{*/
+	//public function setReturnPath($return_path)/*{{{*/
 	/** set return path */
-	public function set_return_path($return_path)
+	public function setReturnPath($return_path)
 	{
 		$this->return_path = $return_path;
 	}/*}}}*/
-	//public function set_line_endings($line_endings)/*{{{*/
+	//public function setLineEndings($line_endings)/*{{{*/
 	/** configure line_endings
 	  */
-	public function set_line_endings($line_endings)
+	public function setLineEndings($line_endings)
 	{
 		$this->line_endings = $line_endings;
 	}/*}}}*/
-	//public function set_reply_to($from)/*{{{*/
+	//public function setReplyTo($from)/*{{{*/
 	/** set Reply-To field */
-	public function set_reply_to($from)
+	public function setReplyTo($from)
 	{
 		$this->reply_to = $reply_to;
 	}/*}}}*/
-	//public function set_subject($subject)/*{{{*/
+	//public function setSubject($subject)/*{{{*/
 	/** set subject */
-	public function set_subject($subject)
+	public function setSubject($subject)
 	{
 		$this->subject = $subject;
 	}/*}}}*/
-	//public function set_header($header, $value)/*{{{*/
+	//public function setHeader($header, $value)/*{{{*/
 	/** set header */
-	public function set_header($header, $value)
+	public function setHeader($header, $value)
 	{
 		// don't overwrite stuff we need
 		if ($header == 'Content-Type' || $header=='MIME-Version') return false;
 		$this->headers[$header] = $value;
 	}/*}}}*/
-	//public function set_message_text( $message)/*{{{*/
+	//public function setMessageText( $message)/*{{{*/
 	/** adds text message */
-	public function set_message_text( $message)
+	public function setMessageText( $message)
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
-		$message = mb_convert_encoding($message, 'UTF-8', $this->mb_detect_encoding($message));
+		$message = mb_convert_encoding($message, 'UTF-8', $this->mbDetectEncoding($message));
 		$this->body['text'] = $message;
 	}/*}}}*/
-	//public function set_message_html( $message, $related_files )/*{{{*/
+	//public function setMessageHtml( $message, $related_files )/*{{{*/
 	/** adds html message
 	  * 
 	  * the related_files is an array(
@@ -99,18 +99,18 @@ class Email
 	  * and the html message must include references like {name}
 	  * 
 	 */
-	public function set_message_html( $message, $related_files=null )
+	public function setMessageHtml( $message, $related_files=null )
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
-		$message = mb_convert_encoding($message, 'UTF-8', $this->mb_detect_encoding($message));
+		$message = mb_convert_encoding($message, 'UTF-8', $this->mbDetectEncoding($message));
 
 		$this->body['html'] = $message;
 		$this->body['related'] = $related_files;
 	}/*}}}*/
-	// public function add_attachment( $filename ) /*{{{*/
+	// public function addAttachment( $filename ) /*{{{*/
 	/** add attachment */
-	public function add_attachment( $filename )
+	public function addAttachment( $filename )
 	{
 		$filename = realpath($filename);
 		if (!file_exists($filename)) throw new Exception("File $filename not found.");
@@ -118,7 +118,7 @@ class Email
 		if (in_array($filename, $this->attachments)) return ;
 		$this->attachments[] = $filename;
 	}/*}}}*/
-	public function get_headers($include_to=FALSE)/*{{{*/
+	public function getHeaders($include_to=FALSE)/*{{{*/
 	{
 		if ($include_to) $this->headers['To'] = implode(", ", $this->to);
 
@@ -132,15 +132,15 @@ class Email
 
 		return $this->headers;
 	}/*}}}*/
-	//public function get_body()/*{{{*/
+	//public function getBody()/*{{{*/
 	/** create body */
-	public function get_body()
+	public function getBody()
 	{
 		// if html email, make sure text is there as alternative.
 		if ($this->body['html'] && ! $this->body['text'])
-				$this->create_text_from_html();
+				$this->createTextFromHtml();
 		elseif ($this->body['text'] && ! $this->body['html'])
-				$this->create_html_from_text();
+				$this->createHtmlFromText();
 
 
 		// email should be 70 characters max
@@ -219,7 +219,7 @@ class Email
 	public function send()
 	{
 		// Return Path
-		// if set with set_return_path, this is used.
+		// if set with setReturnPath, this is used.
 		// if set in headers as Return-Path, this is used.
 
 		$return_path = (!empty($this->return_path)
@@ -244,24 +244,24 @@ class Email
 		}
 
 		 $mail_headers = '';
-		 // prefer Drupal's mime_header_encode if we have it
-		 // no - inconsistent behaviour see http://api.drupal.org/api/drupal/includes%21unicode.inc/function/mime_header_encode/7#comment-44358
-		 if (function_exists('mime_header_encode') && false)
+		 // prefer Drupal's mimeHeaderEncode if we have it
+		 // no - inconsistent behaviour see http://api.drupal.org/api/drupal/includes%21unicode.inc/function/mimeHeaderEncode/7#comment-44358
+		 if (function_exists('mimeHeaderEncode') && false)
 		 {
-			 $mail_subject = mime_header_encode($this->subject);
-			 foreach ($this->get_headers() as $k=>$v)
-				$mail_headers .= "$k: " . mime_header_encode($v) . "\r\n";
+			 $mail_subject = mimeHeaderEncode($this->subject);
+			 foreach ($this->getHeaders() as $k=>$v)
+				$mail_headers .= "$k: " . mimeHeaderEncode($v) . "\r\n";
 		 }
 		 else
 		 {
-			 $mail_subject = self::mime_header_encode($this->subject);
-			 foreach ($this->get_headers() as $k=>$v)
-				 $mail_headers .= self::mime_header_encode("$k: $v") . "\r\n";
+			 $mail_subject = self::mimeHeaderEncode($this->subject);
+			 foreach ($this->getHeaders() as $k=>$v)
+				 $mail_headers .= self::mimeHeaderEncode("$k: $v") . "\r\n";
 		 }
 
 		 // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
-		 // on Unix and CRLF on Windows. Configure objects if needed with set_line_endings()
-		 $mail_body = preg_replace('@\r?\n@', $this->line_endings, $this->get_body());
+		 // on Unix and CRLF on Windows. Configure objects if needed with setLineEndings()
+		 $mail_body = preg_replace('@\r?\n@', $this->line_endings, $this->getBody());
 
 		 $mail_to = implode(", ", $this->to);
 
@@ -313,8 +313,8 @@ class Email
 				."\r\n";
 		return $attachment;
 	}/*}}}*/
-	//protected function create_text_from_html()/*{{{*/
-	protected function create_text_from_html()
+	//protected function createTextFromHtml()/*{{{*/
+	protected function createTextFromHtml()
 	{
 		$this->body['text'] = strip_tags(
 			// convert brs to single \n
@@ -326,25 +326,25 @@ class Email
 			)));
 	}/*}}}*/
 	
-	//protected function create_html_from_text()/*{{{*/
-	protected function create_html_from_text()
+	//protected function createHtmlFromText()/*{{{*/
+	protected function createHtmlFromText()
 	{
 		$this->body['html'] = preg_replace('/(\r\n|\n|\r)/','<br />',$this->body['text']);
 	}/*}}}*/
 
-	static public function mb_detect_encoding( $string, $detect_order=null ) // {{{
+	static public function mbDetectEncoding( $string, $detect_order=null ) // {{{
 	{
-		/** php's native mb_detect_encoding is riddled with bugs.
+		/** php's native mbDetectEncoding is riddled with bugs.
 		 * see the comments for the online documentation for proof
 		 *
-		 * one bug in mb_detect_encoding reported in 2005 
+		 * one bug in mbDetectEncoding reported in 2005 
 		 * http://uk2.php.net/manual/en/function.mb-detect-encoding.php#55228
 		 * and still present in 2009:
-		 * example, e-acute (byte value 233 in Latin1) mb_detect_encoding will tell you
+		 * example, e-acute (byte value 233 in Latin1) mbDetectEncoding will tell you
 		 * it's UTF-8. The work around is to append an ASCII character at the end of the string.
 		 * then it works properly. 
 		 *
-		 * mb_detect_encoding also detects a string
+		 * mbDetectEncoding also detects a string
 		 * with (e.g.) 149 in as Latin1 when Latin1 is undefined for 128-159.
 		 * (could be cp1252)
 		 * 
@@ -404,7 +404,7 @@ class Email
 		)+%xs", $string) )
 		{
 
-			if ( mb_detect_encoding($string,'UTF-8') === 'UTF-8' )
+			if ( mbDetectEncoding($string,'UTF-8') === 'UTF-8' )
 			{
 				if (
 					// now is it valid?
@@ -430,9 +430,9 @@ class Email
 		// ok let's call it Latin1 now
 		return "ISO-8859-1";
 	} // }}}
-	static public function mime_header_encode($data)/*{{{*/
+	static public function mimeHeaderEncode($data)/*{{{*/
 	{
-		$encoding = self::mb_detect_encoding($data);
+		$encoding = self::mbDetectEncoding($data);
 
 		if ($encoding == 'ASCII') {
 			return str_replace("\n","\r\n ",wordwrap($data,70));
@@ -469,14 +469,14 @@ function mail_rl($to,$subject,$message,$fakeFrom='', $headers='',$opts='') // {{
 		*/
 	}
 	// ensure subject is properly encoded
-	$encoding = mb_detect_encoding_rl($subject);
+	$encoding = mbDetectEncoding_rl($subject);
 	$subject = mb_encode_mimeheader($subject,$encoding);
 //	this does something like: 
 //	$subject = "=?UTF-8?B?".base64_encode(mb_convert_encoding($subject,'UTF-8'))		."?=\n";
 
 
 	// check encoding of body
-	$encoding = mb_detect_encoding_rl($message,null,1);
+	$encoding = mbDetectEncoding_rl($message,null,1);
 	// any non-ascii encodings go to utf8
 	if ($encoding !='ASCII') 
 	{

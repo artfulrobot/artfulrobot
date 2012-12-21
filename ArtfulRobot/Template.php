@@ -3,6 +3,8 @@ namespace ArtfulRobot;
 
 /** basic templating class
  *
+ * Nb. this not PSR2 standard yet
+ *
  * {{{
  * Copyright (c) 2003 Brian E. Lozier (brian@massassi.net)
  *

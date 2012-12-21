@@ -32,8 +32,8 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  Synopsis:
  *
- *  set_error_handler( array('\ArtfulRobot\Debug','handle_error') );
- *  set_exception_handler(array('\ArtfulRobot\Debug','handle_exception') );
+ *  set_error_handler( array('\ArtfulRobot\Debug','handleError') );
+ *  set_exception_handler(array('\ArtfulRobot\Debug','handleException') );
  *
  *  \ArtfulRobot\Debug::running = true;
  *  \ArtfulRobot\Debug::running = true;
@@ -85,7 +85,7 @@ class Debug
 			self::$running = $state;
 		}
 	} // }}}
-	static public function set_dump_file($dump_file=null) // {{{
+	static public function setDumpFile($dump_file=null) // {{{
 	{
 		$dump_file = ($dump_file?$dump_file:null);
 
@@ -117,9 +117,9 @@ class Debug
 	/*
 	static $lastTime=0;
 	if ( substr($t, 0,3) != 'TOP') return true;
-	if ($lastTime==0) $lastTime = self::getmicrotime();
-	echo sprintf('%0.2f', self::getmicrotime() - $lastTime) . htmlspecialchars($t) . "<br />";
-	$lastTime = self::getmicrotime();
+	if ($lastTime==0) $lastTime = self::getMicroTime();
+	echo sprintf('%0.2f', self::getMicroTime() - $lastTime) . htmlspecialchars($t) . "<br />";
+	$lastTime = self::getMicroTime();
 	return true;
 	 */
 		// if we're filling up the memory too much, (todo: write out to file and ) clear. 
@@ -198,7 +198,7 @@ class Debug
 		// }}}
 
 		$newRowId = sizeof( self::$log );
-		self::$log[] = array( 'top'=>0, 'time'=>self::getmicrotime(), 'class'=>'normal', 'scope'=>'', 'message'=>'', 'vars'=>'','parent'=>self::$last_parent,'lastChild'=>0 );
+		self::$log[] = array( 'top'=>0, 'time'=>self::getMicroTime(), 'class'=>'normal', 'scope'=>'', 'message'=>'', 'vars'=>'','parent'=>self::$last_parent,'lastChild'=>0 );
 		$newRow = & self::$log[$newRowId];
 		$newRow['top'] = $myTopSetting;
 		$newRow['vars'] = $vars;
@@ -266,38 +266,38 @@ class Debug
 		self::$running = (bool) $v;
 		self::init();
 	}//}}}
-	static public function set_silent($v)   //{{{
+	static public function setSilent($v)   //{{{
 	{
 		self::init();
 		self::$silent = (bool) $v;
 	}//}}}
-	static public function set_error_log($v)   //{{{
+	static public function setErrorLog($v)   //{{{
 	{
 		self::init();
 		self::$error_log = (bool) $v;
 	}//}}}
-	static public function set_top_only($v)   //{{{
+	static public function setTopOnly($v)   //{{{
 	{
 		self::init();
 		self::$top_only = (bool) $v;
 	}//}}}
-	static public function set_stderr($v)   //{{{
+	static public function setStdErr($v)   //{{{
 	{
 		self::init();
 		self::$stderr = (bool) $v;
 	}//}}}
-	static public function set_file($v)   //{{{
+	static public function setFile($v)   //{{{
 	{
 		self::init();
 		if (! $v) 
 		{
 			self::$file = false;
-			self::log("TOP set_file OFF");
+			self::log("TOP setFile OFF");
 		}
 		elseif ($v===true || $v===1) 
 		{
 			self::$file = true;
-			self::log("TOP set_file ON");
+			self::log("TOP setFile ON");
 		}
 		else
 		{
@@ -305,7 +305,7 @@ class Debug
 			// otherwise too much rik of overwriting others.
 			if (strpos($v,'%d')===false) $v = "%d_$v";
 			self::$file = $v;
-			self::log("TOP set_file ON, naming files: $v");
+			self::log("TOP setFile ON, naming files: $v");
 		}
 	}//}}}
 	//static public function fatal( $t='!!myexit called',$vars=null,$applyhtmlspecialchars=true ) // {{{
@@ -348,11 +348,11 @@ class Debug
 		self::legacy_api( 'print_full' );	
 		exit();
 	} //}}}
-	static public function redirect_and_exit($href, $http_response_code=false) // {{{
+	static public function redirectAndExit($href, $http_response_code=false) // {{{
 	{
 		self::init();
 		// just sends location header and exits, but does so in a debuggable way!
-		self::log("TOP redirect_and_exit() called to: '$href'");
+		self::log("TOP redirectAndExit() called to: '$href'");
 		if     ($http_response_code == '301' ) header($_SERVER["SERVER_PROTOCOL"] . " 301 Moved Permanently");
 		elseif ($http_response_code == '302' ) header($_SERVER["SERVER_PROTOCOL"] . " 302 Found but, not the best URL to use!");
 		elseif ($http_response_code == '404' ) header($_SERVER["SERVER_PROTOCOL"] . " 404 Not Found");
@@ -377,10 +377,10 @@ class Debug
 		}
 		// end of all script execution.
 	} // }}}
-	// static public function handle_error($errno, $errstr, $errfile, $errline) // {{{
+	// static public function handleError($errno, $errstr, $errfile, $errline) // {{{
 	/** error handler 
 	 */
-	static public function handle_error($errno, $errstr, $errfile, $errline)
+	static public function handleError($errno, $errstr, $errfile, $errline)
 	{
 		self::init();
 		// if error_reporting is turned off for this type of error, do nothing.
@@ -415,10 +415,10 @@ class Debug
 		/* Don't execute PHP internal error handler */
 		return true;
 	} // }}}
-	// static public function handle_exception($exception) // {{{
+	// static public function handleException($exception) // {{{
 	/** exception handler 
 	 */
-	static public function handle_exception($exception)
+	static public function handleException($exception)
 	{
 		self::init();
 		// make table for backtrace
@@ -496,20 +496,20 @@ class Debug
 	 */
 
 		$command = strtolower($command);
-		if	   ($command == 'not silent' ){ self::set_silent(false); return true ; }
-		elseif ($command == 'silent' )    { self::set_silent(true);  return true ; }
-		elseif ($command == 'not stderr' ){ self::set_stderr(false); return true ; }
-		elseif ($command == 'stderr' )    { self::set_stderr(true);  return true ; }
-		elseif ($command == 'not file' )  { self::set_file(false); return true ; }
-		elseif ($command == 'file' )      { self::set_file($args); return true ; }
-		elseif ($command == 'not error_log' )   { self::set_error_log(false); return true ; }
-		elseif ($command == 'error_log' ) { self::set_error_log(true); return true ; }
-		elseif ($command == 'top_only' )   { self::set_top_only(true); return true ; }
-		elseif ($command == 'not top_only' )     { self::set_top_only(false); return true ; }
+		if	   ($command == 'not silent' ){ self::setSilent(false); return true ; }
+		elseif ($command == 'silent' )    { self::setSilent(true);  return true ; }
+		elseif ($command == 'not stderr' ){ self::setStdErr(false); return true ; }
+		elseif ($command == 'stderr' )    { self::setStdErr(true);  return true ; }
+		elseif ($command == 'not file' )  { self::setFile(false); return true ; }
+		elseif ($command == 'file' )      { self::setFile($args); return true ; }
+		elseif ($command == 'not error_log' )   { self::setErrorLog(false); return true ; }
+		elseif ($command == 'error_log' ) { self::setErrorLog(true); return true ; }
+		elseif ($command == 'top_only' )   { self::setTopOnly(true); return true ; }
+		elseif ($command == 'not top_only' )     { self::setTopOnly(false); return true ; }
 		elseif ($command == 'set slow' )  { self::$slow = $args;debug('Debugging set slow to ' . $args ); return true ; }
 		elseif ($command == 'on' )  	  { self::set_on(true); return 'on';}
 		elseif ($command == 'off' )  	  { self::set_on(false); return 'off';}
-		elseif ($command == 'file' )      { self::set_file($args); return true; }
+		elseif ($command == 'file' )      { self::setFile($args); return true; }
 		elseif ($command == 'get_file' )  { return self::$file; }
 
 		// if we're turned off, do nothing more. xxx really?
@@ -517,7 +517,7 @@ class Debug
 
 		if (self::$format == 'html' || 1)
 		{
-			$chunk = self::report_html();
+			$chunk = self::reportHTML();
 			$timestamp = explode(" ",microtime()); 
 			$timestamp= substr($timestamp[0],1,3); // microseconds to 2dp 0.1234 => .12
 			$timestamp = date('Y-m-d\\TH.i.s') . $timestamp;
@@ -550,7 +550,7 @@ class Debug
 		}
 	}//}}}
 
-	static private function report_html( ) // {{{
+	static private function reportHTML( ) // {{{
 	{
 		self::init();
 
@@ -706,11 +706,11 @@ $html
 EOF;
 		return $html;
 	}//}}}
-	static private function getmicrotime(){ //{{{
+	static private function getMicroTime(){ //{{{
 		list($usec, $sec) = explode(" ",microtime()); 
 		return ((float)$usec + (float)$sec); 
-/*$_starttime = self::getmicrotime();
-echo "finished! Took " . ( self::getmicrotime() - $_starttime ) ."s";*/
+/*$_starttime = self::getMicroTime();
+echo "finished! Took " . ( self::getMicroTime() - $_starttime ) ."s";*/
 	}// }}} 
 	static private function template($title,$html,$full=false)/*{{{*/
 	{
