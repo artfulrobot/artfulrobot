@@ -6,7 +6,7 @@ namespace ArtfulRobot;
  *  basically, this is a wrapper for php's array, but without ever returning
  *  the array itself
  */
-class ARL_Collection implements Iterator
+class Collection implements \Iterator
 {
 	/** Iterator index */
 	private $position = 0;

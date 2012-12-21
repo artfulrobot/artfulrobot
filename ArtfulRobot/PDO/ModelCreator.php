@@ -4,9 +4,9 @@ namespace ArtfulRobot;
 /** creates PHP model given connection and tablename
   * Synopsis: ModelCreator::go( PDO $pdo, 'mytable');
   */
-class ModelCreator
+class PDO_ModelCreator
 {
-	public static function go(PDO $pdo, $tablename)
+	public static function go(\PDO $pdo, $tablename, $format='html')
 	{
 		$stmt = $pdo->query("SHOW FIELDS FROM $tablename");
 		$rows = $stmt->fetchAll(PDO::FETCH_OBJ);
@@ -100,6 +100,9 @@ class Model_$classname extends \ArtfulRobot\PDO_Model
 } // }}}
 
 PHP;
-	echo highlight_string( '<?php ' . $out, true );
+	if ($format=='html')
+		echo highlight_string( '<?php ' . $out, true );
+	else
+		echo '<?php ' . $out;
 	}
 }

@@ -41,7 +41,7 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("<< row fetched");
 		return $output;
 	}/*}}}*/
-	public function fetch_rows_assoc(\ArtfulRobot\PDO_Query $query , $key_field = null )/*{{{*/
+	public function fetchRowsAssoc(\ArtfulRobot\PDO_Query $query , $key_field = null )/*{{{*/
 	{
 		\ArtfulRobot\Debug::log(">>$query->comment");
 

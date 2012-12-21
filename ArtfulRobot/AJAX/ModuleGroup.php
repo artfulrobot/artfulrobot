@@ -25,7 +25,7 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 /** 
   * Simple way to group ajax functions, e.g. arlClass=GroupName, task=methodname
   */
-abstract class Ajax_Module_Group extends \ArtfulRobot\Ajax_Module
+abstract class Ajax_ModuleGroup extends \ArtfulRobot\Ajax_Module
 {
 	/** undefined, or list of allowed task methods */
 	private $task_methods;

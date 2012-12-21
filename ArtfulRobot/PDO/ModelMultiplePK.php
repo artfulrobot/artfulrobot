@@ -8,19 +8,19 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 	/** @var array(string, string...) of fields that form the primary key */
 	protected $pk_fields=array();
 
-	public function __construct( $id=null )/*{{{*/
+	public function __construct( $id=null, $not_found_creates_new=true  )/*{{{*/
 	{
 		$this->db_connect();
-		if (is_array($id) && $id) $this->loadFromDatabase( $id );
+		if (is_array($id) && $id) $this->loadFromDatabase( $id, $not_found_creates_new=true  );
 		else $this->loadDefaults();
 	}/*}}}*/
-	public function loadFromDatabase( $id )/*{{{*/
+	public function loadFromDatabase( $id, $not_found_creates_new=true  )/*{{{*/
 	{
 		// clear current data first
 		$this->loadDefaults();
 
-		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-		if (!$id || !is_array($id)) throw new Exception( get_class($this) . "::loadFromDatabase called without proper id");
+		if (!$id || !is_array($id)) throw new Exception( get_class($this) 
+				. "::loadFromDatabase called without proper id");
 
 		$params = array();
 		$pk_where = $this->preparePK($params, $id);
@@ -28,7 +28,17 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 				"Fetch all fields from $this->TABLE_NAME for record $id",
 				"SELECT * FROM `$this->TABLE_NAME` WHERE $pk_where",
 				$params));
+
+		// no rows may be allowable if $not_found_creates_new
+		if ($stmt->rowCount()==0 && $not_found_creates_new) return $this;
+				
+		// more than one record always wrong. Zero records wrong unless $not_found_creates_new set.
+		if ($stmt->rowCount()!=1) throw new Exception(get_class($this) 
+				. "::loadFromDatabase failed to load single row from $this->TABLE_NAME with id $id");
+
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
+		$this->is_new = false;
+		$this->unsaved_changes = false;
 
 		$this->loadPostprocess();
 	}/*}}}*/
@@ -71,17 +81,8 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 			$pk[$field] = $this->myData[$field];
 		return $pk;
 	}/*}}}*/
-	// save is update. To insert use insert();
-	public function save()/*{{{*/
+	protected function saveByUpdate()/*{{{*/
 	{
-		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-
-		// do nothing if unsaved changes
-		if (!$this->unsaved_changes) return;
-
-		$this->savePreprocess();
-
-		// update
 		$sql = array();
 		foreach ($this->myData as $key=>$value)
 		{
@@ -100,23 +101,14 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 				"Update record {$this->myData['id']} in $this->TABLE_NAME",
 				$sql,
 				$data));
+		$this->unsaved_changes = false;
+		$this->is_new = false;
 
 		$this->loadPostprocess();
-
-		// for conformity, return the pk values
-		return $this->getPK();
 	}/*}}}*/
-	public function insert()/*{{{*/
+	protected function saveByInsert()/*{{{*/
 	{
-		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-
-		// do nothing if unsaved changes
-		if (!$this->unsaved_changes) return;
-
-		$this->savePreprocess();
-
-		// new data - build insert
-		// take a copy of the data array, less the id field
+		// take a copy of the data array
 		$fields = array();
 		foreach ($this->myData as $key=>$value)
 		{
@@ -133,12 +125,6 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 				"Create new row in $this->TABLE_NAME",
 				$sql,
 				$data));
-
-		$this->loadPostprocess();
-
-
-		// for conformity, return the pk values
-		return $this->getPK();
 	}/*}}}*/
 	public function delete()/*{{{*/
 	{
@@ -151,6 +137,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 					"DELETE FROM `$this->TABLE_NAME` WHERE $pk_where",
 					$params));
 
+		$this->unsaved_changes = $this->is_new = true;
 	}/*}}}*/
 }
 
