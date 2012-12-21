@@ -84,10 +84,10 @@ class ModelCreator
 
 		$out =  <<<PHP
 
-//class Model_$classname extends ARL_PDO_Model {{{
-/** ARL_PDO_Model for $classname
+//class Model_$classname extends \ArtfulRobot\PDO_Model {{{
+/** \ArtfulRobot\PDO_Model for $classname
   */
-class Model_$classname extends ARL_PDO_Model
+class Model_$classname extends \ArtfulRobot\PDO_Model
 {
 	protected \$TABLE_NAME = '$tablename';
 	protected \$definition = array(
@@ -95,7 +95,7 @@ class Model_$classname extends ARL_PDO_Model
 		);
 	protected function getter(\$name) {}
 	protected function setter(\$name, \$value) {}
-	/** this function must initialise an ARL_PDO object in \$this->conn */
+	/** this function must initialise an \ArtfulRobot\PDO object in \$this->conn */
 	abstract protected function db_connect();
 } // }}}
 

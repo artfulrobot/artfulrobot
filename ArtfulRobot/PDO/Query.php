@@ -2,7 +2,7 @@
 namespace ArtfulRobot;
 
 //class PDO_Query
-/** class to add features to standard sql queries, used by various ARL_PDO methods
+/** class to add features to standard sql queries, used by various \ArtfulRobot\PDO methods
  * 
  * For readability this class insists on a comment for the sql that should
  * explain what's supposed to be achived by the SQL
@@ -14,7 +14,7 @@ namespace ArtfulRobot;
  *
  * Example: fetch a number of specified records:
  *
- * $records = $my_ARL_PDO->fetch_rows_assoc( new ARL_PDO_Query(
+ * $records = $my_\ArtfulRobot\PDO->fetch_rows_assoc( new \ArtfulRobot\PDO_Query(
  *  "Fetch records 1,2,5",
  * 	"SELECT * FROM table WHERE id IN (:id_list) AND lname = :lname"
  * 	array( ':id_list' => array(1,2,5) ) ) );
@@ -65,7 +65,7 @@ class PDO_Query
 
 	public function __toString()
 	{
-		return "ARL_PDO_Query: \n"
+		return "\ArtfulRobot\PDO_Query: \n"
 			. strtr($this->sql, array("\t"=>"  "))
 			. "\nParams:\n" 
 			. print_r($this->params,1);

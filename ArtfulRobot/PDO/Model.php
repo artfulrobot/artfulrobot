@@ -92,7 +92,7 @@ abstract class PDO_Model
     } // }}}
 	abstract protected function getter($name);
 	abstract protected function setter($name, $newValue) ;
-	/** this function must initialise an ARL_PDO object in $this->conn */
+	/** this function must initialise an \ArtfulRobot\PDO object in $this->conn */
 	abstract protected function db_connect();
 	public function loadFromDatabase( $id )/*{{{*/
 	{
@@ -102,7 +102,7 @@ abstract class PDO_Model
 		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
 		if (($id = (int)$id)<1) throw new Exception( get_class($this) . "::loadFromDatabase called without proper id");
 
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 				"Fetch all fields from $this->TABLE_NAME for record $id",
 				"SELECT * FROM `$this->TABLE_NAME` WHERE id = $id"));
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -168,7 +168,7 @@ abstract class PDO_Model
 				. ") VALUES ( "
 				. implode(", ", array_keys($data))
 				. ")";
-			$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+			$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 					"Create new row in $this->TABLE_NAME",
 					$sql,
 					$data));
@@ -195,7 +195,7 @@ abstract class PDO_Model
 				. "SET "
 				. implode(", ", $sql)
 				. " WHERE id = :id";
-			$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+			$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 					"Update record {$this->myData['id']} in $this->TABLE_NAME",
 					$sql,
 					$data));
@@ -219,7 +219,7 @@ abstract class PDO_Model
 			return;
 		}
 
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 					"delete row in $this->TABLE_NAME",
 					"delete FROM `$this->TABLE_NAME` WHERE id = :id",
 					array(':id' => $this->myData['id'] )));

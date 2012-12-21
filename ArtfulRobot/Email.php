@@ -27,7 +27,7 @@ class Email
 		$this->uid = md5(serialize($this->body) . time());
 		// set up default headers
 		$this->headers['MIME-Version']='1.0';
-		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARL_Email-mixed-$this->uid\"";
+		$this->headers['Content-Type']= "multipart/mixed; boundary=\"\ArtfulRobot\Email-mixed-$this->uid\"";
 
 		if ($to!==null) $this->setTo($to);
 		if ($subject!==null) $this->setSubject($subject);
@@ -149,10 +149,10 @@ class Email
 
 		$uid =$this->uid;
 		$body = 
-			 "--ARL_Email-mixed-$uid\r\n"
-			."Content-Type: multipart/alternative; boundary=\"ARL_Email-alt-$uid\"\r\n"
+			 "--\ArtfulRobot\Email-mixed-$uid\r\n"
+			."Content-Type: multipart/alternative; boundary=\"\ArtfulRobot\Email-alt-$uid\"\r\n"
 			."\r\n"
-			."--ARL_Email-alt-$uid\r\n"
+			."--\ArtfulRobot\Email-alt-$uid\r\n"
 			."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['text']
@@ -161,7 +161,7 @@ class Email
 		// html
 		if (empty($this->body['related']))
 			$body .=
-			 "--ARL_Email-alt-$uid\r\n"
+			 "--\ArtfulRobot\Email-alt-$uid\r\n"
 			."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['html']
@@ -169,32 +169,32 @@ class Email
 		else
 		{
 			$body .=
-				 "\r\n--ARL_Email-alt-$uid\r\n"
-				."Content-Type: multipart/related; boundary=\"ARL_Email-rel-$uid\"\r\n"
+				 "\r\n--\ArtfulRobot\Email-alt-$uid\r\n"
+				."Content-Type: multipart/related; boundary=\"\ArtfulRobot\Email-rel-$uid\"\r\n"
 				."\r\n"
-				."--ARL_Email-rel-$uid\r\n"
+				."--\ArtfulRobot\Email-rel-$uid\r\n"
 				."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 				."Content-Transfer-Encoding: 8bit\r\n"
 				."\r\n";
 			$html = $this->body['html'];
 			foreach ($this->body['related'] as $name => $filename)
-				$subs['{' . $name . '}'] = 'cid:ARL_Email-CID-'.$name;
+				$subs['{' . $name . '}'] = 'cid:\ArtfulRobot\Email-CID-'.$name;
 			$body .= strtr($html, $subs)
 				."\r\n";
 
 			foreach ($this->body['related'] as $name => $filename)
 				$body .=
-				 "--ARL_Email-rel-$uid\r\n"
+				 "--\ArtfulRobot\Email-rel-$uid\r\n"
 				. $this->attach($filename, $name)
 				. "\r\n";
 
 			$body .=
-				 "--ARL_Email-rel-$uid--\r\n"
+				 "--\ArtfulRobot\Email-rel-$uid--\r\n"
 				. "\r\n";
 			
 		}
 		$body .=
-			 "--ARL_Email-alt-$uid--\r\n"
+			 "--\ArtfulRobot\Email-alt-$uid--\r\n"
 			."\r\n";
 
 		if ($this->attachments)
@@ -204,10 +204,10 @@ class Email
 			//and split it into smaller chunks
 			foreach ($this->attachments as $_)
 				$body .= 
-					 "--ARL_Email-mixed-$uid\r\n"
+					 "--\ArtfulRobot\Email-mixed-$uid\r\n"
 					 . $this->attach($_);
 		}
-		$body .= "--ARL_Email-mixed-$uid--\r\n";
+		$body .= "--\ArtfulRobot\Email-mixed-$uid--\r\n";
 
 		return $body;
 	}/*}}}*/
@@ -268,7 +268,7 @@ class Email
 		 // file_put_contents('/tmp/arl-email', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
 
 		 if (isset($return_path)) {
-			 //ARL_Debug::log("TOP sending with -f");
+			 //\ArtfulRobot\Debug::log("TOP sending with -f");
 			 $mail_result = mail(
 					 $mail_to,
 					 $mail_subject, 
@@ -279,7 +279,7 @@ class Email
 					 );
 		 }
 		 else {
-			 //ARL_Debug::log("TOP sending without -f");
+			 //\ArtfulRobot\Debug::log("TOP sending without -f");
 			 // The optional $additional_parameters argument to mail() is not allowed
 			 // if safe_mode is enabled. Passing any value throws a PHP warning and
 			 // makes mail() return FALSE.
@@ -305,7 +305,7 @@ class Email
 				.( $cid ? '' : ";\r\n name=\"$file\"" )
 				. "\r\n"
 				."Content-Transfer-Encoding: base64\r\n"
-				.( $cid ? "Content-ID: <ARL_Email-CID-$cid>\r\n" 
+				.( $cid ? "Content-ID: <\ArtfulRobot\Email-CID-$cid>\r\n" 
 						: "Content-Disposition: attachment;\r\n"
 						 ." filename=\"$file\"\r\n")
 				."\r\n"

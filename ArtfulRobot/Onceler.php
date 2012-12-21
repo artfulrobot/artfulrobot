@@ -4,15 +4,15 @@
  * Synopsis:
 <code>
 // generate a link
-$token = \ArtfulRobot\Onceler::new_token();
+$token = \ArtfulRobot\\ArtfulRobot\Onceler::newToken();
 echo "<a href='?do=something&oncelerToken=$token' >go</a>;
 
 // check a link 
-if (!\ArtfulRobot\Onceler::check_get()) unset($_GET['do']);
+if (!\ArtfulRobot\\ArtfulRobot\Onceler::check_get()) unset($_GET['do']);
 if ($_GET['do'] == 'something') do_something();
 </code>
 
- * Note: this does not check that the token was created by ARL_Onceler
+ * Note: this does not check that the token was created by \ArtfulRobot\Onceler
  * just that it has not been seen before. You do not need to use new_token
  * to generate tokens.
  */
@@ -29,14 +29,14 @@ class Onceler
 
 	public static function check_get( $altKey='oncelerToken') 
 	{ 	
-		if (self::$done_get) throw new Exception("ARL_Onceler::check_get() called twice");
+		if (self::$done_get) throw new Exception("\ArtfulRobot\Onceler::check_get() called twice");
 
 		self::$done_get = true;
 		return self::check($_GET,  $altKey);;
 	}
 	public static function check_post( $altKey='oncelerToken') 
 	{ 	
-		if (self::$done_post) throw new Exception("ARL_Onceler::check_post() called twice");
+		if (self::$done_post) throw new Exception("\ArtfulRobot\Onceler::check_post() called twice");
 
 		self::$done_post = true;
 		return self::check($_POST,  $altKey);;
@@ -50,20 +50,20 @@ class Onceler
 	 */ 
 	public static function check( &$source, $key )
 	{
-		if (! $key) throw new Exception("ARL_Onceler::check - no key given");
-		if (! is_array($source)) throw new Exception("ARL_Onceler::check - source is not an array");
+		if (! $key) throw new Exception("\ArtfulRobot\Onceler::check - no key given");
+		if (! is_array($source)) throw new Exception("\ArtfulRobot\Onceler::check - source is not an array");
 		$token = \ArtfulRobot\Utils::arrayValue($key, $source);
 		// no token - return null;
 		if (! $token )
 		{
-			ARL_Debug::log("TOP Warning: ARL_Onceler::check - no token at key $key returning null");
+			\ArtfulRobot\Debug::log("TOP Warning: \ArtfulRobot\Onceler::check - no token at key $key returning null");
 			return null;
 		}
 
-		$spent_tokens = & \ArtfulRobot\Utils::arrayReference('ARL_Onceler::spent_tokens', $_SESSION, array() );
+		$spent_tokens = & \ArtfulRobot\Utils::arrayReference('\ArtfulRobot\Onceler::spent_tokens', $_SESSION, array() );
 		if ( array_key_exists( $token, $spent_tokens ) )
 		{
-			ARL_Debug::log("TOP ARL_Onceler: recognised spent token, resetting source token.");
+			\ArtfulRobot\Debug::log("TOP \ArtfulRobot\Onceler: recognised spent token, resetting source token.");
 			$source[$key] = false;
 			return false;
 		}
@@ -77,7 +77,7 @@ class Onceler
 	 */
 	public static function newToken()
 	{
-		$spent_tokens = \ArtfulRobot\Utils::arrayReference('ARL_Onceler::spent_tokens', $_SESSION, array() );
+		$spent_tokens = \ArtfulRobot\Utils::arrayReference('\ArtfulRobot\Onceler::spent_tokens', $_SESSION, array() );
 		
 		while ( array_key_exists( 
 			$new = md5(++self::$count . 'NaCl' . time()),

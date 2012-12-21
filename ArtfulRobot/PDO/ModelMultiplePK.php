@@ -1,7 +1,7 @@
 <?php
 namespace ArtfulRobot;
 
-abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
+abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 {
 	/*  Nb. class constants must be overridden in extended classes 
 	   (php5.2 can't cope with this, so they're normal properties here) */
@@ -24,13 +24,13 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 
 		$params = array();
 		$pk_where = $this->preparePK($params, $id);
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 				"Fetch all fields from $this->TABLE_NAME for record $id",
 				"SELECT * FROM `$this->TABLE_NAME` WHERE $pk_where",
 				$params));
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
 	public function loadDefaults()/*{{{*/
 	{
@@ -44,7 +44,7 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 			// otherwise use zls.
 			else $this->$field = '';
 		}
-		$this->load_postprocess();
+		$this->loadPostprocess();
 	}/*}}}*/
 	//protected function preparePK(&$params, $id=null){{{
 	/** if $id is not given, the current values are used.
@@ -79,7 +79,7 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 		// do nothing if unsaved changes
 		if (!$this->unsaved_changes) return;
 
-		$this->save_preprocess();
+		$this->savePreprocess();
 
 		// update
 		$sql = array();
@@ -96,12 +96,12 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 		$sql = "UPDATE " . $this->TABLE_NAME 
 			. " SET " . implode(", ", $sql)
 			. " WHERE $pk_where";
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 				"Update record {$this->myData['id']} in $this->TABLE_NAME",
 				$sql,
 				$data));
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 
 		// for conformity, return the pk values
 		return $this->getPK();
@@ -113,7 +113,7 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 		// do nothing if unsaved changes
 		if (!$this->unsaved_changes) return;
 
-		$this->save_preprocess();
+		$this->savePreprocess();
 
 		// new data - build insert
 		// take a copy of the data array, less the id field
@@ -129,12 +129,12 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 			. ") VALUES ( "
 			. implode(", ", array_keys($data))
 			. ")";
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 				"Create new row in $this->TABLE_NAME",
 				$sql,
 				$data));
 
-		$this->load_postprocess();
+		$this->loadPostprocess();
 
 
 		// for conformity, return the pk values
@@ -146,7 +146,7 @@ abstract class PDO_ModelMultiplePK extends ARL_PDO_Model
 
 		$params = array();
 		$pk_where = $this->preparePK($params);
-		$stmt = $this->conn->prep_and_execute( new ARL_PDO_Query(
+		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
 					"Delete row in $this->TABLE_NAME",
 					"DELETE FROM `$this->TABLE_NAME` WHERE $pk_where",
 					$params));
