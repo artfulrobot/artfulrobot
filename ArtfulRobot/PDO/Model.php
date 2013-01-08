@@ -6,6 +6,9 @@ abstract class PDO_Model
     const FORMAT_TIME = 'G.i.s';
     const FORMAT_DATE = 'Y-m-d';
     const FORMAT_DATETIME = 'Y-m-d G.i.s';
+    const TABLE_NAME = '';
+
+    static $cached=array();
 
     /** @var data array */
     protected $myData ;
@@ -25,19 +28,60 @@ abstract class PDO_Model
     /** @var array additional properties settable from extended setter method */
     protected $model_props_w=array();
 
-    /** @var PDO connection */
-    protected $conn;
-
     /*  Nb. class constants must be overridden in extended classes 
        (php5.2 can't cope with this, so they're normal properties here) */
     /** @var string optional alias, e.g. surveyId */
     protected $ID_ALIAS = false;
-    /** @var string table name used in default save() and loadFromDatabase() methods */
-    protected $TABLE_NAME = false;
 
+    /** Must return a \ArtfulRobot\PDO object */
+    abstract static protected function getConnection();
+    static public function buildCollection( $filters )//{{{
+    {
+        // filters must be field=>value
+        $collection = new ARL\Collection($this);
+
+        $sql=$params = array();
+        foreach ($filters as $key=>$value){
+            $params[":$key"] = $value;
+            $sql[] = "`$key` = :$key";
+        }
+        if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
+        else $sql = '';
+
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                "Fetch records from " . static::TABLE_NAME,
+                "SELECT * FROM `" . static::TABLE_NAME . "` $sql"));
+        if ($stmt->errorCode()!='00000') 
+            throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
+
+        while ($row = $stmt->fetch( \PDO::FETCH_ASSOC )) {
+            // create an object of the class
+            $obj = new static; 
+            $obj->loadFromArray($row,false,false);
+            $collection->append($obj, $obj->id);
+            unset($obj);
+        }
+        return $collection;
+    }//}}}
+    //static public function loadCached( $id )//{{{
+    /** Returns cache or creates object 
+     *  Used to load models from the database; ensures all php models for one record are shared
+     */
+    static public function loadCached( $id, $data=null )
+    {
+        $object_type = get_called_class();
+        if (isset(self::$cached[$object_type][$id])) return self::$cached[$object_type][$id];
+
+        // create and populate new object
+        $obj = new static; 
+        if (is_array($data)) $obj->loadFromArray($data);
+        else $obj->loadFromDatabase($id,false);
+
+        // cache and return
+        return self::$cached[$object_type][$id] = $obj;
+    }//}}}
     public function __construct( $id=null, $not_found_creates_new=true )/*{{{*/
     {
-        $this->db_connect();
         if (is_int($id)) $this->loadFromDatabase( $id, $not_found_creates_new );
         else $this->loadDefaults();
     }/*}}}*/
@@ -99,8 +143,6 @@ abstract class PDO_Model
     } // }}}
     abstract protected function getter($name);
     abstract protected function setter($name, $newValue) ;
-    /** this function must initialise an \ArtfulRobot\PDO object in $this->conn */
-    abstract protected function db_connect();
     public function loadFromDatabase( $id, $not_found_creates_new=true )/*{{{*/
     {
         // clear current data first
@@ -109,16 +151,16 @@ abstract class PDO_Model
         if (($id = (int)$id)<1) throw new Exception( get_class($this) 
                 . "::loadFromDatabase called without proper id");
 
-        $stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-                "Fetch all fields from $this->TABLE_NAME for record $id",
-                "SELECT * FROM `$this->TABLE_NAME` WHERE id = $id"));
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                "Fetch all fields from " . static::TABLE_NAME . " for record $id",
+                "SELECT * FROM `" . static::TABLE_NAME . "` WHERE id = $id"));
 
         // no rows may be allowable if $not_found_creates_new
         if ($stmt->rowCount()==0 && $not_found_creates_new) return $this;
                 
         // more than one record always wrong. Zero records wrong unless $not_found_creates_new set.
         if ($stmt->rowCount()!=1) throw new Exception(get_class($this) 
-                . "::loadFromDatabase failed to load single row from $this->TABLE_NAME with id $id");
+                . "::loadFromDatabase failed to load single row from " . static::TABLE_NAME . " with id $id");
 
         $this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
         $this->is_new = false;
@@ -128,11 +170,15 @@ abstract class PDO_Model
         // chainable
         return $this;
     }/*}}}*/
-    public function loadFromArray( Array $src, $is_new=false )/*{{{*/
+    public function loadFromArray( Array $src, $is_new=false, $cast_data=true )/*{{{*/
     {
         $this->loadDefaults();
-        foreach ($src as $key=>$value)
-            $this->$key = $value;
+        if ($cast_data) {
+            foreach ($src as $key=>$value)
+                $this->$key = $value;
+        } else {
+            $this->myData = $src;
+        }
         /* hmmm, or maybe this is better:
         foreach (array_keys($this->myData) as $key)
             if (array_key_exists($key, $src))
@@ -145,7 +191,6 @@ abstract class PDO_Model
     }/*}}}*/
     public function loadDefaults()/*{{{*/
     {
-        $this->myData = array('id' => 0);
         $this->is_new = true;
         $this->unsaved_changes = true;
         // note that these will be done through the setter function, so cast correctly.
@@ -169,7 +214,6 @@ abstract class PDO_Model
         if (!$this->unsaved_changes) return;
 
         $this->savePreprocess();
-
         if ( $this->isNew() ) $this->saveByInsert();
         else                  $this->saveByUpdate();
 
@@ -181,7 +225,6 @@ abstract class PDO_Model
     }/*}}}*/
     public function delete()/*{{{*/
     {
-        if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
         // new data
         if ( ! $this->myData['id'] )
         {
@@ -189,9 +232,9 @@ abstract class PDO_Model
             return;
         }
 
-        $stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-                    "delete row in $this->TABLE_NAME",
-                    "delete FROM `$this->TABLE_NAME` WHERE id = :id",
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                    "delete row in " . static::TABLE_NAME,
+                    "delete FROM `" . static::TABLE_NAME . "` WHERE id = :id",
                     array(':id' => $this->myData['id'] )));
 
         // zero the id, so if saved it would create a new record
@@ -244,22 +287,22 @@ abstract class PDO_Model
             $data[":$key"] = $value;
         }
 
-        $sql = "INSERT INTO `" . $this->TABLE_NAME . "` ("
+        $sql = "INSERT INTO `" . static::TABLE_NAME . "` ("
             . implode(", ", $fields)
             . ") VALUES ( "
             . implode(", ", array_keys($data))
             . ")";
-        $stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-                "Create new row in $this->TABLE_NAME",
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                "Create new row in " . static::TABLE_NAME,
                 $sql,
                 $data));
 
         if ( $stmt->errorCode() != '00000' ) throw new Exception( 
-                get_class($this) . " failed to create row errorCode:' " . $stmt->errorCode() . "':" . print_r($this->conn->errorInfo(),1));
+                get_class($this) . " failed to create row errorCode:' " . $stmt->errorCode() . "':" . print_r(static::getConnection()->errorInfo(),1));
 
         // we must reset our ID if auto_increment
         if ($this->id_is_auto_increment) {
-            $this->id = $this->conn->lastInsertId();
+            $this->id = static::getConnection()->lastInsertId();
         }
     }/*}}}*/
     protected function saveByUpdate() //{{{
@@ -272,12 +315,12 @@ abstract class PDO_Model
 
             $data[":$key"] = $value;
         }
-        $sql = "UPDATE " . $this->TABLE_NAME  . " "
-            . "SET "
+        $sql = "UPDATE " . static::TABLE_NAME
+            . " SET "
             . implode(", ", $sql)
             . " WHERE id = :id";
-        $stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-                    "Update record {$this->myData['id']} in $this->TABLE_NAME",
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                    "Update record {$this->myData['id']} in " . static::TABLE_NAME,
                     $sql,
                     $data));
     }/*}}}*/

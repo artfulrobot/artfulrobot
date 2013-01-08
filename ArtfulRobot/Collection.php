@@ -36,7 +36,7 @@ class Collection implements \Iterator
 
     public function current() 
 	{
-        return $this->objects[$this->position];
+        return $this->objects[$this->position]['object'];
     }
 
     public function key() 

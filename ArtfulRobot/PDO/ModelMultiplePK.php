@@ -3,14 +3,50 @@ namespace ArtfulRobot;
 
 abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 {
-	/*  Nb. class constants must be overridden in extended classes 
-	   (php5.2 can't cope with this, so they're normal properties here) */
 	/** @var array(string, string...) of fields that form the primary key */
 	protected $pk_fields=array();
 
+    static public function buildCollection( $filters )//{{{
+    {
+        // filters must be field=>value
+        $collection = new Collection($this);
+
+        $sql=$params = array();
+        foreach ($filters as $key=>$value){
+            $params[":$key"] = $value;
+            $sql[] = "`$key` = :$key";
+        }
+        if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
+        else $sql = '';
+        $sql = "SELECT * FROM `" . static::TABLE_NAME ."` $sql";
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                "Fetch records from " . static::TABLE_NAME,
+                $sql, $params));
+        if ($stmt->errorCode()!='00000') 
+            throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
+
+        while ($row = $stmt->fetch( \PDO::FETCH_ASSOC )) {
+            // create an object of the class
+            $obj = new static; 
+            $obj->loadFromArray($row,false,false);
+            // these lines differ from main code
+            $id = implode("\A", $obj->getPK());
+            $collection->append($obj,$id);
+            unset($obj);
+        }
+        return $collection;
+    }//}}}
+    //static public function loadCached( $id )//{{{
+    /** Returns cache or creates object 
+     *  Used to load models from the database; ensures all php models for one record are shared
+     */
+    static public function loadCached( $id, $data=null )
+    {
+        $id = implode("\A", $id);
+        return parent::loadCached($id, $data);
+    }//}}}
 	public function __construct( $id=null, $not_found_creates_new=true  )/*{{{*/
 	{
-		$this->db_connect();
 		if (is_array($id) && $id) $this->loadFromDatabase( $id, $not_found_creates_new=true  );
 		else $this->loadDefaults();
 	}/*}}}*/
@@ -24,9 +60,9 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 
 		$params = array();
 		$pk_where = $this->preparePK($params, $id);
-		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-				"Fetch all fields from $this->TABLE_NAME for record $id",
-				"SELECT * FROM `$this->TABLE_NAME` WHERE $pk_where",
+		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+				"Fetch all fields from " . static::TABLE_NAME ." for record $id",
+				"SELECT * FROM `" . static::TABLE_NAME ."` WHERE $pk_where",
 				$params));
 
 		// no rows may be allowable if $not_found_creates_new
@@ -34,26 +70,12 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 				
 		// more than one record always wrong. Zero records wrong unless $not_found_creates_new set.
 		if ($stmt->rowCount()!=1) throw new Exception(get_class($this) 
-				. "::loadFromDatabase failed to load single row from $this->TABLE_NAME with id $id");
+				. "::loadFromDatabase failed to load single row from " . static::TABLE_NAME ." with id $id");
 
 		$this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
 		$this->is_new = false;
 		$this->unsaved_changes = false;
 
-		$this->loadPostprocess();
-	}/*}}}*/
-	public function loadDefaults()/*{{{*/
-	{
-		$this->myData = array();
-		// note that these will be done through the setter function, so cast correctly.
-		foreach ($this->definition as $field=>$details)
-		{
-			$this->myData[$field] = null;
-			// if given a default value, use that.
-			if (array_key_exists('default', $details)) $this->$field = $details['default'];
-			// otherwise use zls.
-			else $this->$field = '';
-		}
 		$this->loadPostprocess();
 	}/*}}}*/
 	//protected function preparePK(&$params, $id=null){{{
@@ -73,7 +95,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		}
 		return "(" . implode(' AND ', $sql) . ")";
 	}/*}}}*/
-	//protected function getPK(&$params, $id=null){{{
+	//protected function getPK(){{{
 	protected function getPK()
 	{
 		$pk = array();
@@ -94,11 +116,11 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		}
 		$pk_where = $this->preparePK($data);
 
-		$sql = "UPDATE " . $this->TABLE_NAME 
+		$sql = "UPDATE " . static::TABLE_NAME 
 			. " SET " . implode(", ", $sql)
 			. " WHERE $pk_where";
-		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-				"Update record {$this->myData['id']} in $this->TABLE_NAME",
+		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+				"Update record {$this->myData['id']} in " . static::TABLE_NAME,
 				$sql,
 				$data));
 		$this->unsaved_changes = false;
@@ -116,25 +138,23 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 			$data[":$key"] = $value;
 		}
 
-		$sql = "INSERT INTO `" . $this->TABLE_NAME . "` ("
+		$sql = "INSERT INTO `" . static::TABLE_NAME . "` ("
 			. implode(", ", $fields)
 			. ") VALUES ( "
 			. implode(", ", array_keys($data))
 			. ")";
-		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-				"Create new row in $this->TABLE_NAME",
+		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+				"Create new row in " . static::TABLE_NAME,
 				$sql,
 				$data));
 	}/*}}}*/
 	public function delete()/*{{{*/
 	{
-		if (! $this->TABLE_NAME) throw new Exception( get_class($this) . " trying to use abstract save method but TABLE_NAME is not defined");
-
 		$params = array();
 		$pk_where = $this->preparePK($params);
-		$stmt = $this->conn->prepAndExecute( new \ArtfulRobot\PDO_Query(
-					"Delete row in $this->TABLE_NAME",
-					"DELETE FROM `$this->TABLE_NAME` WHERE $pk_where",
+		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+					"Delete row in " . static::TABLE_NAME,
+					"DELETE FROM `" . static::TABLE_NAME ."` WHERE $pk_where",
 					$params));
 
 		$this->unsaved_changes = $this->is_new = true;
