@@ -102,20 +102,11 @@ abstract class PDO_Model
         if ( array_key_exists($lookup, $this->myData)) return $this->myData[$lookup];
 
         // other properties
-        if ($name == 'definition')      return static::$definition;
-        if ($name == 'field_names')     return array_keys($this->myData);
-        if ($name == 'unsaved_changes') return $this->unsaved_changes;
-        if ($name == 'is_new')          {
-            error_log("Warning: PDO_Model->is_new deprecated, use isNew() instead");
-            return $this->isNew(); // xxx should be moved to method so it can be over-ridden @todo 
-        }
-
-        if ($name== 'htmlSafeData')
-        {
-            $tmp = array();
-            foreach ($this->myData as $k=>$v) if (! (is_object($v) || is_array($v))) $tmp[$k] = htmlspecialchars($v);
-            return $tmp;
-        }
+// now getDefinition()        if ($name == 'definition') 
+// now getFieldNames()        if ($name == 'field_names')     return array_keys($this->myData);
+// now unsavedChanges()        if ($name == 'unsaved_changes') return $this->unsaved_changes;
+//        if ($name == 'is_new')           return $this->isNew(); // xxx should be moved to method so it can be over-ridden @todo 
+        // htmlSafeData now moved too
 
         // unknown
         throw new Exception( get_class($this) . " does not have requested '$name' property");
@@ -144,6 +135,24 @@ abstract class PDO_Model
     } // }}}
     abstract protected function getter($name);
     abstract protected function setter($name, $newValue) ;
+    public function getDefinition()/*{{{*/
+    {
+        return static::$definition;
+    }/*}}}*/
+    public function getFieldNames()/*{{{*/
+    {
+        return array_keys(static::$definition);
+    }/*}}}*/
+    public function unsavedChanges() //{{{
+    {
+        return $this->unsaved_changes;
+    }/*}}}*/
+    public function htmlSafeData() //{{{
+    {
+        $tmp = array();
+        foreach ($this->myData as $k=>$v) if (! (is_object($v) || is_array($v))) $tmp[$k] = htmlspecialchars($v);
+        return $tmp;
+    }/*}}}*/
     public function loadFromDatabase( $id, $not_found_creates_new=true )/*{{{*/
     {
         // clear current data first
