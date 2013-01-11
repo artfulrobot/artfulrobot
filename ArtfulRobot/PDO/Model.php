@@ -8,17 +8,23 @@ abstract class PDO_Model
     const FORMAT_DATETIME = 'Y-m-d G.i.s';
     const TABLE_NAME = '';
 
-    static $cached=array();
+	/** holds all cached models */
+    static protected $cached=array();
 
-    /** @var data array */
-    protected $myData ;
     /** Definitions must be specified as an array indexed by fieldname
       * of arrays including keys cast, size, null
       * 
       * @var definition */
-    protected $definition;
+    static protected $definition;
+
     /** @var bool if set INSERT statements will not set id field */ 
-    protected $id_is_auto_increment=true;
+    static protected $id_is_auto_increment=true;
+
+    /** @var string optional alias, e.g. surveyId */
+    static protected $id_alias = false;
+
+    /** @var data array */
+    protected $myData ;
     /** @var bool Nb. also true for new records */
     protected $unsaved_changes=false;
     /** @var bool true if not in database */
@@ -27,11 +33,6 @@ abstract class PDO_Model
     protected $model_props_r=array();
     /** @var array additional properties settable from extended setter method */
     protected $model_props_w=array();
-
-    /*  Nb. class constants must be overridden in extended classes 
-       (php5.2 can't cope with this, so they're normal properties here) */
-    /** @var string optional alias, e.g. surveyId */
-    protected $ID_ALIAS = false;
 
     /** Must return a \ArtfulRobot\PDO object */
     abstract static protected function getConnection();
@@ -95,13 +96,13 @@ abstract class PDO_Model
         // ...test if we've been initilaised.
         if ( ! is_array($this->myData) ) return null;
         // ...requested id alias?
-        if ( $this->ID_ALIAS == $name ) $lookup = 'id';
+        if ( static::$id_alias == $name ) $lookup = 'id';
         else $lookup = $name;
         // ...know this field?
         if ( array_key_exists($lookup, $this->myData)) return $this->myData[$lookup];
 
         // other properties
-        if ($name == 'definition')      return $this->definition;
+        if ($name == 'definition')      return static::$definition;
         if ($name == 'field_names')     return array_keys($this->myData);
         if ($name == 'unsaved_changes') return $this->unsaved_changes;
         if ($name == 'is_new')          {
@@ -122,7 +123,7 @@ abstract class PDO_Model
     public function __set($name, $newValue)  // {{{
     {
         if (in_array($name, $this->model_props_w)) return $this->setter($name,$newValue);
-        $lookup = ($name === $this->ID_ALIAS) ? 'id' : $name;
+        $lookup = ($name === static::$id_alias) ? 'id' : $name;
         if ( is_array($this->myData)
                 && array_key_exists($lookup, $this->myData) )
         {
@@ -194,7 +195,7 @@ abstract class PDO_Model
         $this->is_new = true;
         $this->unsaved_changes = true;
         // note that these will be done through the setter function, so cast correctly.
-        foreach ($this->definition as $field=>$details)
+        foreach (static::$definition as $field=>$details)
         {
             $this->myData[$field] = null;
             // if given a default value, use that.
@@ -282,7 +283,7 @@ abstract class PDO_Model
         $fields = array();
         foreach ($this->myData as $key=>$value)
         {
-            if ($this->id_is_auto_increment && $key=='id') continue;
+            if (static::$id_is_auto_increment && $key=='id') continue;
             $fields[] = "`$key`";
             $data[":$key"] = $value;
         }
@@ -301,7 +302,7 @@ abstract class PDO_Model
                 get_class($this) . " failed to create row errorCode:' " . $stmt->errorCode() . "':" . print_r(static::getConnection()->errorInfo(),1));
 
         // we must reset our ID if auto_increment
-        if ($this->id_is_auto_increment) {
+        if (static::$id_is_auto_increment) {
             $this->id = static::getConnection()->lastInsertId();
         }
     }/*}}}*/
@@ -328,9 +329,9 @@ abstract class PDO_Model
     /** cast supplied data into required type. Throw exception if can't be done */
     protected function castData($name, $value)
     {
-        if (!array_key_exists($name, $this->definition))
+        if (!array_key_exists($name, static::$definition))
             throw new Exception(get_class($this) . " no definition for field '$name'");
-        extract($this->definition[$name]);
+        extract(static::$definition[$name]);
 
         if ($value === null)
         {

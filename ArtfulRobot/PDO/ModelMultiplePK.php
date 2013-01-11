@@ -4,7 +4,7 @@ namespace ArtfulRobot;
 abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 {
 	/** @var array(string, string...) of fields that form the primary key */
-	protected $pk_fields=array();
+	static protected $pk_fields=array();
 
     static public function buildCollection( $filters )//{{{
     {
