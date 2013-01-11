@@ -25,7 +25,7 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 /** 
   * Simple way to group ajax functions, e.g. arlClass=GroupName, task=methodname
   */
-abstract class Ajax_ModuleGroup extends \ArtfulRobot\Ajax_Module
+abstract class AJAX_ModuleGroup extends \ArtfulRobot\AJAX_Module
 {
 	/** undefined, or list of allowed task methods */
 	private $task_methods;
@@ -38,17 +38,21 @@ abstract class Ajax_ModuleGroup extends \ArtfulRobot\Ajax_Module
 			$this->response->error = get_class($this) . " Task '$task' invalid";
 			return;
 		}
-		if (! method_exists($this,$task))
+
+        // convert task into PSR-2 (camel case)
+        // some_task_name -> someTaskName
+        $method_name = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $task))));
+		if (! method_exists($this,$method_name))
 		{
 			$this->response->error = get_class($this) . " Task '$task' unknown";
 			return;
 		}
-		if ( $this->task_methods && ! in_array($task, $this->task_methods))
+		if ( $this->task_methods && ! in_array($method_name, $this->task_methods))
 		{
-			$this->response->error = get_class($this) . " '$task' Method not a Task";
+			$this->response->error = get_class($this) . " '$method_name' Method not a Task";
 			return;
 		}
-		$this->$task();
+		$this->$method_name();
 	}
 }
 

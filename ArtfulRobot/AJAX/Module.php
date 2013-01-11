@@ -62,14 +62,14 @@ abstract class Ajax_Module
 	public function check_permissions()
 	{
 		// if no minimal CMS class, no security(!)
-		if (! class_exists('CMS')) return true;
+		if (! class_exists('\CMS')) return true;
 
 		// no groups_required = ok
 		if (! $this->groups_required) return true;
 
 		// all must match
 		foreach ($this->groups_required as $group_name)
-			if (!CMS::user_in_group($group_name)) return false;
+			if (!\CMS::user_in_group($group_name)) return false;
 		return true;
 	}
 

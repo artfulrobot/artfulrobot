@@ -25,25 +25,25 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Synopsis (very simple!):
 <code>
-\ArtfulRobot\Ajax_Request::process();
+\ArtfulRobot\AJAX_Request::process();
 </code>
  *
  * Nb. put debug=1 in the request params to turn on debugging via \ArtfulRobot\Debug.
  *     On production sites, \ArtfulRobot\Debug should be silent, but if not, this would be a security risk. 
  */
-class Ajax_Request
+class AJAX_Request
 {
 	static private $response;
 	static private $request;
-	static public function get_response()/*{{{*/
+	static public function getResponse()/*{{{*/
 	{
-		if (! self::$response) self::$response = new \ArtfulRobot\Ajax_Response();
+		if (! self::$response) self::$response = new \ArtfulRobot\AJAX_Response();
 		return self::$response;
 	}/*}}}*/
 	static public function process()/*{{{*/
 	{
 		// response object is a singleton
-		$response = self::get_response();
+		$response = self::getResponse();
 
 		if ($_POST)
 		{
@@ -56,14 +56,12 @@ class Ajax_Request
 			self::$request = & $_GET;
 		}
 
-		if($todo) $todo = "Ajax_$todo";
-
-		if ($todo == 'Ajax_keepalive')
+		if ($todo == 'keepalive')
 		{
 			// noop
 			$response->obj['success']=1;
 		}
-		else self::run_process( $todo );
+		else self::runProcess( $todo );
 
 		// send response and exit now unless debugging
 		if (!\ArtfulRobot\Utils::arrayValue('debug', self::$request))
@@ -74,9 +72,9 @@ class Ajax_Request
 		echo "<hr />" . $response->html;
 		exit;
 	}/*}}}*/
-	static public function run_process( $todo )/*{{{*/
+	static public function runProcess( $todo )/*{{{*/
 	{
-		$response = self::get_response();
+		$response = self::getResponse();
 
 		if (!$todo) 
 		{
@@ -87,11 +85,14 @@ class Ajax_Request
 		try {
 			if (!class_exists($todo))
 				throw new Exception("Class $todo does not exist");
+
+            if (!(is_subclass_of($todo,'\ArtfulRobot\AJAX_Module')))
+                throw new Exception("Class $todo is not an ajax module");
 		   	$processor = new $todo($response); 
 		}
 		catch (Exception $e)
 		{
-			$response->error = 'Code missing for ' . $todo;
+			$response->error = $e->getMessage();
 			$response->send(); // exits script
 		}
 
