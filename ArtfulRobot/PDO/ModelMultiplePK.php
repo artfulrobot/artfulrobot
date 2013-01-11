@@ -86,7 +86,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 	protected function preparePK(&$params, $id=null)
 	{
 		$sql = array();
-		foreach ($this->pk_fields as $field) {
+		foreach (static::$pk_fields as $field) {
 			if (!isset($id[$field])) throw new Exception( get_class($this) . " no $field given - required for PK lookup");
 			$params[":pk_$field"] = $id===null 
 				? $this->myData[$field]
@@ -99,7 +99,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 	protected function getPK()
 	{
 		$pk = array();
-		foreach ($this->pk_fields as $field)
+		foreach (static::$pk_fields as $field)
 			$pk[$field] = $this->myData[$field];
 		return $pk;
 	}/*}}}*/
@@ -108,7 +108,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		$sql = array();
 		foreach ($this->myData as $key=>$value)
 		{
-			if (! in_array($key, $this->pk_fields))
+			if (! in_array($key, static::$pk_fields))
 			{
 				$sql[]= "`$key` = :$key";
 			}

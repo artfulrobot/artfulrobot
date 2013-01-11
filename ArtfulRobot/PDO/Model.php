@@ -39,7 +39,7 @@ abstract class PDO_Model
     static public function buildCollection( $filters )//{{{
     {
         // filters must be field=>value
-        $collection = new ARL\Collection($this);
+        $collection = new Collection($this);
 
         $sql=$params = array();
         foreach ($filters as $key=>$value){
@@ -51,7 +51,7 @@ abstract class PDO_Model
 
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch records from " . static::TABLE_NAME,
-                "SELECT * FROM `" . static::TABLE_NAME . "` $sql"));
+                "SELECT * FROM `" . static::TABLE_NAME . "` $sql", $params));
         if ($stmt->errorCode()!='00000') 
             throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
 
