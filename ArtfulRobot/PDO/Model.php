@@ -175,6 +175,7 @@ abstract class PDO_Model
         $this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
         $this->is_new = false;
         $this->unsaved_changes = false;
+        $this->castDbData();
         $this->loadPostprocess();
 
         // chainable
@@ -230,6 +231,7 @@ abstract class PDO_Model
         $this->unsaved_changes = $this->is_new = false;
 
         $this->loadPostprocess();
+        $this->savePostprocess();
 
         return $this;
     }/*}}}*/
@@ -284,6 +286,12 @@ abstract class PDO_Model
     /** hook for altering object before saving, e.g. serialize objects into fields
       */
     protected function savePreprocess()
+    {
+    }/*}}}*/
+    //protected function savePostprocess() {{{
+    /** hook for doing anything that needs doing after saving
+      */
+    protected function savePostprocess()
     {
     }/*}}}*/
     protected function saveByInsert() //{{{
@@ -402,6 +410,23 @@ abstract class PDO_Model
             return $value;
         }
         throw new Exception( get_class($this) . " does not know type '$cast'");
+    }/*}}}*/
+    //protected function castDbData()/*{{{*/
+    /** convert data from PDO to correct type.
+      * 
+      * PHP's PDO (5.3) driver returns strings for everything.
+      * This is a quick conversion run after loading data from db
+      * for integers and floats.
+     */
+    protected function castDbData()
+    {
+        foreach (static::$definition as $field=>$definition) {
+            if ($this->myData[$field] === null) continue;
+           if ($definition['cast'] == 'int' || $definition['cast'] == 'int_unsigned' )
+               $this->myData[$field] = (int) $this->myData[$field];
+           elseif ($definition['cast'] == 'float')
+               $this->myData[$field] = (float) $this->myData[$field];
+        }
     }/*}}}*/
 }
 
