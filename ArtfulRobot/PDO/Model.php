@@ -1,7 +1,7 @@
 <?php
 namespace ArtfulRobot;
 
-abstract class PDO_Model
+abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSerializable
 {
     const FORMAT_TIME = 'G.i.s';
     const FORMAT_DATE = 'Y-m-d';
@@ -36,15 +36,30 @@ abstract class PDO_Model
 
     /** Must return a \ArtfulRobot\PDO object */
     abstract static protected function getConnection();
-    static public function buildCollection( $filters )//{{{
+    //static public function buildCollection( $filters )//{{{
+    /**
+      * return a Collection object 
+      * 
+      * $filters is an array of 
+      *     field => 'value'
+      * or  field => { operator:'>=', value: 'value' }
+      * 
+      * filters are ANDed together.
+      */
+    static public function buildCollection( $filters )
     {
         // filters must be field=>value
         $collection = new Collection($this);
 
         $sql=$params = array();
-        foreach ($filters as $key=>$value){
-            $params[":$key"] = $value;
-            $sql[] = "`$key` = :$key";
+        foreach ($filters as $key=>$filter){
+            if (! is_array($filter)) {
+                $params[":$key"] = $filter;
+                $sql[] = "`$key` = :$key";
+            } else {
+                $params[":$key"] = $filter['value'];
+                $sql[] = "`$key` $filter[operator] :$key";
+            }
         }
         if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
         else $sql = '';
@@ -135,6 +150,11 @@ abstract class PDO_Model
     } // }}}
     abstract protected function getter($name);
     abstract protected function setter($name, $newValue) ;
+    public function jsonSerialize()  // {{{
+    {
+        // nb. PHP 5.4 will call this automatically on json_encode();
+        return $this->myData;
+    } // }}}
     public function getDefinition()/*{{{*/
     {
         return static::$definition;

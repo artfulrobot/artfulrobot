@@ -12,9 +12,14 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
         $collection = new Collection($this);
 
         $sql=$params = array();
-        foreach ($filters as $key=>$value){
-            $params[":$key"] = $value;
-            $sql[] = "`$key` = :$key";
+        foreach ($filters as $key=>$filter){
+            if (! is_array($filter)) {
+                $params[":$key"] = $filter;
+                $sql[] = "`$key` = :$key";
+            } else {
+                $params[":$key"] = $filter['value'];
+                $sql[] = "`$key` $filter[operator] :$key";
+            }
         }
         if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
         else $sql = '';

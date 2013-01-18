@@ -64,6 +64,28 @@ class Collection implements \Iterator
 
 		// tell owner it's been added: owner might want to force something on the new object
 	}
+	// public function find( $criteria, $findNext=false ) {{{
+    /** search for the next object in the collection that matches criteria
+      * 
+      * $criteria = Array( prop=>val [,...])
+      * $findNext : normally start from first element, set true for findNext.
+      */
+	public function find( $criteria, $findNext=false )
+	{
+        if (!$findNext) $this->rewind();
+        while ($o = $this->current($this)) {
+            $this->next();
+            $match = true;
+            foreach ($criteria as $key=>$val) {
+                if ($o->$key != $val) { 
+                    $match = false;
+                    break;
+                }
+            }
+            if ($match) return $o;
+        }
+        return null;
+	}/*}}}*/
 	public function removeById($id)
 	{
 		if (!isset($this->id_index[$id])) throw new Exception( "Attempted to remove object $id which is not in collection");
