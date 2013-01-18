@@ -294,6 +294,8 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 					}
 				else if (key=='element' || key=='content' ) continue;
 				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+                // do not add attrs with null values. useful for selected attr. on SELECT elements.
+				else if (artfulrobot.typeOf(part[key])=='null' ) continue;
 				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
 			}
 			myDebug && console.log('created ' + part.element + ' element: ' + tmp + ' ' + df.childNodes.length);
