@@ -6,7 +6,7 @@ namespace ArtfulRobot;
  *  basically, this is a wrapper for php's array, but without ever returning
  *  the array itself
  */
-class Collection implements \Iterator
+class Collection implements \Iterator, \Countable
 {
 	/** Iterator index */
 	private $position = 0;
@@ -32,6 +32,11 @@ class Collection implements \Iterator
     public function rewind() 
 	{
         $this->position = 0;
+    }
+
+    public function count() 
+	{
+        return count($this->objects);
     }
 
     public function current() 
