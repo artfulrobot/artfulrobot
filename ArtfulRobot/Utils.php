@@ -114,12 +114,12 @@ class Utils
 		return $default;
 	}/*}}}*/
 
-	// public static function TokeniseSearchString( $search_text )/*{{{*/
+	// public static function tokeniseSearchString( $search_text )/*{{{*/
 	/** tokenise a search string into an array, preserving phrases in quotes as individual tokens
 	 *  
 	 *  this taken from http://www.php.net/manual/en/function.strtok.php#94463
 	 */
-	public static function TokeniseSearchString( $search_text )
+	public static function tokeniseSearchString( $search_text )
 	{
 		$tokens = array();
 		$token = strtok($search_text, ' ');
