@@ -7,6 +7,9 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     const FORMAT_DATE = 'Y-m-d';
     const FORMAT_DATETIME = 'Y-m-d G.i.s';
     const TABLE_NAME = '';
+    const CAST_NONE = 0;
+    const CAST_DB = 1;
+    const CAST_FULL = 2;
 
 	/** holds all cached models */
     static protected $cached=array();
@@ -46,10 +49,10 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       * 
       * filters are ANDed together.
       */
-    static public function buildCollection( $filters )
+    static public function buildCollection( $filters, $order=null )
     {
         // filters must be field=>value
-        $collection = new Collection($this);
+        $collection = new Collection();
 
         $sql=$params = array();
         foreach ($filters as $key=>$filter){
@@ -64,6 +67,8 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
         else $sql = '';
 
+        if($order) $sql .= " ORDER BY $order";
+
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch records from " . static::TABLE_NAME,
                 "SELECT * FROM `" . static::TABLE_NAME . "` $sql", $params));
@@ -73,7 +78,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         while ($row = $stmt->fetch( \PDO::FETCH_ASSOC )) {
             // create an object of the class
             $obj = new static; 
-            $obj->loadFromArray($row,false,false);
+            $obj->loadFromArray($row,false,self::CAST_DB);
             $collection->append($obj, $obj->id);
             unset($obj);
         }
@@ -201,22 +206,30 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // chainable
         return $this;
     }/*}}}*/
-    public function loadFromArray( Array $src, $is_new=false, $cast_data=true )/*{{{*/
+    //public function loadFromArray( Array $src, $is_new=false, $cast_data=2 )/*{{{*/
+    /** load model data from array.
+      * 
+      * @param bool $is_new sets internal flag for isNew(). e.g. false for data from db, true for other
+      * @param $cast_data. 2=full cast (untrusted/user input), 1=db cast, 0=no casting
+      */
+    public function loadFromArray( Array $src, $is_new=false, $cast_data=2 )
     {
         $this->loadDefaults();
-        if ($cast_data) {
+
+        if ($cast_data == self::CAST_FULL) {
             foreach ($src as $key=>$value)
                 $this->$key = $value;
+
         } else {
+            // trusted data
             $this->myData = $src;
         }
-        /* hmmm, or maybe this is better:
-        foreach (array_keys($this->myData) as $key)
-            if (array_key_exists($key, $src))
-                $this->$key = $src[$key];
-                */
+
         $this->unsaved_changes = false;
         $this->is_new = $is_new;
+
+        // if data from PDO then cast numbers to numbers
+        if ($cast_data==self::CAST_DB) $this->castDbData();
 
         $this->loadPostprocess();
     }/*}}}*/
@@ -441,11 +454,17 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     protected function castDbData()
     {
         foreach (static::$definition as $field=>$definition) {
-            if ($this->myData[$field] === null) continue;
-           if ($definition['cast'] == 'int' || $definition['cast'] == 'int_unsigned' )
-               $this->myData[$field] = (int) $this->myData[$field];
-           elseif ($definition['cast'] == 'float')
-               $this->myData[$field] = (float) $this->myData[$field];
+           if ($this->myData[$field] === null) continue;
+           switch($definition['cast']) {
+
+               case 'int' :
+               case 'int_unsigned' :
+                   $this->myData[$field] = (int) $this->myData[$field];
+                   break;
+
+               case 'float' :
+                   $this->myData[$field] = (float) $this->myData[$field];
+           }
         }
     }/*}}}*/
 }
