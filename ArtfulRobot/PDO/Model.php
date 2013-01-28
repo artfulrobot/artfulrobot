@@ -26,6 +26,9 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     /** @var string optional alias, e.g. surveyId */
     static protected $id_alias = false;
 
+    /** @var string SQL default order clause */
+    static protected $default_order = '';
+
     /** @var data array */
     protected $myData ;
     /** @var bool Nb. also true for new records */
@@ -39,7 +42,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
     /** Must return a \ArtfulRobot\PDO object */
     abstract static protected function getConnection();
-    //static public function buildCollection( $filters )//{{{
+    //static public function buildCollection( $filters, $order )//{{{
     /**
       * return a Collection object 
       * 
@@ -67,6 +70,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
         else $sql = '';
 
+        if ($order === null) $order = static::$default_order;
         if($order) $sql .= " ORDER BY $order";
 
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
