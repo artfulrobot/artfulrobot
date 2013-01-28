@@ -9,7 +9,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
     static public function buildCollection( $filters )//{{{
     {
         // filters must be field=>value
-        $collection = new Collection($this);
+        $collection = new Collection();
 
         $sql=$params = array();
         foreach ($filters as $key=>$filter){
