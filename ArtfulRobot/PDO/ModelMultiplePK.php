@@ -33,7 +33,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
         while ($row = $stmt->fetch( \PDO::FETCH_ASSOC )) {
             // create an object of the class
             $obj = new static; 
-            $obj->loadFromArray($row,false,false);
+            $obj->loadFromArray($row,false,self::CAST_DB);
             // these lines differ from main code
             $id = implode("\A", $obj->getPK());
             $collection->append($obj,$id);
@@ -81,6 +81,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		$this->is_new = false;
 		$this->unsaved_changes = false;
 
+        $this->castDbData();
 		$this->loadPostprocess();
 	}/*}}}*/
 	//protected function preparePK(&$params, $id=null){{{
@@ -91,11 +92,17 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 	protected function preparePK(&$params, $id=null)
 	{
 		$sql = array();
+
+        // case where we use our own id values
+        if ($id===null) {
+            $id = array();
+            foreach (static::$pk_fields as $field)
+                $id[$field] = $this->myData[$field];
+        }
+
 		foreach (static::$pk_fields as $field) {
 			if (!isset($id[$field])) throw new Exception( get_class($this) . " no $field given - required for PK lookup");
-			$params[":pk_$field"] = $id===null 
-				? $this->myData[$field]
-				: $id[$field];
+			$params[":pk_$field"] = $id[$field];
 			$sql[] = "`$field` = :pk_$field";
 		}
 		return "(" . implode(' AND ', $sql) . ")";
