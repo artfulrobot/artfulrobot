@@ -1,0 +1,28 @@
+#!/bin/bash
+
+$
+
+while [ -n "$1" ] && [ -e "$1" ]
+do 
+	FILE="$1"
+	echo "Processing $FILE";
+
+	echo "CSV stuff...";
+	replace 'ARL_CSV::csv_safe' '\ArtfulRobot\CSV::csvSafe' 'ARL_CSV::array_to_csv' '\ArtfulRobot\CSV::arrayToCsv' 'ARL_CSV::output_csv_file' '\ArtfulRobot\CSV::outputCsvFile' 'ARL_CSV::pdo_result_to_csv' '\ArtfulRobot\CSV::pdoResultToCsv' 'ARL_CSV::array_to_csv_line' '\ArtfulRobot\CSV::arrayToCsvLine' -- "$FILE"
+	echo "Debug...";
+	replace 'ARL_Debug' '\ArtfulRobot\Debug' 'ARL_Debug::set_dump_file' '\ArtfulRobot\Debug::setDumpFile' 'ARL_Debug::set_on' '\ArtfulRobot\Debug::setOn' 'ARL_Debug::set_silent' '\ArtfulRobot\Debug::setSilent' 'ARL_Debug::set_error_log' '\ArtfulRobot\Debug::setErrorLog' 'ARL_Debug::set_top_only' '\ArtfulRobot\Debug::setTopOnly' 'ARL_Debug::set_stderr' '\ArtfulRobot\Debug::setStdErr' 'ARL_Debug::set_file' '\ArtfulRobot\Debug::setFile' 'ARL_Debug::set_redirect_and_exit' '\ArtfulRobot\Debug::redirectAndExit' 'ARL_Debug::handle_error' '\ArtfulRobot\Debug::handleError' 'ARL_Debug::handle_exception' '\ArtfulRobot\Debug::handleException' 'ARL_Debug::report_html' '\ArtfulRobot\Debug::reportHTML'  -- "$FILE"
+	echo "onceler...";
+	replace 'ARL_Onceler' '\ArtfulRobot\Onceler' 'Onceler::check' '\ArtfulRobot\Onceler::check' 'Onceler::new_token' '\ArtfulRobot\Onceler::newToken' -- "$FILE"
+	echo "Email...";
+	replace 'ARL_Email' '\ArtfulRobot\Email' -- "$FILE"
+	replace '\->set_to' '->setTo' '\->set_from' '->setFrom' '\->set_return_path' '->setReturnPath' '\->set_line_endings' '->setLineEndings' '\->set_reply_to' '->setReplyTo' '\->set_subject' '->setSubject' '\->set_header' '->setHeader' '\->set_message_text' '->setMessageText' '\->set_message_html' '->setMessageHtml' '\->add_attachment' '->addAttachment' '\->get_headers' '->getHeaders' '\->get_body' '->getBody' '\->create_text_from_html' '->createTextFromHtml' '\->create_html_from_text' '->createHtmlFromText' '::mb_detect_encoding' '\->mbDetectEncoding' '::mime_header_encode' '->mimeHeaderEncode' -- "$FILE"
+	echo "PDO...";
+	replace 'ARL_PDO_Query' '\ArtfulRobot\PDO_Query' 'ARL_PDO_Model' '\ArtfulRobot\PDO_Model' 'ARL_PDO_Model_MultiplePK' '\ArtfulRobot\PDO_ModelMultiplePK' 'ARL_PDO' '\ArtfulRobot\PDO' -- "$FILE" 
+	replace '\->fetch_single' '->fetchSingle' '\->fetch_row_assoc' '->fetchRowAssoc' '\->fetch_rows_single' '->fetchRowsSingle' '\->fetch_affected_count' '->fetchAffectedCount' '\->fetch_insert_id' '->fetchInsertId' '\->fetch_found_rows' '->fetchFoundRows' '\->prep_and_execute' '->prepAndExecute' '::cast_datetime' '::castDatetime' -- "$FILE"
+	replace '\->load_from_database' '->loadFromDatabase' '\->load_from_array' '->loadFromArray' '\->load_defaults' '->loadDefaults' '\->load_postprocess' '->loadPostprocess' '\->save_preprocess' '->savePreprocess' '\->print_data' '->printData' '\->cast_data' '->castData' -- "$FILE"
+
+	php -l "$FILE" && echo "" || echo "^^^^^^^^^^^^ ERRORS in $FILE ^^^^^^^^^^^^^^^^^^^^^^^^"
+
+	shift
+done
+
