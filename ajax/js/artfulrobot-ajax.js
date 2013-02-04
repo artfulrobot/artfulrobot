@@ -281,6 +281,8 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
             // do we need a reference?
             if (part.nodesKey) {
                 nodes[part.nodesKey] = jQuery(tmp);
+                // remove it, it's not to become an attribute (alternative: data-nodekey?)
+                delete(part.nodesKey);
             }
 			// set attributes
 			for (var key in part)
