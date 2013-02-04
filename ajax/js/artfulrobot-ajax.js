@@ -212,24 +212,31 @@ artfulrobot.htmlentities = {/*{{{*/
 	otimes : '\u2297',
 	pound  : '\u00A3'
 };/*}}}*/
-artfulrobot.createFragmentFromArray = function( arr ) // {{{
+artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 {
 /* example: call with AAA.
    AAA is either a string or an array of BBBs
    BBB is either a string, or an object CCC
    CCC is like { element: 'div', content: AAA }
 
+        var nodes = {}; // optional 2nd parameter
 		html.appendChild( createFragmentFromArray( [
 				{ element: 'div', style: 'border:solid 1px red;', content: 'goodbye' },
 				{ element: 'div', style: 'border:solid 1px red;', content: [
 					'aaaaaaaaaaaaa',
 					{ element: 'div', style: 'background-color:#fee', content: 'blah' },
-//					{ element: 'div', style: 'background-color:#ffe', content: 'doob' },
+//					{ element: 'div', style: 'background-color:#ffe', content: 'doob', nodesKey:fred },
 					'bbbbbbbbbbbbb'
 				]}
-			] ));
+			], nodes ));
+
+       This would create and append the fragment and leave nodes.fred with a
+       jQuery object for that div Nb.  if nodesKey matches an existing
+       property, it is overwritten, but otherwise it will extend the nodes
+       object and leave the original proerties in tact.
    */
 	var myDebug=0;
+    nodes = nodes || {};
 	var type = artfulrobot.typeOf(arr);
 	if ( type === 'string' ) 
 	{
@@ -271,6 +278,10 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 			myDebug && console.log('Creating ' + part.element + ' element');
 			// create element
 			tmp = document.createElement( part.element );
+            // do we need a reference?
+            if (part.nodesKey) {
+                nodes[part.nodesKey] = jQuery(tmp);
+            }
 			// set attributes
 			for (var key in part)
 			{
@@ -303,7 +314,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 			if (part.content) 
 			{
 				myDebug && console.log('Recursing for ', part.content);
-				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content ) );
+				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content, nodes ) );
 				myDebug && console.log('Back from recursion');
 			}
 			myDebug && console.log('Adding to fragment...');
