@@ -59,6 +59,12 @@ class Collection implements \Iterator, \Countable
         return isset($this->objects[$this->position]);
     }
 
+    public function first() 
+	{
+        $this->rewind();
+        return $this->current();
+    }
+
 	public function append($object,$id=null)
 	{
 		if ($id) {
