@@ -272,9 +272,11 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 		{
 			myDebug && console.log('appending TextNode:' + part );
 			df.appendChild( document.createTextNode( String(part) ) );
-		}
-		else if (type == 'object' ) 
-		{
+		} else if (type == 'array' ) {
+            myDebug && console.log('Recursing for array', part);
+            df.appendChild( artfulrobot.createFragmentFromArray( part, nodes ) );
+            myDebug && console.log('Back from recursion');
+        } else if (type == 'object' ) {
 			myDebug && console.log('Creating ' + part.element + ' element');
 			// create element
 			tmp = document.createElement( part.element );
