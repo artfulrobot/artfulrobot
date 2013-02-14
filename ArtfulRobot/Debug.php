@@ -261,7 +261,7 @@ class Debug
 
 		return true;
 	}//}}}
-	static public function set_on($v=true)   //{{{
+	static public function setOn($v=true)   //{{{
 	{
 		self::$running = (bool) $v;
 		self::init();
