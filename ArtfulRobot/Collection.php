@@ -41,7 +41,7 @@ class Collection implements \Iterator, \Countable
 
     public function current() 
 	{
-        return $this->objects[$this->position]['object'];
+        return $this->valid() ? $this->objects[$this->position]['object'] : null;
     }
 
     public function key() 
