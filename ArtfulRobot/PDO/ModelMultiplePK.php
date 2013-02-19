@@ -47,8 +47,18 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
      */
     static public function loadCached( $id, $data=null )
     {
-        $id = implode("\A", $id);
-        return parent::loadCached($id, $data);
+        $cache_id = implode("\A", $id);
+
+        $object_type = get_called_class();
+        if (isset(self::$cached[$object_type][$cache_id])) return self::$cached[$object_type][$cache_id];
+
+        // create and populate new object
+        $obj = new static; 
+        if (is_array($data)) $obj->loadFromArray($data);
+        else $obj->loadFromDatabase($id,false);
+
+        // cache and return
+        return self::$cached[$object_type][$cache_id] = $obj;
     }//}}}
 	public function __construct( $id=null, $not_found_creates_new=true  )/*{{{*/
 	{
