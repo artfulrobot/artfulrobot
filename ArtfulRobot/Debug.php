@@ -35,8 +35,14 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *  set_error_handler( array('\ArtfulRobot\Debug','handleError') );
  *  set_exception_handler(array('\ArtfulRobot\Debug','handleException') );
  *
- *  \ArtfulRobot\Debug::running = true;
- *  \ArtfulRobot\Debug::running = true;
+ *  \ArtfulRobot\Debug::setServiceLevel('cterm', \ArtfulRobot\Debug::LEVEL_LOG);
+ *  \ArtfulRobot\Debug::log("a line of log", $var);
+ *  \ArtfulRobot\Debug::log(">> starting a group/function");
+ *  \ArtfulRobot\Debug::log("a line of log", $var);
+ *  \ArtfulRobot\Debug::log("<< ending a group/function - will get time in ms");
+ *  \ArtfulRobot\Debug::log("!!an important line of log");
+ *  \ArtfulRobot\Debug::fatal("Something real bad happened");
+ *  \ArtfulRobot\Debug::redirect("/");
  */
 class Debug
 {
@@ -60,10 +66,12 @@ class Debug
     static protected $opts = array(
             'text_depth' => false,
             'text_mem'   => false,
-            'text_vars'  => false,
+            'text_vars'  => true,
             'slow'       => 0.1,
             'fatal_exit' => true,
             'redirect_intercept' => false,
+            'ignore_errors' => 0, // e.g. E_STRICT | E_NOTICE
+            'file'       => '/tmp/debug-crash',
             );
     /** services offered */
     static protected $services = array(
@@ -80,6 +88,9 @@ class Debug
 
     // variable to hold message and vars during a log() call
     static protected $current;
+
+    /** file handle for file ops */
+	static protected $fh;
 
     /** used to keep stack depth */
 	static protected $depth = 0;
@@ -181,6 +192,15 @@ class Debug
     {
         static::$opts['slow'] = $slow;
     }/*}}}*/
+    static public function setFile($filename)/*{{{*/
+    {
+        if (isset(static::$fh)) {
+            static::log("Changing file to $filename");
+            fclose(static::$fh);
+            unset(static::$fh);
+        }
+        static::$opts['file'] = $filename;
+    }/*}}}*/
     static public function setRedirectIntercept($y=true)/*{{{*/
     {
         static::$opts['redirect_intercept'] = (bool) $y;
@@ -192,7 +212,7 @@ class Debug
 	static public function fatal( $msg, $vars=null )//{{{
 	{
         //log a FINISH level message
-        self::log( "XX$msg", $vars);
+        self::log( "XX $msg", $vars);
 
         // what to do now?
         if (static::$opts['fatal_exit']) exit;
@@ -230,35 +250,27 @@ class Debug
 	 */
 	static public function handleError($errno, $errstr, $errfile, $errline)
 	{
-		self::init();
 		// if error_reporting is turned off for this type of error, do nothing.
-		if (! (error_reporting() & $errno )) return; 
+		// if (! (error_reporting() & $errno )) return; 
 
 		switch ($errno) {
-		case E_USER_ERROR:
-		case E_ERROR:
-			$msg="TOP Fatal Error [$errno] $errstr, on line $errline in file $errfile";
-			break;
+            case E_USER_WARNING:
+            case E_WARNING:
+                $msg="!!Warning ";
+                break;
 
-		case E_USER_WARNING:
-		case E_WARNING:
-			$msg="TOP Warning Error [$errno] $errstr, on line $errline in file $errfile";
-			break;
+            case E_USER_NOTICE:
+            case E_NOTICE:
+                $msg="!!Notice ";
+                break;
 
-		case E_USER_NOTICE:
-		case E_NOTICE:
-			$msg="TOP Notice Error [$errno] $errstr, on line $errline in file $errfile";
-			break;
-
-		case 2048: // E_STRICT
-			$msg="TOP Strict Error [$errno] $errstr, on line $errline in file $errfile";
-			break;
-
-		default:
-			$msg= "TOP Unknown error type: [$errno] $errstr<br />\n";
-			break;
+            case E_STRICT:
+                $msg="!!Strict ";
+                break;
 		}
-		if ($errno & self::$errors_to_ignore) self::log($msg . " (Execution set to continue for this type of error)");
+        $msg.="Error [$errno] $errstr, on line $errline in file $errfile";
+
+		if ($errno & self::$opts['ignore_errors']) static::log($msg . " (Execution set to continue for this type of error)");
 		else self::fatal($msg);
 		/* Don't execute PHP internal error handler */
 		return true;
@@ -268,24 +280,52 @@ class Debug
 	 */
 	static public function handleException($exception)
 	{
-		self::init();
-		// make table for backtrace
-		$cols=explode('|','file|line|function|class');
+        static::logException($exception);
+        exit;// ??? xxx
+	} // }}}
+	static public function logException($exception)//{{{
+	{
+		self::log("XX Exception: "
+                . ( $exception->getCode() 
+                    ? '(code ' . $exception->getCode() . ')' 
+                    : '' ) 
+                . $exception->getMessage() , $exception->getTrace());
+	} // }}}
+	static public function loadProfile($profile )//{{{
+	{
+        if ($profile == 'online') {
+            // ... write a file only if we fail (fatal|redirect)
+            static::setServiceLevel('file', static::LEVEL_FINISH);
+            // ... and put something in error log, too
+            static::setServiceLevel('error_log', static::LEVEL_FINISH);
 
-		if(0){
-			$tmp = "<table border=\"1\"><tr>";
-			foreach($cols as $f) $tmp.= "<th>$f</th>";
-			$backtrace = $exception->getTrace();
-			foreach ($backtrace as $row)
-			{
-				$tmp .= "<tr>";
-				foreach($cols as $f) $tmp.= "<td>" . htmlspecialchars(\ArtfulRobot\Utils::arrayValue($f,$row)) . "</td>";
-				$tmp .= "</tr>";
-			}
-			$tmp .= "</table>";
-		}
-		self::log("TOP Uncaught Exception: ". ( $exception->getCode() ? '(code ' . $exception->getCode() . ')' : '' ) . $exception->getMessage() , $exception->getTraceAsString());
-		self::fatal("FATAL: Uncaught exception");
+        } elseif ($profile == 'debug') {
+            static::setTextDepth();
+            // ... write a file always for everything
+            static::setServiceLevel('file', static::LEVEL_LOG);
+            // ... only use error_log for crashes
+            static::setServiceLevel('error_log', static::LEVEL_FINISH);
+
+        } elseif ($profile == 'debug_important') {
+            // ... write a file always for everything
+            static::setServiceLevel('file', static::LEVEL_IMPORTANT);
+            // ... only use error_log for crashes
+            static::setServiceLevel('error_log', static::LEVEL_FINISH);
+
+        } elseif ($profile == 'unsafe') {
+            // directly output to screen
+
+            // remember everything and output everything
+            static::setServiceLevel('store', static::LEVEL_LOG);
+            static::setServiceLevel('echo', static::LEVEL_LOG);
+            // crashes result in error_log and html
+            static::setServiceLevel('error_log', static::LEVEL_FINISH);
+            static::setServiceLevel('outputHtml', static::LEVEL_FINISH);
+        } else {
+            throw new \Exception("unknown debug profile: $profile");
+        }
+
+
 	} // }}}
 
     static protected function serviceEcho()/*{{{*/
@@ -311,6 +351,10 @@ class Debug
     static protected function serviceStdErr()/*{{{*/
     {
         fputs(STDERR, static::getText()."\n");
+    }/*}}}*/
+    static protected function serviceFile()/*{{{*/
+    {
+        fwrite(static::getFH(), static::getText()."\n");
     }/*}}}*/
     static protected function serviceStore()/*{{{*/
     {
@@ -352,7 +396,7 @@ class Debug
                 . "<div style='float:right;margin-left:1em;color:#888;'>$row[mem]</div>"
                 . ($row['vars']
                     ? "<div style='border:dashed 1px #888;color:#888;'><pre>"
-                      . htmlspecialchars(print_r($row['vars'],1)) 
+                      . htmlspecialchars(print_r($row['vars'],1))
                       . "</pre></div>"
                     : '');
                 
@@ -391,6 +435,8 @@ class Debug
                 ?   sprintf("%0.1fMb ", memory_get_usage()/1024/1024)
                 : '';
 
+            static::$current['text']['msg'] = static::$current['msg'] . "\n";
+
             if (! ($_ = static::$opts['text_vars'])) {
                 $vars = '';
             } elseif ($_ == static::VARS_PRINT_R) {
@@ -402,18 +448,24 @@ class Debug
             }
             static::$current['text']['vars'] = $vars;
 
-            static::$current['text']['msg'] = static::$current['msg'];
-
             // fatal? Add a trace
             if (static::$current['prefix'] == 'XX') {
-                foreach (debug_backtrace() as $_)
-                    static::$current['vars'] .= implode(" ", $_) . "\n";
+                foreach (debug_backtrace() as $_) {
+                    static::$current['text']['vars'] .= " Backtrace:\n" . print_r($_,1) . "\n";
+                }
             }
-
-
         }
         if ($implode) return implode('', static::$current['text']);
         return static::$current['text'];
+    }/*}}}*/
+    static protected function getFH()/*{{{*/
+    {
+        if (!isset(static::$fh)) {
+            unlink(static::$opts['file']);
+            static::$fh = fopen(static::$opts['file'],'a');
+            fwrite(static::$fh, "Debug log at " . date('H:i:s d M Y') . "\n\n");
+        }
+        return static::$fh;
     }/*}}}*/
     static protected function trackLevel()/*{{{*/
     {
