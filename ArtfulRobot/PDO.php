@@ -141,12 +141,12 @@ class PDO extends \PDO
 	 */
 	public function prepAndExecute( \ArtfulRobot\PDO_Query $query )
 	{
-		\ArtfulRobot\Debug::log( "prepAndExecute: $query->comment",  strtr($query->sql, array("\t" => '  ')) );
+		\ArtfulRobot\Debug::log( "prepAndExecute: $query->comment",  
+				array('params:'=>$query->params, 
+					'sql:'=>strtr($query->sql, array("\t" => '  '))));
 		if (! $query->params) $stmt = $this->query($query->sql);
 		else
 		{
-			\ArtfulRobot\Debug::log("params: ", $query->params);
-			\ArtfulRobot\Debug::log("sql: ", $query->sql);
 			$stmt = $this->prepare($query->sql);
 			if (! $stmt->execute($query->params) )
 				throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
