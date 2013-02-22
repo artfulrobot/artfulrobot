@@ -312,15 +312,20 @@ class Debug
             // ... only use error_log for crashes
             static::setServiceLevel('error_log', static::LEVEL_FINISH);
 
-        } elseif ($profile == 'unsafe') {
-            // directly output to screen
-
-            // remember everything and output everything
+        } elseif ($profile == 'unsafeHTML') {
+            // remember everything and output everything as HTML at end
             static::setServiceLevel('store', static::LEVEL_LOG);
-            static::setServiceLevel('echo', static::LEVEL_LOG);
+            // write everything to a file
+            static::setServiceLevel('file', static::LEVEL_LOG);
             // crashes result in error_log and html
             static::setServiceLevel('error_log', static::LEVEL_FINISH);
             static::setServiceLevel('outputHtml', static::LEVEL_FINISH);
+
+        } elseif ($profile == 'unsafe') {
+            // output everything as it happens
+            static::setServiceLevel('echo', static::LEVEL_LOG);
+            // crashes result in error_log and html
+            static::setServiceLevel('error_log', static::LEVEL_FINISH);
         } else {
             throw new \Exception("unknown debug profile: $profile");
         }
@@ -361,7 +366,7 @@ class Debug
         // store this log
         static::$store[] = static::$current;
         // freeze vars if object because this might change
-        if ( is_object( static::$store['vars'] ) )
+        if ( isset(static::$store['vars']) && is_object( static::$store['vars'] ) )
             static::$store['vars']  = serialize(static::$store['vars'] );
 
         // fatal? Add a trace
@@ -393,8 +398,8 @@ class Debug
                 $line = "<div>"; 
             }
             $line .= htmlspecialchars($row['msg'])
-                . "<div style='float:right;margin-left:1em;color:#888;'>$row[mem]</div>"
-                . ($row['vars']
+                . (isset($row['mem']) ? "<div style='float:right;margin-left:1em;color:#888;'>$row[mem]</div>" : '')
+                . (!empty($row['vars'])
                     ? "<div style='border:dashed 1px #888;color:#888;'><pre>"
                       . htmlspecialchars(print_r($row['vars'],1))
                       . "</pre></div>"
