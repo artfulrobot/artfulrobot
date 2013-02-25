@@ -350,19 +350,21 @@ artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 	}
 });/*}}}*/
 
+// set up artfulrobot.queryString {{{
 // from http://stackoverflow.com/a/3855394/623519
-artfulrobot.queryString = //{{{
-(function(a) { 
+artfulrobot.queryStringParse = function(){
+    artfulrobot.queryString = (function(a) {
      if (a == "") return {};
      var b = {};
      for (var i = 0; i < a.length; ++i)
      {
-     var p=a[i].split('=');
-     if (p.length != 2) continue;
-     b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+         var p=a[i].split('=');
+         if (p.length != 2) continue;
+         b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
      }
      return b;
-     })(window.location.search.substr(1).split('&')); // }}}
+     })(window.location.search.substr(1).split('&'));} 
+artfulrobot.queryStringParse();// }}}
 
 /* functions for making forms easier */
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
@@ -756,7 +758,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
 	debugLevel: 0,
 	sharedMethods: {},
-	initialise: function( parentItem, myName, session, argsArray )// {{{
+	initialise: function( parentItem, myName, session, argsArray, state )// {{{
 	{
 		// needs to know the parent object, in case it needs to shout (to siblings)
 		// this will be undefined for the first object created.
@@ -786,6 +788,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
 		if (artfulrobot.typeOf(argsArray)!='array') argsArray = [];
 		this.localInitialise.apply(this, argsArray);
+        if (state) this.setState(state);
+
 		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
 		if (this.debugLevel>1) console.log('ends');
 	}, // }}}
@@ -883,6 +887,17 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		return newObj; 
 	}, // }}}
 
+    getState:function() //{{{
+    {
+        // return an object that describes the current state
+        // this should be used by setState to restore this state
+        // nb. this state should call getState on any necessary subobject(s)
+    },//}}}
+    setState:function(state) //{{{
+    {
+        // do whatever is necessary to restore the state in the object passed.
+    },//}}}
+
 	getSessionForSubObject: function ( soName ) // {{{
 	{ 
 		var x = {};
@@ -931,6 +946,19 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		// with code that would stringify it's this._SESSION variable
 		// and send an ajax request to store it.
 		this.saveSession( obj.newFriendlyName, obj.newTitle );
+	}, // }}}
+	setSessionDefaults: function( defs ) // {{{
+	{
+		/** setSessionDefaults checks that each key of defs exists in this._SESSION
+		 *  and if not, creates it with the value from defs.
+		 *  Does not overwrite anything that is there.
+		 */
+		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
+		for (key in defs)
+		{
+			if ( typeof this._SESSION[ key ] == 'undefined' )
+				this._SESSION[ key ] = defs[ key ];
+		};
 	}, // }}}
 
 	destroySubObject: function ( objOrObjId ) // {{{
@@ -1003,19 +1031,6 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	{
 		msg =  "[" + this.name + "] Object";
 		return msg;
-	}, // }}}
-	setSessionDefaults: function( defs ) // {{{
-	{
-		/** setSessionDefaults checks that each key of defs exists in this._SESSION
-		 *  and if not, creates it with the value from defs.
-		 *  Does not overwrite anything that is there.
-		 */
-		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
-		for (key in defs)
-		{
-			if ( typeof this._SESSION[ key ] == 'undefined' )
-				this._SESSION[ key ] = defs[ key ];
-		};
 	}, // }}}
 	getObjectByName: function (name) //{{{
 	{
