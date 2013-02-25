@@ -40,38 +40,33 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     /** @var array additional properties settable from extended setter method */
     protected $model_props_w=array();
 
-    /** Must return a \ArtfulRobot\PDO object */
-    abstract static protected function getConnection();
+    // abstract(ish) static protected function getConnection(){{{
+    /** Must return a \ArtfulRobot\PDO object 
+      *
+      * Nb. I would declare this abstract to generate compile-time
+      * errors if a subclass did not  implement it, however 'abstract static'
+      * functions are not allowed (which theoretically makes sense)
+      * so I implement the insistance as a method that throws an exception.
+      * 
+      * See my post:
+      * http://stackoverflow.com/questions/14894635/alternative-model-for-php-abstract-static-class-methods
+     */
+    static protected function getConnection()
+    {
+        throw new Exception(get_called_class() . " must implement getConnection()");
+    }/*}}}*/
     //static public function buildCollection( $filters, $order )//{{{
     /**
       * return a Collection object 
-      * 
-      * $filters is an array of 
-      *     field => 'value'
-      * or  field => { operator:'>=', value: 'value' }
-      * 
-      * filters are ANDed together.
       */
     static public function buildCollection( $filters, $order=null )
     {
-        // filters must be field=>value
         $collection = new Collection();
 
-        $sql=$params = array();
-        foreach ($filters as $key=>$filter){
-            if (! is_array($filter)) {
-                $params[":$key"] = $filter;
-                $sql[] = "`$key` = :$key";
-            } else {
-                $params[":$key"] = $filter['value'];
-                $sql[] = "`$key` $filter[operator] :$key";
-            }
-        }
-        if ($sql) $sql= "WHERE " . implode(' AND ',$sql);
-        else $sql = '';
-
+        $sql = static::sqlWhere($params, $filters);
+        
         if ($order === null) $order = static::$default_order;
-        if($order) $sql .= " ORDER BY $order";
+        if ($order) $sql .= " ORDER BY $order";
 
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch records from " . static::TABLE_NAME,
@@ -87,6 +82,31 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
             unset($obj);
         }
         return $collection;
+    }//}}}
+    //static public function bulkDelete( $filters )//{{{
+    /**
+      * return a Collection object 
+      * 
+      * $filters is an array of 
+      *     field => 'value'
+      * or  field => { operator:'>=', value: 'value' }
+      * 
+      * filters are ANDed together.
+      */
+    static public function bulkDelete( $filters )
+    {
+        $sql = static::sqlWhere($params, $filters);
+
+        $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
+                "Delete records from " . static::TABLE_NAME,
+                "DELETE FROM `" . static::TABLE_NAME . "` $sql", $params));
+        if ($stmt->errorCode()!='00000') 
+            throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
+
+        // clear cache, which will stop loadCached() returning an out of date
+        // object. However, any existing references to object in the cahce
+        // are not destroyed (so it's a bad idea to cache these).
+        self::$cached[get_called_class()] = array();
     }//}}}
     //static public function loadCached( $id )//{{{
     /** Returns cache or creates object 
@@ -104,6 +124,32 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         // cache and return
         return self::$cached[$object_type][$id] = $obj;
+    }//}}}
+    //static public function sqlWhere( &$params, $filters )//{{{
+    /** Returns the WHERE clause (or '') based on $filters
+      * 
+      * $filters is an array of 
+      *     field => 'value'
+      * or  field => { operator:'>=', value: 'value' }
+      * 
+      * filters are ANDed together.
+     */
+    static public function sqlWhere( &$params, $filters )
+    {
+        $sql=$params = array();
+        foreach ($filters as $key=>$filter){
+            if (! is_array($filter)) {
+                $params[":$key"] = $filter;
+                $sql[] = "`$key` = :$key";
+            } else {
+                $params[":$key"] = $filter['value'];
+                $sql[] = "`$key` $filter[operator] :$key";
+            }
+        }
+        if ($sql) $sql= ' WHERE ' . implode(' AND ',$sql). ' ';
+        else $sql = '';
+
+        return $sql;
     }//}}}
     public function __construct( $id=null, $not_found_creates_new=true )/*{{{*/
     {
@@ -274,8 +320,8 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     public function delete()/*{{{*/
     {
-        // new data
-        if ( ! $this->myData['id'] )
+
+        if ( ! $id=$this->myData['id'] )
         {
             \ArtfulRobot\Debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
             return;
@@ -284,7 +330,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                     "delete row in " . static::TABLE_NAME,
                     "delete FROM `" . static::TABLE_NAME . "` WHERE id = :id",
-                    array(':id' => $this->myData['id'] )));
+                    array(':id' => $id )));
+
+        // remove from cache, if exists.
+        $object_type = get_called_class();
+        if (isset(self::$cached[$object_type][$id])) unset(self::$cached[$object_type][$id]);
 
         // zero the id, so if saved it would create a new record
         $this->myData['id'] = 0;
