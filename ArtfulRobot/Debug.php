@@ -346,7 +346,7 @@ class Debug
               ? "\033[1;31m"
               : "\033[1;37m" )
             . $deets['msg'] . "\033[0m"
-            .$deets['mem'] . "\n";
+            .$deets['mem'] . "\n\t" . str_replace("\n","\n\t", $deets['vars']). "\n";
 
     }/*}}}*/
     static protected function serviceErrorLog()/*{{{*/

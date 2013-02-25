@@ -63,14 +63,14 @@ class AJAX_Request
 		}
 		else self::runProcess( $todo );
 
-		// send response and exit now unless debugging
-		if (!\ArtfulRobot\Utils::arrayValue('debug', self::$request))
-		   	$response->send();
+		\ArtfulRobot\Debug::log("!! Response object:", $response);
 
-		\ArtfulRobot\Debug::log("TOP Response object:", $response);
-		\ArtfulRobot\Debug::legacy_api('print_full');
-		echo "<hr />" . $response->html;
-		exit;
+        // if debugging, call fatal()
+		if (\ArtfulRobot\Utils::arrayValue('debug', self::$request))
+            \ArtfulRobot\Debug::fatal("Exited as debugging requested");
+
+        // send response and exit;
+        $response->send();
 	}/*}}}*/
 	static public function runProcess( $todo )/*{{{*/
 	{
