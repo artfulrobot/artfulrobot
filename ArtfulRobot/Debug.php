@@ -46,10 +46,11 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  */
 class Debug
 {
-    const LEVEL_LOG       = 1;
-    const LEVEL_STACK     = 2;
-    const LEVEL_IMPORTANT = 3;
-    const LEVEL_FINISH    = 4;
+    const LEVEL_DISABLE   = 0;
+    const LEVEL_FINISH    = 1;
+    const LEVEL_IMPORTANT = 2;
+    const LEVEL_STACK     = 3;
+    const LEVEL_LOG       = 4;
 
     const VARS_PRINT_R    = 1;
     const VARS_SERIALIZE  = 2;
@@ -72,6 +73,7 @@ class Debug
             'redirect_intercept' => false,
             'ignore_errors' => 0, // e.g. E_STRICT | E_NOTICE
             'file'       => '/tmp/debug-crash',
+            'file_append' => true,
             );
     /** services offered */
     static protected $services = array(
@@ -150,7 +152,7 @@ class Debug
 
         static::$current = array();
     }/*}}}*/
-    static public function setServiceLevel($new_service,$new_level)/*{{{*/
+    static public function setServiceLevel($new_service,$new_level=self::LEVEL_DISABLE)/*{{{*/
     {
         if (!isset(static::$services[$new_service])) {
             throw new \Exception("Debugger does not know '$new_service'. Knows only " . implode(', ',array_keys(static::$services)));
@@ -158,8 +160,17 @@ class Debug
         // convert service to method name
         $new_service = static::$services[$new_service];
 
+        if (is_string($new_level)) {
+            if ($new_level == 'ALL') $new_level = static::LEVEL_LOG;
+            elseif ($new_level == '!!') $new_level = static::LEVEL_IMPORTANT;
+            elseif ($new_level == '>>') $new_level = static::LEVEL_STACK;
+            elseif ($new_level == 'XX') $new_level = static::LEVEL_FINISH;
+        }
+        if (!(is_int($new_level) && $new_level>=0 && $new_level<=static::LEVEL_LOG))
+            throw new Exception("Invalid level given. Levels are ALL !! >> XX or use class constants LEVEL_LOG LEVEL_IMPORTANT LEVEL_STACK LEVEL_FINISH");
+
         foreach (static::$functions as $level=>$functions) {
-            if ($level<$new_level ) {
+            if ($level>$new_level ) {
                 // remove the service from this level
                 static::$functions[$level] = 
                     array_diff(static::$functions[$level], array($new_service));
@@ -167,7 +178,7 @@ class Debug
                 // add the service in (if not already in)
                 if (!in_array($new_service,static::$functions[$level])) {
                     if ($new_service=='serviceStore') {
-                        // store must go first.
+                        // store must be executed first.
                         array_unshift( static::$functions[$level], $new_service);
                     } else {
                         static::$functions[$level][] = $new_service;
@@ -192,7 +203,7 @@ class Debug
     {
         static::$opts['slow'] = $slow;
     }/*}}}*/
-    static public function setFile($filename)/*{{{*/
+    static public function setFile($filename, $append=false)/*{{{*/
     {
         if (isset(static::$fh)) {
             static::log("Changing file to $filename");
@@ -200,6 +211,7 @@ class Debug
             unset(static::$fh);
         }
         static::$opts['file'] = $filename;
+        static::$opts['file_append'] = (bool) $append;
     }/*}}}*/
     static public function setRedirectIntercept($y=true)/*{{{*/
     {
@@ -342,11 +354,14 @@ class Debug
         $deets = static::getText(false) ;
         echo "\033[1;30m" . $deets['depth'] . "\033[0m"
             ."\033[1;32m" . $deets['mem'] . "\033[0m"
-            . ( static::$current['level'] >= static::LEVEL_IMPORTANT 
+            . ( static::$current['level'] <= static::LEVEL_IMPORTANT 
               ? "\033[1;31m"
               : "\033[1;37m" )
-            . $deets['msg'] . "\033[0m"
-            .$deets['mem'] . "\n\t" . str_replace("\n","\n\t", $deets['vars']). "\n";
+            . trim($deets['msg']," \n\r") . "\033[0m"
+            . $deets['mem'] . "\n"
+            . ($deets['vars'] 
+               ?  "\t" . str_replace("\n","\n\t", $deets['vars']). "\n"
+               : "");
 
     }/*}}}*/
     static protected function serviceErrorLog()/*{{{*/
@@ -373,6 +388,7 @@ class Debug
         if (static::$current['prefix'] == 'XX') {
             static::$store[] = array(
                     'msg'=>'Backtrace:',
+					'level' => self::LEVEL_FINISH,
                     'prefix'=>'backtrace',
                     'mem'=>'',
                     'depth'=>'',
@@ -389,25 +405,26 @@ class Debug
         $depth = 0;
         foreach(static::$store as $row) {
 
-
-            if ($row['level']>=static::LEVEL_IMPORTANT) {
-                $line = "<div style='color:#800;border-left:solid 10px #d00;padding-left:8px;'>";   
+            if ($row['level']<=static::LEVEL_IMPORTANT) {
+                $line = "<div style='margin:0.5em 0 0 0.2em;color:#800;border-left:solid 10px #d00;padding-left:8px;'>";   
+            } elseif ($row['level']==static::LEVEL_STACK) {
+                $line = "<div style='margin:0.5em 0 0 0.2em;'>";   
             } elseif ($row['level']==static::LEVEL_LOG) {
                 $line = "<div style='color:#888;'>";   
             } else {
                 $line = "<div>"; 
             }
-            $line .= htmlspecialchars($row['msg'])
+            $line .= htmlspecialchars($row['msg']) 
                 . (isset($row['mem']) ? "<div style='float:right;margin-left:1em;color:#888;'>$row[mem]</div>" : '')
                 . (!empty($row['vars'])
-                    ? "<div style='border:dashed 1px #888;color:#888;'><pre>"
+                    ? "<pre style='background-color:#faf8f0;padding:0 1em;margin:0 0 0.5em;'>"
                       . htmlspecialchars(print_r($row['vars'],1))
-                      . "</pre></div>"
+                      . "</pre>"
                     : '');
                 
             if ($row['prefix'] == '>>') {
                 $depth++;
-                $line .= "<div style='border:solid 1px #eee;padding-left:1em;margin-bottom:0.3em;'>";
+                $line .= "<div style='border:solid 1px #eee;padding-left:1em;'>";
             } elseif ($row['prefix'] == '<<') {
                 $line .= "</div></div>";
                 $depth--;
@@ -440,7 +457,7 @@ class Debug
                 ?   sprintf("%0.1fMb ", memory_get_usage()/1024/1024)
                 : '';
 
-            static::$current['text']['msg'] = static::$current['msg'] . "\n";
+            static::$current['text']['msg'] = static::$current['msg'];
 
             if (! ($_ = static::$opts['text_vars'])) {
                 $vars = '';
@@ -451,24 +468,28 @@ class Debug
             } elseif ($_ == static::VARS_JSON) {
                 $vars = json_encode(static::$current['vars']);
             }
-            static::$current['text']['vars'] = $vars;
+            static::$current['text']['vars'] = $vars ? " Vars: {{{\n$vars }}}" : '';
 
             // fatal? Add a trace
             if (static::$current['prefix'] == 'XX') {
                 foreach (debug_backtrace() as $_) {
-                    static::$current['text']['vars'] .= " Backtrace:\n" . print_r($_,1) . "\n";
+                    static::$current['text']['vars'] .= "\nBacktrace:{{{\n" . print_r($_,1) . "}}}";
                 }
             }
         }
-        if ($implode) return implode('', static::$current['text']);
+        if ($implode) return implode('', static::$current['text']) . "\n";
         return static::$current['text'];
     }/*}}}*/
     static protected function getFH()/*{{{*/
     {
         if (!isset(static::$fh)) {
-            unlink(static::$opts['file']);
+            if (! static::$opts['file_append']) {
+                unlink(static::$opts['file']);
+            }
             static::$fh = fopen(static::$opts['file'],'a');
-            fwrite(static::$fh, "Debug log at " . date('H:i:s d M Y') . "\n\n");
+            fwrite(static::$fh, 
+                    "-------------------------------------------------------------------\n" .
+                    "Debug log at " . date('H:i:s d M Y') . "\n\n");
         }
         return static::$fh;
     }/*}}}*/
