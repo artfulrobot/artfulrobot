@@ -131,6 +131,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       * $filters is an array of 
       *     field => 'value'
       * or  field => { operator:'>=', value: 'value' }
+      * or  field => { operator:'>=', value: 'value' }
+      * or  field => { operator:'IN', values: array('value',...) }
+      * or  field => { operator:'BETWEEN', value1: '', value2:'' }
+	  *
+	  * how to do between? or field null|<=this todo
       * 
       * filters are ANDed together.
      */
@@ -142,8 +147,22 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                 $params[":$key"] = $filter;
                 $sql[] = "`$key` = :$key";
             } else {
-                $params[":$key"] = $filter['value'];
-                $sql[] = "`$key` $filter[operator] :$key";
+                if (in_array($filter['operator'], array('=','>=','<=','<','>','!='))) {
+                    $params[":$key"] = $filter['value'];
+                    $sql[] = "`$key` $filter[operator] :$key";
+
+                } elseif ($filter['operator'] == 'IN') {
+                    $params[":$key"] = $filter['values'];
+                    $sql[] = "`$key` IN(:$key)";
+
+                } elseif ($filter['operator'] == 'BETWEEN') {
+                    $params[":{$key}1"] = $filter['value1'];
+                    $params[":{$key}2"] = $filter['value2'];
+                    $sql[] = "`$key` BETWEEN :{$key}1 AND :{$key}2";
+
+                } else {
+                    throw new \Exception ("Operator unknown: $filter[operator]");
+                }
             }
         }
         if ($sql) $sql= ' WHERE ' . implode(' AND ',$sql). ' ';
@@ -153,7 +172,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }//}}}
     public function __construct( $id=null, $not_found_creates_new=true )/*{{{*/
     {
-        if (is_int($id)) $this->loadFromDatabase( $id, $not_found_creates_new );
+        if ($id !== null) $this->loadFromDatabase( $id, $not_found_creates_new );
         else $this->loadDefaults();
     }/*}}}*/
     public function __get($name)  // {{{
@@ -228,17 +247,20 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         foreach ($this->myData as $k=>$v) if (! (is_object($v) || is_array($v))) $tmp[$k] = htmlspecialchars($v);
         return $tmp;
     }/*}}}*/
-    public function loadFromDatabase( $id, $not_found_creates_new=true )/*{{{*/
+    public function loadFromDatabase( $givenId, $not_found_creates_new=true )/*{{{*/
     {
         // clear current data first
         $this->loadDefaults();
 
-        if (($id = (int)$id)<1) throw new Exception( get_class($this) 
-                . "::loadFromDatabase called without proper id");
+		$id = $this->castData('id', $givenId);
+			
+		if (!$id) throw new Exception( get_class($this) 
+                . "::loadFromDatabase called without proper id (given: '$givenId')");
 
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch all fields from " . static::TABLE_NAME . " for record $id",
-                "SELECT * FROM `" . static::TABLE_NAME . "` WHERE id = $id"));
+                "SELECT * FROM `" . static::TABLE_NAME . "` WHERE id = :id",
+				array(':id'=>$id)));
 
         // no rows may be allowable if $not_found_creates_new
         if ($stmt->rowCount()==0 && $not_found_creates_new) return $this;
@@ -437,34 +459,28 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
             throw new Exception(get_class($this) . " no definition for field '$name'");
         extract(static::$definition[$name]);
 
-        if ($value === null)
-        {
+        if ($value === null) {
             if (!$null) throw new Exception( get_class($this) . ' tried to set `' . $name . '` to null, but defined as not null');
             return null;
-        }
-        if ( $cast == 'int' )
-        {
+
+        } if ( $cast == 'int' ) {
             if (! is_int($value)) $value = (int)$value;
             return $value;
-        }
-        elseif ( $cast == 'int_unsigned' )
-        {
+
+        } elseif ( $cast == 'int_unsigned' ) {
             if (! is_int($value)) $value = (int)$value;
             if ($value<0) throw new Exception( get_class($this) . " tried to set $name to $value, but is unsigned");
             return $value;
-        }
-        elseif ( $cast == 'float' )
-        {
+
+        } elseif ( $cast == 'float' ) {
             $value = (double) $value;
             return $value;
-        }
-        elseif ($cast == 'string')
-        {
+
+        } elseif ($cast == 'string') {
             if (!is_string($value)) $value = (string) $value;
             return $value;
-        }
-        elseif ($cast == 'blob')
-        {
+
+        } elseif ($cast == 'blob') {
             return $value;
         }
         elseif ($cast == 'datetime'
@@ -487,14 +503,16 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
             if ($cast == 'time') return date( self::FORMAT_TIME, $time);
             if ($cast == 'date') return date( self::FORMAT_DATE, $time);
             if ($cast == 'datetime') return date( self::FORMAT_DATETIME, $time);
-        }
-        elseif ($cast == 'enum')
-        {
+
+        } elseif ($cast == 'enum') {
             if (!isset($enum) || !is_array($enum) || count($enum)==0)
                 throw new Exception( get_class($this) . " tried to set $name field is enum but without enum values");
             if (! in_array($value, $enum))
                 throw new Exception( get_class($this) . " tried to set $name field to '$value' but invalid. Valid values are " . implode(", ", $enum));
             return $value;
+
+        } elseif ($cast == 'bool') {
+            return (bool) $value;
         }
         throw new Exception( get_class($this) . " does not know type '$cast'");
     }/*}}}*/
@@ -513,7 +531,12 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
                case 'int' :
                case 'int_unsigned' :
+               case 'bool' :
                    $this->myData[$field] = (int) $this->myData[$field];
+				   if ($definition['cast'] == 'int_unsigned'
+					   && $this->myData[$field]<0 ) {
+					   throw new Exception("Attempted to cast negative number on unsigned field $name");
+				   }
                    break;
 
                case 'float' :
