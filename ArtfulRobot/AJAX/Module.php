@@ -55,7 +55,7 @@ abstract class Ajax_Module
 	 */
 	abstract protected function run_module();
 
-	/** Check permissions using CMS::user_in_group(), return true|false 
+	/** Check permissions using CMS::userInGroup(), return true|false 
 	 *
 	 * Nb. a minimal CMS class must therefore be created for each CMS it runs under
 	 */
@@ -69,7 +69,7 @@ abstract class Ajax_Module
 
 		// all must match
 		foreach ($this->groups_required as $group_name)
-			if (!\CMS::user_in_group($group_name)) return false;
+			if (!\CMS::userInGroup($group_name)) return false;
 		return true;
 	}
 
