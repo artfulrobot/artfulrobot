@@ -499,8 +499,8 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		// make request
 		if (jQuery().jquery<'1.5')
 		{
-			window.console && console.warn && console.warn("Running old version of jQuery");
-			jQuery.ajax( 
+			window.console && console.warn && console.warn("Running old version of jQuery - can cause problems with ajax requests");
+			this.requests[requestId].xhr = jQuery.ajax( 
 			{
 				url:this.requestFrom,
 				data:params,
@@ -511,7 +511,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		}
 		else
 		{
-			jQuery.ajax( 
+			this.requests[requestId].xhr = jQuery.ajax( 
 			this.requestFrom,
 			{
 				data:params,
@@ -527,7 +527,6 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	{
 		this.requestEnds( this.requests[requestId] );
 		delete this.requests[requestId];
-		//this.requests[requestId].live = 0;
 	}, // }}}
 	onFailure: function(requestId, t)  // {{{
 	{ 
@@ -639,6 +638,17 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		}
 
 		this.requestEnded(requestId);
+	}, // }}}
+	abortRequest: function(requestId)  // {{{
+	{ 
+		if (!this.requests[requestId]) {
+			console && console.warn && console.warn("Attempted to abort non-existant ajax request "+requestId);
+			return false;
+		}
+        if (this.requests[requestId].xhr.readyState<4)
+            this.requests[requestId].xhr.abort();
+		this.requestEnded(requestId);
+		return true;
 	}, // }}}
 	seriousError: function( errorMsg, requestId, responseText ) // {{{
 	{
@@ -892,8 +902,9 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
         // return an object that describes the current state
         // this should be used by setState to restore this state
         // nb. this state should call getState on any necessary subobject(s)
+        return{};
     },//}}}
-    setState:function(state) //{{{
+    restoreState:function(state) //{{{
     {
         // do whatever is necessary to restore the state in the object passed.
     },//}}}

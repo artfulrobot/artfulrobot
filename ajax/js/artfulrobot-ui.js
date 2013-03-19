@@ -41,6 +41,7 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		this.records    = false;
 		this.selectedI  = -1;
 		this.selectedRecord = false;
+		this.lastClick = 0;
 	}, // }}}
 	setData: function( resultsArray ) // {{{
 	{
@@ -53,6 +54,9 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		 */
 		this.records =[];
 		this.myHTML.empty();
+		if (resultsArray.length==0) {
+			return;
+		}
 		var lis = [];
 		var i=0;
 		for (i in resultsArray)
@@ -133,8 +137,18 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 	{
 		// look out for old code whoopsies
 		if ( ! ( e && e.data && typeof(e.data.idx)!='undefined') ) console.error(this.name+'.clicked requires event.data.idx');
+		e && e.stopPropagation && e.stopPropagation();
+		e && e.preventDefault && e.preventDefault();
+
 		var i=e.data.idx;
-		if ( this.selectedI == i ) // want to de-select this item
+
+		// detect double click
+		// (we don't use dblclick because you can't separate it out from click events)
+		var now = new Date().getTime();
+		var isDblClick = ((now - this.lastClick)<200); // 200ms for double click time
+		this.lastClick = now;
+
+		if ( this.selectedI == i && !isDblClick ) // single-click on already selected = deselect
 		{
 			jQuery('#'+this.myId + '_li' + this.selectedI).removeClass('selected');
 			this.selectedI = -1;
@@ -143,11 +157,13 @@ var SelectableList = artfulrobot.defineClass( artfulrobot.ARLObject, //{{{
 		}
 		else // select something
 		{
-			this.select(i);
-			if ( e.data.scrollIntoView 
-					&& jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView )
-					 jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView();
-			this.shout( 'selected', { record: this.selectedRecord, evt: e, index:i } );
+			if ( this.selectedI != i) { // need to select this
+				this.select(i);
+				if ( e.data.scrollIntoView 
+						&& jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView )
+						 jQuery('#'+this.myId + '_li' + i)[0].scrollIntoView();
+			}
+			this.shout( 'selected', { record: this.selectedRecord, evt: e, index:i, isDblClick:isDblClick } );
 		}
 	}, // }}}
 	select: function(i) // {{{
