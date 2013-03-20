@@ -78,23 +78,33 @@ class Collection implements \Iterator, \Countable
 	// public function find( $criteria, $findNext=false ) {{{
     /** search for the next object in the collection that matches criteria
       * 
-      * $criteria = Array( prop=>val [,...])
+      * $criteria = Array( prop=>val [,...]) or callback
       * $findNext : normally start from first element, set true for findNext.
       */
 	public function find( $criteria, $findNext=false )
 	{
         if (!$findNext) $this->rewind();
-        while ($o = $this->current($this)) {
-            $this->next();
-            $match = true;
-            foreach ($criteria as $key=>$val) {
-                if ($o->$key != $val) { 
-                    $match = false;
-                    break;
-                }
-            }
-            if ($match) return $o;
-        }
+
+		if (is_object($criteria)) {
+			// callback?
+			while ($o = $this->current($this)) {
+				$this->next();
+				if ($criteria($o)) return $o;
+			}
+		} else {
+			// crieria is an array of specific values
+			while ($o = $this->current($this)) {
+				$this->next();
+				$match = true;
+				foreach ($criteria as $key=>$val) {
+					if ($o->$key != $val) { 
+						$match = false;
+						break;
+					}
+				}
+				if ($match) return $o;
+			}
+		}
         return null;
 	}/*}}}*/
 	public function removeById($id)
