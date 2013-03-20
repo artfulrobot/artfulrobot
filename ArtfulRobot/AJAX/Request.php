@@ -25,11 +25,11 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Synopsis (very simple!):
 <code>
-\ArtfulRobot\AJAX_Request::process();
+AJAX_Request::process();
 </code>
  *
- * Nb. put debug=1 in the request params to turn on debugging via \ArtfulRobot\Debug.
- *     On production sites, \ArtfulRobot\Debug should be silent, but if not, this would be a security risk. 
+ * Nb. put debug=1 in the request params to turn on debugging via Debug.
+ *     On production sites, Debug should be silent, but if not, this would be a security risk. 
  */
 class AJAX_Request
 {
@@ -37,7 +37,7 @@ class AJAX_Request
 	static private $request;
 	static public function getResponse()/*{{{*/
 	{
-		if (! self::$response) self::$response = new \ArtfulRobot\AJAX_Response();
+		if (! self::$response) self::$response = new AJAX_Response();
 		return self::$response;
 	}/*}}}*/
 	static public function process()/*{{{*/
@@ -47,12 +47,12 @@ class AJAX_Request
 
 		if ($_POST)
 		{
-			$todo = \ArtfulRobot\Utils::arrayValue('arlClass',  $_POST);
+			$todo = Utils::arrayValue('arlClass',  $_POST);
 			self::$request = & $_POST;
 		}
 		else
 		{
-			$todo = \ArtfulRobot\Utils::arrayValue('arlClass',  $_GET);
+			$todo = Utils::arrayValue('arlClass',  $_GET);
 			self::$request = & $_GET;
 		}
 
@@ -63,11 +63,11 @@ class AJAX_Request
 		}
 		else self::runProcess( $todo );
 
-		\ArtfulRobot\Debug::log("!! Response object:", $response);
+		Debug::log("!! Response object:", $response);
 
         // if debugging, call fatal()
-		if (\ArtfulRobot\Utils::arrayValue('debug', self::$request))
-            \ArtfulRobot\Debug::fatal("Exited as debugging requested");
+		if (Utils::arrayValue('debug', self::$request))
+            Debug::fatal("Exited as debugging requested");
 
         // send response and exit;
         $response->send();
@@ -86,7 +86,7 @@ class AJAX_Request
 			if (!class_exists($todo))
 				throw new Exception("Class $todo does not exist");
 
-            if (!(is_subclass_of($todo,'\ArtfulRobot\AJAX_Module')))
+            if (!(is_subclass_of($todo,'\\ArtfulRobot\\AJAX_Module')))
                 throw new Exception("Class $todo is not an ajax module");
 		   	$processor = new $todo($response); 
 		}
