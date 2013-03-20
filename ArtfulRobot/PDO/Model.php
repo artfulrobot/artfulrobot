@@ -55,7 +55,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     {
         throw new Exception(get_called_class() . " must implement getConnection()");
     }/*}}}*/
-    //static public function buildCollection( $filters, $order )//{{{
+    //static public function buildCollection( $filters, $order=null )//{{{
     /**
       * return a Collection object 
       */
@@ -124,6 +124,14 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         // cache and return
         return self::$cached[$object_type][$id] = $obj;
+    }//}}}
+    //static public function loadFirstMatch( $filters, $order=null )//{{{
+    /** Returns the first match for the $filters given
+	 *  
+     */
+    static public function loadFirstMatch( $filters, $order=null)
+    {
+		return static::buildCollection($filters, $order)->current();
     }//}}}
     //static public function sqlWhere( &$params, $filters )//{{{
     /** Returns the WHERE clause (or '') based on $filters
