@@ -1,4 +1,5 @@
 <?php
+use \ArtfulRobot as ARL;
 /** Markdown  -  A text-to-HTML conversion tool for web writers
  *
  * This is a 3rd party library but extended quite a lot.
@@ -318,7 +319,7 @@ class Markdown_Parser {
 
 	function transform($text) //{{{
 	{
-		ARL_Debug::log('>>');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('>>'.__CLASS__.'::'.__FUNCTION__);
 	#
 	# Main function. The order in which other subs are called here is
 	# essential. Link and image substitutions need to happen before
@@ -361,7 +362,7 @@ class Markdown_Parser {
 		$text = $this->doSingleLineDivs_final($text);
 		$text = $this->doAddIns($text);
 
-		ARL_Debug::log('<<'); 
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('<<'); 
 		return $text . "\n";
 	} // }}}
 	
@@ -633,7 +634,7 @@ class Markdown_Parser {
 	# whole-document pass.
 	#
 		foreach ($this->block_gamut as $method => $priority) {
-			ARL_Debug::log("running $method");
+			if( DEBUGGING_MARKDOWN ) ARL\Debug::log("running $method");
 			$text = $this->$method($text);
 		}
 		
@@ -1584,7 +1585,7 @@ class Markdown_Parser {
 
 	function doSingleLineDivs($text) { //{{{
 		# Rich Lott June 2009
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '>>', $text);
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '>>', $text);
 		// new flow:
 		// find lines, change "whatever] xxxx \n" to "\x02{COUNT}\nwhatever xxxx \x03{COUNT}\n"
 		// and
@@ -1605,13 +1606,13 @@ class Markdown_Parser {
 			  )
 			/xm',
 			array(&$this,'_doSingleLineDivs_callback'), $text);
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( 'singleLines', $this->singleLineDivs);
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '<< returning ' , $text );
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( 'singleLines', $this->singleLineDivs);
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '<< returning ' , $text );
 		return $text;
 	} // }}}
 	function _doSingleLineDivs_callback($matches) { //{{{
 		# Rich Lott June 2009
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '>>');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '>>');
 
 		$count = sizeof($this->singleLineDivs); // index that's about to be created
 		$_ = preg_split('/\]\s*/', trim($matches[1])); // array of first div class, second div class...
@@ -1634,9 +1635,9 @@ class Markdown_Parser {
 	} // }}}
 	function _doBigSections_callback( $matches ) // {{{
 	{
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '>> _DoBigSections_callback called');
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '!! _DoBigSections_callback called');
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( "Recursing for section $matches[2] content:", $matches[3] );
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '>> _DoBigSections_callback called');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '!! _DoBigSections_callback called');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( "Recursing for section $matches[2] content:", $matches[3] );
 		$matches[3] = $this->runBlockGamut($matches[3]."\n");		# recurse
 
 		// "this that" becomes <div class="this"><div class="that">\nblah\n</div></div>
@@ -1651,7 +1652,7 @@ class Markdown_Parser {
 			$end .= "</div>\n";
 		}
 
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log( '<<');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log( '<<');
 		return "\n". $this->hashBlock("$start$matches[3]\n$end")."\n\n";
 	} // }}}
 
@@ -1667,7 +1668,7 @@ class Markdown_Parser {
 
 	function doTables( $text ) // Rich Lott {{{
 	{
-		ARL_Debug::log('>>');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('>>');
 	/*	table format: +-+ at start of line start and end of table. eg. (ignore indent)
 		+-+ Name 	| Number
 		+   Rich 	| 1234
@@ -1694,13 +1695,13 @@ class Markdown_Parser {
 								  m=multi-line mode
 								  s="dot all" (includes new lines) */
 			array(&$this,'_doTablesCallback'), $text );
-		ARL_Debug::log('<<'); 
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('<<'); 
 		return $text;
 	} //}}}
 	function _doTablesCallback( $matches ) // {{{
 	{
 		// gets passed a whole table
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log('>> Matches is:',$matches);
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('>> Matches is:',$matches);
 
 		// split into rows
 		$rows = preg_split( '@^\s*\+\s*@m', $matches[2] );
@@ -1732,7 +1733,7 @@ class Markdown_Parser {
 
 		if ( $table ) $table = "<table>\n$table</table>\n";
 
-		if (DEBUGGING_MARKDOWN) ARL_Debug::log('<<');
+		if (DEBUGGING_MARKDOWN) ARL\Debug::log('<<');
 		return "\n". $this->hashBlock($table)."\n\n";
 	} //}}}
 

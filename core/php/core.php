@@ -290,12 +290,12 @@ class ARL_Debug
 		if (! $v) 
 		{
 			self::$file = false;
-			self::log("TOP set_file OFF");
+			self::log("!! set_file OFF");
 		}
 		elseif ($v===true || $v===1) 
 		{
 			self::$file = true;
-			self::log("TOP set_file ON");
+			self::log("!! set_file ON");
 		}
 		else
 		{
@@ -303,7 +303,7 @@ class ARL_Debug
 			// otherwise too much rik of overwriting others.
 			if (strpos($v,'%d')===false) $v = "%d_$v";
 			self::$file = $v;
-			self::log("TOP set_file ON, naming files: $v");
+			self::log("!! set_file ON, naming files: $v");
 		}
 	}//}}}
 	//static public function fatal( $t='!!myexit called',$vars=null,$applyhtmlspecialchars=true ) // {{{
@@ -340,7 +340,7 @@ class ARL_Debug
 		}
 		$tmp .= "</table>";
 
-		self::log("TOP}Backtrace table: $tmp",null,false);
+		self::log("!!}Backtrace table: $tmp",null,false);
 		while (self::log('<<')) {}; // (will fail if not self::$running)
 
 		self::legacy_api( 'print_full' );	
@@ -350,7 +350,7 @@ class ARL_Debug
 	{
 		self::init();
 		// just sends location header and exits, but does so in a debuggable way!
-		self::log("TOP redirect_and_exit() called to: '$href'");
+		self::log("!! redirect_and_exit() called to: '$href'");
 		if     ($http_response_code == '301' ) header($_SERVER["SERVER_PROTOCOL"] . " 301 Moved Permanently");
 		elseif ($http_response_code == '302' ) header($_SERVER["SERVER_PROTOCOL"] . " 302 Found but, not the best URL to use!");
 		elseif ($http_response_code == '404' ) header($_SERVER["SERVER_PROTOCOL"] . " 404 Not Found");
@@ -434,7 +434,7 @@ class ARL_Debug
 			}
 			$tmp .= "</table>";
 		}
-		self::log("TOP Uncaught Exception: ". ( $exception->getCode() ? '(code ' . $exception->getCode() . ')' : '' ) . $exception->getMessage() , $exception->getTraceAsString());
+		self::log("!! Uncaught Exception: ". ( $exception->getCode() ? '(code ' . $exception->getCode() . ')' : '' ) . $exception->getMessage() , $exception->getTraceAsString());
 		self::fatal("FATAL: Uncaught exception");
 	} // }}}
 	// static public function backtrace() // {{{
@@ -474,7 +474,7 @@ class ARL_Debug
 		}
 		$tmp .= "</table>";
 
-		self::log("TOP $message".$tmp,$backtrace,false);
+		self::log("!! $message".$tmp,$backtrace,false);
 	} // }}}
 	static public function legacy_api( $command , $args=false ) // {{{
 	{

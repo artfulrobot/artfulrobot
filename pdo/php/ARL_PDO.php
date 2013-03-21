@@ -173,7 +173,7 @@ abstract class ARL_PDO_Model/*{{{*/
 			// if ( ! $stmt ) throw new Exception( get_class($this) . " failed to create row :" . print_r($this->conn->errorInfo(),1));
 
 			$_ = $this->conn->lastInsertId();
-			ARL_Debug::log("TOP lastInsertId" ,$_);
+			ARL_Debug::log("!! lastInsertId" ,$_);
 			$this->myData['id'] = (int) $_;
 			if (! $this->myData['id']) throw new Exception( get_class($this) . " failed to create row");
 		}/*}}}*/
@@ -213,7 +213,7 @@ abstract class ARL_PDO_Model/*{{{*/
 		// new data
 		if ( ! $this->myData['id'] )
 		{
-			ARL_Debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
+			ARL_Debug::log("!! Warning: attempted to delete an unsaved " . get_class($this) . " object");
 			return;
 		}
 

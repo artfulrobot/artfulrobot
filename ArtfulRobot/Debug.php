@@ -238,9 +238,6 @@ class Debug
 				$href</a>";
         }
 
-        //log a FINISH level message
-        self::log( "->$href");
-
         // issue normal redirect if we're not intercepting it.
         if (!static::$opts['redirect_intercept']) {
             if     ($http_response_code == '301' ) header($_SERVER["SERVER_PROTOCOL"] . " 301 Moved Permanently");
@@ -248,14 +245,15 @@ class Debug
             elseif ($http_response_code == '404' ) header($_SERVER["SERVER_PROTOCOL"] . " 404 Not Found");
             elseif ($http_response_code ) header($_SERVER["SERVER_PROTOCOL"] . " $http_response_code");
 
-			/* we close the session because otherwise there's a slim chance that 
-			 * the redirected page will run and write its session before this one does.
-			 */
-			session_write_close();
 			header( "Location: $href");
-            exit;
         }
-        exit;
+		//log a FINISH level message
+		self::log( "->$href");
+		/* we close the session because otherwise there's a slim chance that 
+		 * the redirected page will run and write its session before this one does.
+		 */
+		session_write_close();
+		exit;
 	} // }}}
 	// static public function handleError($errno, $errstr, $errfile, $errline) // {{{
 	/** error handler 
@@ -263,7 +261,8 @@ class Debug
 	static public function handleError($errno, $errstr, $errfile, $errline)
 	{
 		// if error_reporting is turned off for this type of error, do nothing.
-		// if (! (error_reporting() & $errno )) return; 
+		// this is important as code may well want to turn errors off temporarily, or use @something()
+		if (! (error_reporting() & $errno )) return; 
 
 		switch ($errno) {
             case E_USER_WARNING:
@@ -283,7 +282,7 @@ class Debug
         $msg.="Error [$errno] $errstr, on line $errline in file $errfile";
 
 		if ($errno & self::$opts['ignore_errors']) static::log($msg . " (Execution set to continue for this type of error)");
-		else self::fatal($msg);
+		else static::fatal($msg);
 		/* Don't execute PHP internal error handler */
 		return true;
 	} // }}}
@@ -332,6 +331,7 @@ class Debug
             // crashes result in error_log and html
             static::setServiceLevel('error_log', static::LEVEL_FINISH);
             static::setServiceLevel('outputHtml', static::LEVEL_FINISH);
+            static::setRedirectIntercept();
 
         } elseif ($profile == 'unsafe') {
             // output everything as it happens
@@ -344,6 +344,104 @@ class Debug
 
 
 	} // }}}
+    static public function getHtml()/*{{{*/
+    {
+        // make html version of stored log
+        // todo make it clear that this depends on serviceStore
+		$css ="
+<style>
+.arl-debug {
+	border:solid 1px red;
+	padding:6px;
+	background:#e8e8e8;
+}
+.arl-debug-important>.arl-debug-msg {
+	margin:6px 0 0 6px;
+	color:#800;
+	border-left:solid 10px #d00;
+	padding-left:6px;
+}
+.arl-debug-stack { margin:8px 0 0 6px;background-color:#faf8f0;border:solid 1px #bbb;border-radius:3px 3px 3px 3px; }
+.arl-debug-stack-start { border:solid 1px white;padding-left:6px;border-radius:3px 3px 3px 3px;	background:#e8e8e8;border-top:none; }
+.arl-debug-greyed { color:#888; }
+.arl-debug-mem { float:right;margin-left:7px;color:#888; }
+.arl-debug-var-toggle { cursor:pointer; }
+.arl-debug-var-toggle:hover { color:#28f; }
+.arl-debug-var-toggle:before { content: 'Show Vars'; font-size:10px; }
+.arl-debug-vars.expanded .arl-debug-var-toggle:before { content: 'Hide Vars' }
+.arl-debug-vars pre {display:none; background-color:#faf8f0;padding:0 7px;margin:0 6px 6px;border:solid 1px #aaa;border-radius:3px 3px 3px 3px;font-size:10px;color:#242;}
+.arl-debug-vars.expanded>pre {display:block;}
+.arl-debug-msg {cursor:pointer;}
+.arl-debug-msg:hover {background-color:#e0f8f8;color:black;}
+.arl-debug-selected { background-color:#e0f8f8;color:black;border-left:solid 6px #28f; box-shadow: -2px 4px 6px 2px;margin-left:0;}
+</style>";
+
+		$css = strtr($css, array(
+					"\n"=>" ",// javascript can't handle new lines...
+					'"' =>'\\"')); // need to quote "
+
+		$html = "
+<script>
+function arlDebugUI() {
+	if (!window.arlDebugCss) jQuery(\"$css\").appendTo('head');
+	window.arlDebugCss = 1;
+	var d=jQuery('.arl-debug');
+	console.log(d);
+	d.find('.arl-debug-var-toggle').unbind('click').click(function(){
+		jQuery(this).parent().toggleClass('expanded');});
+	d.find('.arl-debug-msg').unbind('click').click(function(e){
+		e.stopPropagation();
+		jQuery(this).parent().toggleClass('arl-debug-selected');});
+}
+if(typeof jQuery=='undefined') {
+	var jqTag = document.createElement('script');
+	jqTag.src = '//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js';
+	jqTag.onload = arlDebugUI;
+	document.getElementsByTagName('head')[0].appendChild(jqTag);
+} else {
+	jQuery(arlDebugUI);
+}
+</script>";
+
+        $html .= "<div class='arl-debug' >"
+            . static::$redirect_preamble;
+        $depth = 0;
+        foreach(static::$store as $row) {
+            if ($row['level']<=static::LEVEL_IMPORTANT) {
+                $line = "<div class='arl-debug-important' >";   
+            } elseif ($row['prefix'] == '>>') {
+                $line = "<div class='arl-debug-stack'>";   
+            } elseif ($row['level']==static::LEVEL_LOG) {
+                $line = "<div class='arl-debug-greyed' >";   
+            } else {
+                $line = "<div >"; 
+            }
+            $line .= "<span class='arl-debug-msg'>" . htmlspecialchars($row['msg']) . "</span>" 
+                . (isset($row['mem']) ? "<div class='arl-debug-mem'>$row[mem]</div>" : '')
+                . (!empty($row['vars'])
+                    ? "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>"
+                      . htmlspecialchars(print_r($row['vars'],1))
+                      . "</pre></div>"
+                    : '');
+                
+            if ($row['prefix'] == '>>') {
+                $depth++;
+                $line .= "<div class='arl-debug-stack-start'>";
+            } elseif ($row['prefix'] == '<<') {
+                $line .= "</div></div></div>"; // close self, and 2 outers.
+                $depth--;
+            } elseif ($row['prefix'] == 'backtrace') {
+                $line .= str_repeat("</div></div></div>",$depth);
+                $depth =0;
+            } else {
+                $line .= "</div>";
+            }
+            $html .= $line;
+        }
+        $html .= "</div>";
+
+        return $html;
+    }/*}}}*/
 
     static protected function serviceEcho()/*{{{*/
     {
@@ -398,47 +496,7 @@ class Debug
     static protected function serviceOutputHtml()/*{{{*/
     {
         // output html version of stored log
-        // todo make it clear that this depends on serviceStore
-
-        $html = "<div style='border:solid 1px red;padding:0.5em;' >"
-            . static::$redirect_preamble;
-        $depth = 0;
-        foreach(static::$store as $row) {
-
-            if ($row['level']<=static::LEVEL_IMPORTANT) {
-                $line = "<div style='margin:0.5em 0 0 0.2em;color:#800;border-left:solid 10px #d00;padding-left:8px;'>";   
-            } elseif ($row['level']==static::LEVEL_STACK) {
-                $line = "<div style='margin:0.5em 0 0 0.2em;'>";   
-            } elseif ($row['level']==static::LEVEL_LOG) {
-                $line = "<div style='color:#888;'>";   
-            } else {
-                $line = "<div>"; 
-            }
-            $line .= htmlspecialchars($row['msg']) 
-                . (isset($row['mem']) ? "<div style='float:right;margin-left:1em;color:#888;'>$row[mem]</div>" : '')
-                . (!empty($row['vars'])
-                    ? "<pre style='background-color:#faf8f0;padding:0 1em;margin:0 0 0.5em;'>"
-                      . htmlspecialchars(print_r($row['vars'],1))
-                      . "</pre>"
-                    : '');
-                
-            if ($row['prefix'] == '>>') {
-                $depth++;
-                $line .= "<div style='border:solid 1px #eee;padding-left:1em;'>";
-            } elseif ($row['prefix'] == '<<') {
-                $line .= "</div></div>";
-                $depth--;
-            } elseif ($row['prefix'] == 'backtrace') {
-                $line .= str_repeat("</div></div>",$depth);
-                $depth =0;
-            } else {
-                $line .= "</div>";
-            }
-            $html .= $line;
-        }
-        $html .= "</div>";
-
-        echo $html;
+        echo static::getHtml();
     }/*}}}*/
     static protected function getText( $implode=true )/*{{{*/
     {

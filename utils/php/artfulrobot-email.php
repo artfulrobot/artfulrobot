@@ -266,7 +266,7 @@ class ARL_Email/*{{{*/
 		 // file_put_contents('/tmp/arl-email', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
 
 		 if (isset($return_path)) {
-			 //ARL_Debug::log("TOP sending with -f");
+			 //ARL_Debug::log("!! sending with -f");
 			 $mail_result = mail(
 					 $mail_to,
 					 $mail_subject, 
@@ -277,7 +277,7 @@ class ARL_Email/*{{{*/
 					 );
 		 }
 		 else {
-			 //ARL_Debug::log("TOP sending without -f");
+			 //ARL_Debug::log("!! sending without -f");
 			 // The optional $additional_parameters argument to mail() is not allowed
 			 // if safe_mode is enabled. Passing any value throws a PHP warning and
 			 // makes mail() return FALSE.

@@ -184,7 +184,7 @@ class ARL_Ajax_Request
 		if (!ARL_Array::value('debug', self::$request))
 		   	$response->send();
 
-		ARL_Debug::log("TOP Response object:", $response);
+		ARL_Debug::log("!! Response object:", $response);
 		ARL_Debug::legacy_api('print_full');
 		echo "<hr />" . $response->html;
 		exit;

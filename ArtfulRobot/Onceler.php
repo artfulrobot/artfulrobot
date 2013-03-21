@@ -56,18 +56,18 @@ class Onceler
 		// no token - return null;
 		if (! $token )
 		{
-			\ArtfulRobot\Debug::log("TOP Warning: \ArtfulRobot\Onceler::check - no token at key $key returning null");
+			\ArtfulRobot\Debug::log("!! Warning: \ArtfulRobot\Onceler::check - no token at key $key returning null");
 			return null;
 		}
 
 		$spent_tokens = & \ArtfulRobot\Utils::arrayReference('\ArtfulRobot\Onceler::spent_tokens', $_SESSION, array() );
 		if ( array_key_exists( $token, $spent_tokens ) )
 		{
-			\ArtfulRobot\Debug::log("TOP \ArtfulRobot\Onceler: recognised spent token, resetting source token.");
+			\ArtfulRobot\Debug::log("!! \ArtfulRobot\Onceler: recognised spent token, resetting source token.");
 			$source[$key] = false;
 			return false;
 		}
-		error_log("TOP setting new token $token");
+		error_log("!! setting new token $token");
 		// new token
 		$spent_tokens[$token] = true;
 		return true;

@@ -56,18 +56,18 @@ class ARL_Onceler
 		// no token - return null;
 		if (! $token )
 		{
-			ARL_Debug::log("TOP Warning: ARL_Onceler::check - no token at key $key returning null");
+			ARL_Debug::log("!! Warning: ARL_Onceler::check - no token at key $key returning null");
 			return null;
 		}
 
 		$spent_tokens = & ARL_Array::reference('ARL_Onceler::spent_tokens', $_SESSION, array() );
 		if ( array_key_exists( $token, $spent_tokens ) )
 		{
-			ARL_Debug::log("TOP ARL_Onceler: recognised spent token, resetting source token.");
+			ARL_Debug::log("!! ARL_Onceler: recognised spent token, resetting source token.");
 			$source[$key] = false;
 			return false;
 		}
-		error_log("TOP setting new token $token");
+		error_log("!! setting new token $token");
 		// new token
 		$spent_tokens[$token] = true;
 		return true;

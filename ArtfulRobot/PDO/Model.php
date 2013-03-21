@@ -353,7 +353,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         if ( ! $id=$this->myData['id'] )
         {
-            \ArtfulRobot\Debug::log("TOP Warning: attempted to delete an unsaved " . get_class($this) . " object");
+            \ArtfulRobot\Debug::log("!! Warning: attempted to delete an unsaved " . get_class($this) . " object");
             return;
         }
 
