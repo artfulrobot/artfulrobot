@@ -8,10 +8,23 @@ class PDO extends \PDO
 	const FORMAT_TIME = 'G.i.s';
 	const FORMAT_DATE = 'Y-m-d';
 	const FORMAT_DATETIME = 'Y-m-d G.i.s';
-	//public function fetchSingle(\ArtfulRobot\PDO_Query $query, $col_name=null)/*{{{*/
+    //public static function validQueryArg($query){{{
+    /** ensure query is a ArtfulRobot\PDO_Query object */
+    public static function validQueryArg($query)
+    {
+        if ($query instanceof \ArtfulRobot\PDO_Query) {
+            return $query;
+        } elseif (is_string($query)) {
+            return new \ArtfulRobot\PDO_Query('', $query);
+        } else {
+            throw new \Exception("Invalid query argument. Expected ArtfulRobot\\PDO_Query or String.");
+        }
+    }//}}}
+	//public function fetchSingle(\ArtfulRobot\PDO_Query|string $query, $col_name=null)/*{{{*/
 	/** Run the \ArtfulRobot\PDO_Query supplied and return first (or $col_name) field from first row */
-	public function fetchSingle(\ArtfulRobot\PDO_Query $query, $col_name=null)
+	public function fetchSingle($query, $col_name=null)
 	{
+        $query = static::validQueryArg($query);
 		$stmt = $this->prepAndExecute($query);
 
 		if (!$stmt) $output = null;
@@ -25,8 +38,9 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("! fetchSingle returning: $output");
 		return $output;
 	}/*}}}*/
-	public function fetchRowAssoc(\ArtfulRobot\PDO_Query $query )/*{{{*/
+	public function fetchRowAssoc( $query )/*{{{*/
 	{
+        $query = static::validQueryArg($query);
 		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
@@ -41,8 +55,9 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("<< row fetched");
 		return $output;
 	}/*}}}*/
-	public function fetchRowsAssoc(\ArtfulRobot\PDO_Query $query , $key_field = null )/*{{{*/
+	public function fetchRowsAssoc($query , $key_field = null )/*{{{*/
 	{
+        $query = static::validQueryArg($query);
 		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
@@ -61,13 +76,14 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
-	// public function fetchRowsSingle(\ArtfulRobot\PDO_Query $query , $col_name = null, $key_field = null )/*{{{*/
+	// public function fetchRowsSingle(\ArtfulRobot\PDO_Query|String $query , $col_name = null, $key_field = null )/*{{{*/
 	/** fetch array of single fields (defaults to first field), optionally indexed by another field 
 	 * 
 	 *  Nb. specifying key_field is quite different to not.
 	 */
-	public function fetchRowsSingle(\ArtfulRobot\PDO_Query $query , $col_name = null, $key_field = null )
+	public function fetchRowsSingle($query , $col_name = null, $key_field = null )
 	{
+        $query = static::validQueryArg($query);
 		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
@@ -93,11 +109,12 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
-	// public function fetchAffectedCount(\ArtfulRobot\PDO_Query $query )/*{{{*/
+	// public function fetchAffectedCount(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
 	/** fetch number of rows affected by the INSERT, DELETE, UPDATE query given
 	 */
-	public function fetchAffectedCount(\ArtfulRobot\PDO_Query $query )
+	public function fetchAffectedCount( $query )
 	{
+        $query = static::validQueryArg($query);
 		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
@@ -111,11 +128,12 @@ class PDO extends \PDO
 		\ArtfulRobot\Debug::log("<< $count affected");
 		return $count;
 	}/*}}}*/
-	// public function fetchInsertId(\ArtfulRobot\PDO_Query $query )/*{{{*/
+	// public function fetchInsertId(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
 	/** run an INSERT query and return just the new insert_id
 	 */
-	public function fetchInsertId(\ArtfulRobot\PDO_Query $query )
+	public function fetchInsertId( $query )
 	{
+        $query = static::validQueryArg($query);
 		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
@@ -136,20 +154,35 @@ class PDO extends \PDO
 	{
 		return $this->fetchSingle(new \ArtfulRobot\PDO_Query( "Get FOUND_ROWS()", "SELECT FOUND_ROWS();"));
 	}/*}}}*/
-	//public function prepAndExecute( \ArtfulRobot\PDO_Query $query )/*{{{*/
+	//public function prepAndExecute( \ArtfulRobot\PDO_Query|string $query )/*{{{*/
 	/** prepare the \ArtfulRobot\PDO_Query given, then execute it and return a PDOStatement object
 	 */
-	public function prepAndExecute( \ArtfulRobot\PDO_Query $query )
+	public function prepAndExecute(  $query )
 	{
-		\ArtfulRobot\Debug::log( "prepAndExecute: $query->comment",  
-				array('params:'=>$query->params, 
-					'sql:'=>strtr($query->sql, array("\t" => '  '))));
-		if (! $query->params) $stmt = $this->query($query->sql);
-		else
-		{
-			$stmt = $this->prepare($query->sql);
-			if (! $stmt->execute($query->params) )
-				throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
+        $query = static::validQueryArg($query);
+		$mtime = microtime(true);
+		try {
+			if (! $query->params) $stmt = $this->query($query->sql);
+			else
+			{
+				$stmt = $this->prepare($query->sql);
+				if (! $stmt->execute($query->params) )
+					throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
+			}
+			
+			Debug::log( $query->comment, array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
+				'params:' =>$query->params,                               
+				'time:'   =>sprintf("%0.3fs", microtime(true) - $mtime), 
+				'rows:'   =>$stmt->rowCount(),                                             
+				));
+		} catch(\Exception $e) {
+			Debug::log( "!! Exception caused by: $query->comment", array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
+				'params:' =>$query->params,                              
+				));
+			// throw the exception again now.
+			throw $e;
 		}
 		return $stmt;
 	}/*}}}*/
