@@ -107,6 +107,12 @@ class Collection implements \Iterator, \Countable
 		}
         return null;
 	}/*}}}*/
+	public function getById($id)
+	{
+		if (!isset($this->id_index[$id])) throw new Exception( "Attempted to get object $id which is not in collection");
+		$index = $this->id_index[$id];
+		return $this->objects[$index]['object'];
+	}
 	public function removeById($id)
 	{
 		if (!isset($this->id_index[$id])) throw new Exception( "Attempted to remove object $id which is not in collection");
