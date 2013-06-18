@@ -41,9 +41,22 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *  \ArtfulRobot\Debug::log("a line of log", $var);
  *  \ArtfulRobot\Debug::log("<< ending a group/function - will get time in ms");
  *  \ArtfulRobot\Debug::log("!!an important line of log");
+ *  \ArtfulRobot\Debug::log("I need to use <b>html</b> in my message so I end with <html>");
  *  \ArtfulRobot\Debug::fatal("Something real bad happened");
  *  \ArtfulRobot\Debug::redirect("/");
+ *
+ *
+ *  loadProfile sets a lot of stuff at once.
+ *  All profiles include error_log on finish.
+ *  online: file on finish only.
+ *  debug: file for everything
+ *  debug_important:  file for important only
+ *  unsafeHTML: file everything, finish outputs html. Intercept redirect.
+ *  cterm: output everything to colour terminal
+ *  unsafe: output everything using echo in realtime. 
+ *
  */
+
 class Debug
 {
     const LEVEL_DISABLE   = 0;
@@ -73,7 +86,7 @@ class Debug
             'redirect_intercept' => false,
             'ignore_errors' => 0, // e.g. E_STRICT | E_NOTICE
             'file'       => '/tmp/debug-crash',
-            'file_append' => true,
+            'file_append' => false,
             );
     /** services offered */
     static protected $services = array(
@@ -108,6 +121,7 @@ class Debug
 
     static public function log( $msg, $vars=null )/*{{{*/
     {
+		static::$current = array();
         // figure out level
         switch (static::$current['prefix'] = substr($msg,0,2)) {
             case 'XX':
@@ -279,7 +293,7 @@ class Debug
                 $msg="!!Strict ";
                 break;
 		}
-        $msg.="Error [$errno] $errstr, on line $errline in file $errfile";
+        $msg.="Error [$errno] $errstr. <br />\n:sp +$errline $errfile<html>";
 
 		if ($errno & self::$opts['ignore_errors']) static::log($msg . " (Execution set to continue for this type of error)");
 		else static::fatal($msg);
@@ -300,10 +314,18 @@ class Debug
                 . ( $exception->getCode() 
                     ? '(code ' . $exception->getCode() . ')' 
                     : '' ) 
-                . $exception->getMessage() , $exception->getTrace());
+                . $exception->getMessage() , static::getTrace($exception->getTrace()));
 	} // }}}
 	static public function loadProfile($profile )//{{{
 	{
+		// reset
+    	static::$functions = array(
+            1 => array(),
+            2 => array(),
+            3 => array(),
+            4 => array(),
+        );
+
         if ($profile == 'online') {
             // ... write a file only if we fail (fatal|redirect)
             static::setServiceLevel('file', static::LEVEL_FINISH);
@@ -333,6 +355,10 @@ class Debug
             static::setServiceLevel('outputHtml', static::LEVEL_FINISH);
             static::setRedirectIntercept();
 
+        } elseif ($profile == 'cterm') {
+            // everything out to cterm
+            static::setServiceLevel('cterm', 'ALL');
+
         } elseif ($profile == 'unsafe') {
             // output everything as it happens
             static::setServiceLevel('echo', static::LEVEL_LOG);
@@ -341,8 +367,6 @@ class Debug
         } else {
             throw new \Exception("unknown debug profile: $profile");
         }
-
-
 	} // }}}
     static public function getHtml()/*{{{*/
     {
@@ -386,12 +410,15 @@ function arlDebugUI() {
 	if (!window.arlDebugCss) jQuery(\"$css\").appendTo('head');
 	window.arlDebugCss = 1;
 	var d=jQuery('.arl-debug');
-	console.log(d);
 	d.find('.arl-debug-var-toggle').unbind('click').click(function(){
 		jQuery(this).parent().toggleClass('expanded');});
 	d.find('.arl-debug-msg').unbind('click').click(function(e){
 		e.stopPropagation();
-		jQuery(this).parent().toggleClass('arl-debug-selected');});
+		var p = jQuery(this).parent();
+		if (p.hasClass('arl-debug-stackend')) {
+			p = p.parent();
+		}
+		p.toggleClass('arl-debug-selected');});
 }
 if(typeof jQuery=='undefined') {
 	var jqTag = document.createElement('script');
@@ -407,16 +434,24 @@ if(typeof jQuery=='undefined') {
             . static::$redirect_preamble;
         $depth = 0;
         foreach(static::$store as $row) {
+			$class = array();
             if ($row['level']<=static::LEVEL_IMPORTANT) {
-                $line = "<div class='arl-debug-important' >";   
+				$class[] = 'arl-debug-important';
+			}
+
+            if ($row['prefix'] == '<<') {
+				$class[] = 'arl-debug-stackend';
             } elseif ($row['prefix'] == '>>') {
-                $line = "<div class='arl-debug-stack'>";   
+				$class[] = 'arl-debug-stack';
             } elseif ($row['level']==static::LEVEL_LOG) {
-                $line = "<div class='arl-debug-greyed' >";   
-            } else {
-                $line = "<div >"; 
+				$class[] = 'arl-debug-greyed';
             }
-            $line .= "<span class='arl-debug-msg'>" . htmlspecialchars($row['msg']) . "</span>" 
+			$line = "<div class='" . implode(' ', $class) . "'><span class='arl-debug-msg'>";
+
+			if (substr($row['msg'], -6)=="<html>") $line .= str_replace('<html>','',$row['msg']);
+			else $line .= htmlspecialchars($row['msg']);
+		   
+			$line .="</span>" 
                 . (isset($row['mem']) ? "<div class='arl-debug-mem'>$row[mem]</div>" : '')
                 . (!empty($row['vars'])
                     ? "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>"
@@ -472,7 +507,8 @@ if(typeof jQuery=='undefined') {
     }/*}}}*/
     static protected function serviceFile()/*{{{*/
     {
-        fwrite(static::getFH(), static::getText()."\n");
+		$fh =static::getFH();
+        fwrite($fh, static::getText()."\n");
     }/*}}}*/
     static protected function serviceStore()/*{{{*/
     {
@@ -490,7 +526,7 @@ if(typeof jQuery=='undefined') {
                     'prefix'=>'backtrace',
                     'mem'=>'',
                     'depth'=>'',
-                    'vars'=>debug_backtrace() );
+                    'vars'=>static::getTrace() );
         }
     }/*}}}*/
     static protected function serviceOutputHtml()/*{{{*/
@@ -516,6 +552,26 @@ if(typeof jQuery=='undefined') {
                 : '';
 
             static::$current['text']['msg'] = static::$current['msg'];
+			// strip <html> tag from end of msg - no use to us.
+			if (substr(static::$current['msg'], -6)=="<html>") {
+				static::$current['text']['msg'] = 
+					strip_tags(strtr(static::$current['msg'], array(
+						'<html>' => '',
+						'<strong>' => '**',
+						'</strong>' => '**',
+						'<br/>' => "\n",
+						'<br>' => "\n",
+						)));
+			} else {
+				static::$current['text']['msg'] = static::$current['msg'];
+			}
+
+			// prefix?
+			if (static::$current['prefix'] == '>>') {
+				static::$current['text']['msg'] .= ' {{{';
+			} elseif (static::$current['prefix'] == '<<') {
+				static::$current['text']['msg'] .= ' }}}';
+			}
 
             if (! ($_ = static::$opts['text_vars'])) {
                 $vars = '';
@@ -526,11 +582,11 @@ if(typeof jQuery=='undefined') {
             } elseif ($_ == static::VARS_JSON) {
                 $vars = json_encode(static::$current['vars']);
             }
-            static::$current['text']['vars'] = $vars ? " Vars: {{{\n$vars }}}" : '';
+            static::$current['text']['vars'] = $vars ? "\nVars: {{{\n$vars }}}" : '';
 
             // fatal? Add a trace
             if (static::$current['prefix'] == 'XX') {
-                foreach (debug_backtrace() as $_) {
+                foreach (static::getTrace() as $_) {
                     static::$current['text']['vars'] .= "\nBacktrace:{{{\n" . print_r($_,1) . "}}}";
                 }
             }
@@ -541,10 +597,22 @@ if(typeof jQuery=='undefined') {
     static protected function getFH()/*{{{*/
     {
         if (!isset(static::$fh)) {
-            if (! static::$opts['file_append']) {
-                unlink(static::$opts['file']);
-            }
-            static::$fh = fopen(static::$opts['file'],'a');
+			$filename =static::$opts['file'];
+			if (file_exists($filename) && !is_writeable($filename)) {
+				// turn off file debugging
+				static::setServiceLevel('file');
+				static::fatal("Could not write " . $filename);
+			}
+
+			// set group, owner RW, everyone else nothing
+			@touch($filename);
+			@chmod($filename, 0660);
+			static::$fh = @fopen($filename,static::$opts['file_append'] ? 'a' : 'w');
+			if (!static::$fh) {
+				// turn off file debugging
+				static::setServiceLevel('file');
+				static::fatal("Could not write $filename");
+			}
             fwrite(static::$fh, 
                     "-------------------------------------------------------------------\n" .
                     "Debug log at " . date('H:i:s d M Y') . "\n\n");
@@ -565,11 +633,25 @@ if(typeof jQuery=='undefined') {
             static::$current['msg'] .= sprintf(' %0.3fs', $time_diff);
             if ($time_diff>static::$opts['slow']) {
                 static::$current['level'] = static::LEVEL_IMPORTANT;
-                static::$current['msg'] = "SLOW: " .  static::$current['msg']; 
+                static::$current['msg'] = "<< SLOW: " . substr(static::$current['msg'],2); 
             }
             static::$current['depth'] = 0;
             static::$depth--;
         }
+    }/*}}}*/
+    static protected function getTrace($trace=null)/*{{{*/
+    {
+		// remove ourselves from the trace.
+		if (!$trace) $trace = debug_backtrace();
+
+		$penultimate = false;
+		while (!empty($trace[0]) && ($trace[0]['class'] == 'ArtfulRobot\Debug')) {
+			$penultimate=array_shift($trace);
+		}
+		if($penultimate) {
+			array_unshift($trace, $penultimate);
+		}
+		return $trace;
     }/*}}}*/
 }/*}}}*/
 
