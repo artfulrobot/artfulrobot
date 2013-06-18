@@ -401,6 +401,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 	{
 		this.requestFrom = 'ajaxprocess.php'; // default
 		this.method = 'get'; // default
+		this.methodAuto = true; // automatically switch to POST if a value is greater than 512 bytes.
 		this.requests = {};
 		this.uniqueCounter = 1;
 
@@ -413,10 +414,12 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		// set the script to use for ajax requests.
 		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
 	}, // }}}
-	setMethod: function (postOrGet) // {{{
+	setMethod: function (postOrGet, methodAuto) // {{{
 	{
 		if (postOrGet == 'get' || postOrGet == 'post') this.method=postOrGet;
 		else throw new Error("ajax method must be post or get"); 
+
+        if ( typeof(methodAuto) !== 'undefined') this.methodAuto = !!methodAuto;
 	}, // }}}
 	liveRequests: function () // {{{
 	{
@@ -495,6 +498,20 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 
 		// override this method if needed
 		this.requestStarts( this.requests[ requestId ] );
+
+        // change from get to post if methodAuto and if needed.
+        if (this.methodAuto && this.method=='get') {
+            if ( params.length>2000 ) {
+                method = 'post';
+            } else {
+                // scan values for length > 512
+                jQuery.map( params.split('&'), function(i) {
+                    if ((i.length - i.indexOf('='))>512) {
+                        method = 'post';
+                    }
+                });
+            }
+        }
 
 		// make request
 		if (jQuery().jquery<'1.5')
@@ -633,7 +650,7 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		}
 		catch(e)
 		{
-			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, requestId,rsp);
+			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, requestId,rsp, e);
 			return;
 		}
 
@@ -650,9 +667,10 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 		this.requestEnded(requestId);
 		return true;
 	}, // }}}
-	seriousError: function( errorMsg, requestId, responseText ) // {{{
+	seriousError: function( errorMsg, requestId, responseText, exc ) // {{{
 	{
 		window.console && console.error && console.error( errorMsg, requestId, " ",  responseText);
+		exc && window.console && console.error && console.error( exc.stack );
 		var errorReport = window.open();
 		errorReport.document.write( 
 				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
