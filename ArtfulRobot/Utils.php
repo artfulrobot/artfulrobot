@@ -93,13 +93,13 @@ class Utils
 		if (! $create_if_missing) 
 		{
 			if (! isset($ptr)) return $default;
-			else return self::value($child_key, $ptr, $default, false);
+			else return self::arrayValue($child_key, $ptr, $default, false);
 		}
 
 		// create_if_missing is required
 		// chain exists.
 		if (isset($ptr))
-			return self::value($child_key, $ptr, $default, true);
+			return self::arrayValue($child_key, $ptr, $default, true);
 
 		// chain failed
 		$ptr = &$array;
