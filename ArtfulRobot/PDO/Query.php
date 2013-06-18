@@ -39,14 +39,18 @@ class PDO_Query
 			if (!is_array($value)) continue;
 
 			$c = count($value);
-			if ($c==0) $this->params[$key] = null;
-			elseif ($c==1) $this->params[$key] = reset($value);
-			else
-			{
+			if ($c==0) {
+                $this->params[$key] = null;
+
+            } elseif ($c==1) {
+                $this->params[$key] = reset($value);
+
+            } else {
 				$i=0;
 				$replacement_params = array();
-				while( $single_val = array_shift($value) )
+				while( count($value)>0 )
 				{
+                    $single_val = array_shift($value);
 					$single_key = $key . "__" . $i++;
 					$this->params[$single_key] = $single_val;
 					$replacement_params[] = $single_key;

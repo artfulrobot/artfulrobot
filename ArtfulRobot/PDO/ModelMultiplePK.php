@@ -76,7 +76,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		$params = array();
 		$pk_where = $this->preparePK($params, $id);
 		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
-				"Fetch all fields from " . static::TABLE_NAME ." for record $id",
+				"Fetch all fields from " . static::TABLE_NAME ." for record " . json_encode($id),
 				"SELECT * FROM `" . static::TABLE_NAME ."` WHERE $pk_where",
 				$params));
 

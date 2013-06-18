@@ -63,14 +63,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     {
         $collection = new Collection();
 
-        $sql = static::sqlWhere($params, $filters);
+        $sql = static::buildCollectionSql($params, $filters, $order);
         
-        if ($order === null) $order = static::$default_order;
-        if ($order) $sql .= " ORDER BY $order";
-
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch records from " . static::TABLE_NAME,
-                "SELECT * FROM `" . static::TABLE_NAME . "` $sql", $params));
+                $sql, $params));
         if ($stmt->errorCode()!='00000') 
             throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
 
@@ -83,6 +80,19 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         }
         return $collection;
     }//}}}
+    //static public function buildCollectionSql( &params, $filters, $order=null )//{{{
+    /**
+      * sets up params and returns SQL for buildCollection
+      */
+    static public function buildCollectionSql( &$params, $filters, $order=null )
+	{
+        $sql = static::sqlWhere($params, $filters);
+        
+        if ($order === null) $order = static::$default_order;
+        if ($order) $sql .= " ORDER BY $order";
+
+		return "SELECT * FROM `" . static::TABLE_NAME . "` $sql";
+	} // }}}
     //static public function bulkDelete( $filters )//{{{
     /**
       * return a Collection object 
@@ -125,6 +135,14 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // cache and return
         return self::$cached[$object_type][$id] = $obj;
     }//}}}
+    //static public function clearCache()//{{{
+    /** Erases cache
+     */
+    static public function clearCache()
+    {
+        $object_type = get_called_class();
+        self::$cached[$object_type] = array();
+    }//}}}
     //static public function loadFirstMatch( $filters, $order=null )//{{{
     /** Returns the first match for the $filters given
 	 *  
@@ -132,16 +150,39 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     static public function loadFirstMatch( $filters, $order=null)
     {
 		return static::buildCollection($filters, $order)->current();
+        $sql = static::sqlWhere($params, $filters);
+        
+        if ($order === null) $order = static::$default_order;
+        if ($order) $sql .= " ORDER BY $order";
+
+		$sql .= " LIMIT 1";
+
+        $row = static::getConnection()->fetchRowAssoc( new \ArtfulRobot\PDO_Query(
+                "Fetch records from " . static::TABLE_NAME,
+                "SELECT * FROM `" . static::TABLE_NAME . "` $sql", $params));
+		if (!$row) return null;
+		// create an object of the class
+		$obj = new static; 
+		$obj->loadFromArray($row,false,self::CAST_DB);
+        return $obj;
     }//}}}
     //static public function sqlWhere( &$params, $filters )//{{{
-    /** Returns the WHERE clause (or '') based on $filters
+    /** Returns the WHERE clause including "WHERE" (or '') based on $filters
       * 
       * $filters is an array of 
       *     field => 'value'
       * or  field => { operator:'>=', value: 'value' }
-      * or  field => { operator:'>=', value: 'value' }
+      * or  field => { operator:'<=', value: 'value' }
+      * or  field => { operator:'=', value: 'value' }
+      * or  field => { operator:'!=', value: 'value' }
+      * or  field => { operator:'<', value: 'value' }
+      * or  field => { operator:'>', value: 'value' }
       * or  field => { operator:'IN', values: array('value',...) }
+      * or  field => { operator:'NOT IN', values: array('value',...) }
       * or  field => { operator:'BETWEEN', value1: '', value2:'' }
+      * or  field => { operator:'NOT BETWEEN', value1: '', value2:'' }
+      * or  field => { operator:'IS NULL'}
+      * or  field => { operator:'IS NOT NULL'}
 	  *
 	  * how to do between? or field null|<=this todo
       * 
@@ -149,9 +190,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
      */
     static public function sqlWhere( &$params, $filters )
     {
-        $sql=$params = array();
+		if (!isset($params)) $params = array();
+        $sql= array();
         foreach ($filters as $key=>$filter){
             if (! is_array($filter)) {
+				// simple (common) case: key = val
                 $params[":$key"] = $filter;
                 $sql[] = "`$key` = :$key";
             } else {
@@ -159,17 +202,20 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                     $params[":$key"] = $filter['value'];
                     $sql[] = "`$key` $filter[operator] :$key";
 
-                } elseif ($filter['operator'] == 'IN') {
+				} elseif (in_array($filter['operator'], array('IN','NOT IN'))) {
                     $params[":$key"] = $filter['values'];
-                    $sql[] = "`$key` IN(:$key)";
+                    $sql[] = "`$key` $filter[operator] (:$key)";
 
-                } elseif ($filter['operator'] == 'BETWEEN') {
+				} elseif (in_array($filter['operator'], array('BETWEEN','NOT BETWEEN'))) {
                     $params[":{$key}1"] = $filter['value1'];
                     $params[":{$key}2"] = $filter['value2'];
-                    $sql[] = "`$key` BETWEEN :{$key}1 AND :{$key}2";
+                    $sql[] = "`$key` $filter[operator] :{$key}1 AND :{$key}2";
+
+				} elseif (in_array($filter['operator'], array('IS NULL','IS NOT NULL'))) {
+                    $sql[] = "`$key` $filter[operator]";
 
                 } else {
-                    throw new \Exception ("Operator unknown: $filter[operator]");
+                    throw new \Exception ("Operator unknown: '$filter[operator]'");
                 }
             }
         }
@@ -178,6 +224,10 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         return $sql;
     }//}}}
+    static public function getDefinition()/*{{{*/
+    {
+        return static::$definition;
+    }/*}}}*/
     public function __construct( $id=null, $not_found_creates_new=true )/*{{{*/
     {
         if ($id !== null) $this->loadFromDatabase( $id, $not_found_creates_new );
@@ -237,10 +287,6 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // nb. PHP 5.4 will call this automatically on json_encode();
         return $this->myData;
     } // }}}
-    public function getDefinition()/*{{{*/
-    {
-        return static::$definition;
-    }/*}}}*/
     public function getFieldNames()/*{{{*/
     {
         return array_keys(static::$definition);
@@ -517,6 +563,20 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                 throw new Exception( get_class($this) . " tried to set $name field is enum but without enum values");
             if (! in_array($value, $enum))
                 throw new Exception( get_class($this) . " tried to set $name field to '$value' but invalid. Valid values are " . implode(", ", $enum));
+            return $value;
+
+        } elseif ($cast == 'set') {
+            if (!isset($values) || !is_array($values) || count($values)==0) {
+                throw new Exception( get_class($this) . " tried to set $name field is SET but without values");
+			}
+			// if value(s) submitted, check each. Empty set is always valid.
+			if ($value) {
+				foreach (explode(',',$value) as $_) {
+					if (! in_array($_, $values)) {
+						throw new Exception( get_class($this) . " tried to set $name field to '$value' but '$_' is invalid. Valid values are " . implode(", ", $values));
+					}
+				}
+			}
             return $value;
 
         } elseif ($cast == 'bool') {

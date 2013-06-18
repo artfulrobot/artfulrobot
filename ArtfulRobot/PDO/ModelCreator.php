@@ -57,6 +57,8 @@ class PDO_ModelCreator
 				$line .= "'cast' => 'blob'      , 'size' => 65535";
 			elseif (preg_match('/^enum\((.+)\)/', $t, $matches))
 				$line .= "'cast' => 'enum'        , 'enum' => array( $matches[1] )";
+			elseif (preg_match('/^set\((.+)\)/', $t, $matches))
+				$line .= "'cast' => 'set'        , 'values' => array( $matches[1] )";
 			else {
 				echo "Encountered $t type - unknown";
 				exit;
