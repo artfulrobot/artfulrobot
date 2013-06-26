@@ -2,6 +2,20 @@
 namespace ArtfulRobot;
 
 /** Creates UTF-8 html emails with attachments and embedded images
+ *
+ * Example: simple text email
+ *
+ * $to = 'foo@example.com';
+ * $subject = 'test';
+ * $from = '"Your mate" <me@example.com>';
+ * $message = 'blah...';
+ * $return_path = 'blah...';
+ *
+ * $email = new \ArtfulRobot\Email($to, $subject, $message, $from, $return_path);
+ * $email->send();
+ *
+ *
+ *
   */
 class Email
 {
@@ -16,10 +30,10 @@ class Email
 	protected $uid;
 	protected $line_endings="\n";
 
-	//function __construct($to=null, $subject=null, $message=null)/*{{{*/
+    //  function __construct($to=null, $subject=null, $message=null, $from=null, $return_path=null) {{{
 	/** constructor
 	  */
-	function __construct($to=null, $subject=null, $message=null)
+	function __construct($to=null, $subject=null, $message=null, $from=null, $return_path=null)
 	{
 		// init blank body parts
 		$this->body = array('text'=>'','html'=>'');
@@ -27,11 +41,28 @@ class Email
 		$this->uid = md5(serialize($this->body) . time());
 		// set up default headers
 		$this->headers['MIME-Version']='1.0';
-		$this->headers['Content-Type']= "multipart/mixed; boundary=\"\ArtfulRobot\Email-mixed-$this->uid\"";
+		$this->headers['Content-Type']= "multipart/mixed; boundary=\"ARE-mixed-$this->uid\"";
 
 		if ($to!==null) $this->setTo($to);
 		if ($subject!==null) $this->setSubject($subject);
-		if ($message!==null) $this->add_message($message);
+
+        // set message checking for opening tag to determine if it's html.
+        // if you want to send a text only message using < then don't pass this parameter
+        // and use setMessageText() directly
+		if ($message!==null) {
+            if (strpos($message,'<')!==false) {
+                $this->setMessageHtml($message);
+            } else {
+                $this->setMessageText($message);
+            }
+        }
+
+        if ($from!==null) {
+            $this->setFrom($from);
+        }
+        if ($return_path!==null) {
+            $this->setReturnPath($return_path);
+        }
 		return $this;
 	}/*}}}*/
 	//public function setTo($to)/*{{{*/
@@ -149,10 +180,10 @@ class Email
 
 		$uid =$this->uid;
 		$body = 
-			 "--\ArtfulRobot\Email-mixed-$uid\r\n"
-			."Content-Type: multipart/alternative; boundary=\"\ArtfulRobot\Email-alt-$uid\"\r\n"
+			 "--ARE-mixed-$uid\r\n"
+			."Content-Type: multipart/alternative; boundary=\"ARE-alt-$uid\"\r\n"
 			."\r\n"
-			."--\ArtfulRobot\Email-alt-$uid\r\n"
+			."--ARE-alt-$uid\r\n"
 			."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['text']
@@ -161,7 +192,7 @@ class Email
 		// html
 		if (empty($this->body['related']))
 			$body .=
-			 "--\ArtfulRobot\Email-alt-$uid\r\n"
+			 "--ARE-alt-$uid\r\n"
 			."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
 			.$this->body['html']
@@ -169,32 +200,32 @@ class Email
 		else
 		{
 			$body .=
-				 "\r\n--\ArtfulRobot\Email-alt-$uid\r\n"
-				."Content-Type: multipart/related; boundary=\"\ArtfulRobot\Email-rel-$uid\"\r\n"
+				 "\r\n--ARE-alt-$uid\r\n"
+				."Content-Type: multipart/related; boundary=\"ARE-rel-$uid\"\r\n"
 				."\r\n"
-				."--\ArtfulRobot\Email-rel-$uid\r\n"
+				."--ARE-rel-$uid\r\n"
 				."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 				."Content-Transfer-Encoding: 8bit\r\n"
 				."\r\n";
 			$html = $this->body['html'];
 			foreach ($this->body['related'] as $name => $filename)
-				$subs['{' . $name . '}'] = 'cid:\ArtfulRobot\Email-CID-'.$name;
+				$subs['{' . $name . '}'] = 'cid:ARE-CID-'.$name;
 			$body .= strtr($html, $subs)
 				."\r\n";
 
 			foreach ($this->body['related'] as $name => $filename)
 				$body .=
-				 "--\ArtfulRobot\Email-rel-$uid\r\n"
+				 "--ARE-rel-$uid\r\n"
 				. $this->attach($filename, $name)
 				. "\r\n";
 
 			$body .=
-				 "--\ArtfulRobot\Email-rel-$uid--\r\n"
+				 "--ARE-rel-$uid--\r\n"
 				. "\r\n";
 			
 		}
 		$body .=
-			 "--\ArtfulRobot\Email-alt-$uid--\r\n"
+			 "--ARE-alt-$uid--\r\n"
 			."\r\n";
 
 		if ($this->attachments)
@@ -204,10 +235,10 @@ class Email
 			//and split it into smaller chunks
 			foreach ($this->attachments as $_)
 				$body .= 
-					 "--\ArtfulRobot\Email-mixed-$uid\r\n"
+					 "--ARE-mixed-$uid\r\n"
 					 . $this->attach($_);
 		}
-		$body .= "--\ArtfulRobot\Email-mixed-$uid--\r\n";
+		$body .= "--ARE-mixed-$uid--\r\n";
 
 		return $body;
 	}/*}}}*/
@@ -220,7 +251,7 @@ class Email
 	{
 		// Return Path
 		// if set with setReturnPath, this is used.
-		// if set in headers as Return-Path, this is used.
+		// otherwise, if set in headers as Return-Path, this is used.
 
 		$return_path = (!empty($this->return_path)
 				? $this->return_path
@@ -305,7 +336,7 @@ class Email
 				.( $cid ? '' : ";\r\n name=\"$file\"" )
 				. "\r\n"
 				."Content-Transfer-Encoding: base64\r\n"
-				.( $cid ? "Content-ID: <\ArtfulRobot\Email-CID-$cid>\r\n" 
+				.( $cid ? "Content-ID: <ARE-CID-$cid>\r\n" 
 						: "Content-Disposition: attachment;\r\n"
 						 ." filename=\"$file\"\r\n")
 				."\r\n"
@@ -329,7 +360,20 @@ class Email
 	//protected function createHtmlFromText()/*{{{*/
 	protected function createHtmlFromText()
 	{
-		$this->body['html'] = preg_replace('/(\r\n|\n|\r)/','<br />',$this->body['text']);
+        // add <br/> at line endings
+        $html = preg_replace('/(\r\n|\n|\r)/',"<br />\n",$this->body['text']);
+
+        $html = preg_replace('@
+                (https?://)   # $1
+                (             # $2
+                    (?:\w+?\.)+              
+                    (?:[a-z]{2,5})
+                    (?:/[^?< \t\n]*)?
+                )             
+                ([?]\S+)?     # $3
+                @x',"<a href='$1$2$3'\n >$2</a>",$html);
+
+		$this->body['html'] = $html;
 	}/*}}}*/
 
 	static public function mbDetectEncoding( $string, $detect_order=null ) // {{{
