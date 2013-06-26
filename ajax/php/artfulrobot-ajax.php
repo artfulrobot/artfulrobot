@@ -1,4 +1,6 @@
 <?php 
+use \ArtfulRobot as ARL;
+use \CMS as CMS;
 /*
 	Copyright 2007-2011 © Rich Lott 
 
@@ -115,7 +117,7 @@ abstract class ARL_Ajax_Module_Group extends ARL_Ajax_Module
 
 	function run_module()
 	{
-		$task = ARL_Array::value('task', $this->request);
+		$task = ARL\Utils::arrayValue('task', $this->request);
 		if (! $task )
 		{
 			$this->response->error = get_class($this) . " Task '$task' invalid";
@@ -162,12 +164,12 @@ class ARL_Ajax_Request
 
 		if ($_POST)
 		{
-			$todo = ARL_Array::value('arlClass',  $_POST);
+			$todo = ARL\Utils::arrayValue('arlClass',  $_POST);
 			self::$request = & $_POST;
 		}
 		else
 		{
-			$todo = ARL_Array::value('arlClass',  $_GET);
+			$todo = ARL\Utils::arrayValue('arlClass',  $_GET);
 			self::$request = & $_GET;
 		}
 
@@ -181,7 +183,7 @@ class ARL_Ajax_Request
 		else self::run_process( $todo );
 
 		// send response and exit now unless debugging
-		if (!ARL_Array::value('debug', self::$request))
+		if (!ARL\Utils::arrayValue('debug', self::$request))
 		   	$response->send();
 
 		ARL_Debug::log("!! Response object:", $response);
