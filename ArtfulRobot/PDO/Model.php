@@ -55,11 +55,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     {
         throw new Exception(get_called_class() . " must implement getConnection()");
     }/*}}}*/
-    //static public function buildCollection( $filters, $order=null )//{{{
+    //public static function buildCollection( $filters, $order=null )//{{{
     /**
       * return a Collection object 
       */
-    static public function buildCollection( $filters, $order=null )
+    public static function buildCollection( $filters, $order=null )
     {
         $collection = new Collection();
 
@@ -80,11 +80,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         }
         return $collection;
     }//}}}
-    //static public function buildCollectionSql( &params, $filters, $order=null )//{{{
+    //public static function buildCollectionSql( &params, $filters, $order=null )//{{{
     /**
       * sets up params and returns SQL for buildCollection
       */
-    static public function buildCollectionSql( &$params, $filters, $order=null )
+    public static function buildCollectionSql( &$params, $filters, $order=null )
 	{
         $sql = static::sqlWhere($params, $filters);
         
@@ -93,7 +93,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
 		return "SELECT * FROM `" . static::TABLE_NAME . "` $sql";
 	} // }}}
-    //static public function bulkDelete( $filters )//{{{
+    //public static function bulkDelete( $filters )//{{{
     /**
       * return a Collection object 
       * 
@@ -103,7 +103,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       * 
       * filters are ANDed together.
       */
-    static public function bulkDelete( $filters )
+    public static function bulkDelete( $filters )
     {
         $sql = static::sqlWhere($params, $filters);
 
@@ -118,11 +118,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // are not destroyed (so it's a bad idea to cache these).
         self::$cached[get_called_class()] = array();
     }//}}}
-    //static public function loadCached( $id )//{{{
+    //public static function loadCached( $id )//{{{
     /** Returns cache or creates object 
      *  Used to load models from the database; ensures all php models for one record are shared
      */
-    static public function loadCached( $id, $data=null )
+    public static function loadCached( $id, $data=null )
     {
         $object_type = get_called_class();
         if (isset(self::$cached[$object_type][$id])) return self::$cached[$object_type][$id];
@@ -135,19 +135,19 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // cache and return
         return self::$cached[$object_type][$id] = $obj;
     }//}}}
-    //static public function clearCache()//{{{
+    //public static function clearCache()//{{{
     /** Erases cache
      */
-    static public function clearCache()
+    public static function clearCache()
     {
         $object_type = get_called_class();
         self::$cached[$object_type] = array();
     }//}}}
-    //static public function loadFirstMatch( $filters, $order=null )//{{{
+    //public static function loadFirstMatch( $filters, $order=null )//{{{
     /** Returns the first match for the $filters given
 	 *  
      */
-    static public function loadFirstMatch( $filters, $order=null)
+    public static function loadFirstMatch( $filters, $order=null)
     {
 		return static::buildCollection($filters, $order)->current();
         $sql = static::sqlWhere($params, $filters);
@@ -166,7 +166,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 		$obj->loadFromArray($row,false,self::CAST_DB);
         return $obj;
     }//}}}
-    //static public function sqlWhere( &$params, $filters )//{{{
+    //public static function sqlWhere( &$params, $filters )//{{{
     /** Returns the WHERE clause including "WHERE" (or '') based on $filters
       * 
       * $filters is an array of 
@@ -188,7 +188,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       * 
       * filters are ANDed together.
      */
-    static public function sqlWhere( &$params, $filters )
+    public static function sqlWhere( &$params, $filters )
     {
 		if (!isset($params)) $params = array();
         $sql= array();
@@ -224,7 +224,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         return $sql;
     }//}}}
-    static public function getDefinition()/*{{{*/
+    public static function getDefinition()/*{{{*/
     {
         return static::$definition;
     }/*}}}*/
