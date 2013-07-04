@@ -117,7 +117,7 @@ class Email
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
-		$message = mb_convert_encoding($message, 'UTF-8', $this->mbDetectEncoding($message));
+		$message = mb_convert_encoding($message, 'UTF-8', static::mbDetectEncoding($message));
 		$this->body['text'] = $message;
 	}/*}}}*/
 	//public function setMessageHtml( $message, $related_files )/*{{{*/
@@ -134,7 +134,7 @@ class Email
 	{
 		$message = preg_replace('/(\r\n|\n|\r)$/m', "\r\n", $message);
 		// let's always send utf8 and be done with it...
-		$message = mb_convert_encoding($message, 'UTF-8', $this->mbDetectEncoding($message));
+		$message = mb_convert_encoding($message, 'UTF-8', static::mbDetectEncoding($message));
 
 		$this->body['html'] = $message;
 		$this->body['related'] = $related_files;
@@ -175,8 +175,8 @@ class Email
 
 
 		// email should be 70 characters max
-		$this->body['html'] = wordwrap($this->body['html'], 70);
-		$this->body['text'] = wordwrap($this->body['text'], 70);
+		$body_html = wordwrap($this->body['html'], 70);
+		$body_text = wordwrap($this->body['text'], 70);
 
 		$uid =$this->uid;
 		$body = 
@@ -186,7 +186,7 @@ class Email
 			."--ARE-alt-$uid\r\n"
 			."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
-			.$this->body['text']
+			.$body_text
 			."\r\n";
 
 		// html
@@ -195,7 +195,7 @@ class Email
 			 "--ARE-alt-$uid\r\n"
 			."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 			."Content-Transfer-Encoding: 8bit\r\n\r\n"
-			.$this->body['html']
+			.$body_html
 			."\r\n";
 		else
 		{
@@ -207,7 +207,7 @@ class Email
 				."Content-Type: text/html; charset=\"UTF-8\"\r\n"
 				."Content-Transfer-Encoding: 8bit\r\n"
 				."\r\n";
-			$html = $this->body['html'];
+			$html = $body_html;
 			foreach ($this->body['related'] as $name => $filename)
 				$subs['{' . $name . '}'] = 'cid:ARE-CID-'.$name;
 			$body .= strtr($html, $subs)
@@ -277,14 +277,11 @@ class Email
 		 $mail_headers = '';
 		 // prefer Drupal's mimeHeaderEncode if we have it
 		 // no - inconsistent behaviour see http://api.drupal.org/api/drupal/includes%21unicode.inc/function/mimeHeaderEncode/7#comment-44358
-		 if (function_exists('mimeHeaderEncode') && false)
-		 {
+		 if (function_exists('mimeHeaderEncode') && false) {
 			 $mail_subject = mimeHeaderEncode($this->subject);
 			 foreach ($this->getHeaders() as $k=>$v)
 				$mail_headers .= "$k: " . mimeHeaderEncode($v) . "\r\n";
-		 }
-		 else
-		 {
+		 } else {
 			 $mail_subject = self::mimeHeaderEncode($this->subject);
 			 foreach ($this->getHeaders() as $k=>$v)
 				 $mail_headers .= self::mimeHeaderEncode("$k: $v") . "\r\n";
@@ -296,7 +293,7 @@ class Email
 
 		 $mail_to = implode(", ", $this->to);
 
-		 // file_put_contents('/tmp/arl-email', "$mail_to\n$mail_subject\n$mail_headers\n$mail_body");
+		 //file_put_contents('/tmp/arl-email', "$mail_to\n$mail_subject\nActual email follows, headers, body:\n\n$mail_headers\n$mail_body");
 
 		 if (isset($return_path)) {
 			 //\ArtfulRobot\Debug::log("!! sending with -f");
@@ -319,7 +316,7 @@ class Email
 					 $mail_subject, 
 					 $mail_body, 
 					 $mail_headers
-					 );
+                 );
 		 }
 		 return $mail_result;
 	}/*}}}*/
@@ -429,7 +426,7 @@ class Email
 		 */
 
 		// coding check
-		if ($detect_order!==null) throw new Exception(" mb_detect_encrl does not take detect_order, unlike php's native function.");
+		if ($detect_order!==null) throw new Exception("mbDetectEncoding does not take detect_order, unlike php's native function.");
 		// first, is it ASCII?
 		if (mb_check_encoding( $string, 'ASCII' )) return 'ASCII';
 
@@ -448,22 +445,23 @@ class Email
 		)+%xs", $string) )
 		{
 
-			if ( mbDetectEncoding($string,'UTF-8') === 'UTF-8' )
-			{
+			if ( mb_detect_encoding($string,'UTF-8') === 'UTF-8' ) {
 				if (
-					// now is it valid?
-					// From http://w3.org/International/questions/qa-forms-utf-8.html
-					preg_match("%^(?:(?>				 # the ?> means the subpattern will not be recursed into IMPORTANT
-					[\x09\x0A\x0D\x20-\x7E]            # ASCII
-					| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
-					|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
-					| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
-					|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
-					|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
-					| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
-					|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
-				))*$%xs", $string)
-			) return 'UTF-8';
+                        // now is it valid?
+                        // From http://w3.org/International/questions/qa-forms-utf-8.html
+                        preg_match("%^(?:(?>				 # the ?> means the subpattern will not be recursed into IMPORTANT
+                        [\x09\x0A\x0D\x20-\x7E]            # ASCII
+                        | [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+                        |  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
+                        | [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+                        |  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
+                        |  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
+                        | [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+                        |  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+                    ))*$%xs", $string)
+                ) {
+                    return 'UTF-8';
+                }
 			}
 		}
 
@@ -491,7 +489,6 @@ class Email
 		mb_internal_encoding($orig_encoding);
 		return $encoded;
 	}/*}}}*/
-
 }
 
 if (!function_exists('mail_rl')) {
