@@ -22,12 +22,12 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 
-abstract class Ajax_Module
+abstract class AJAX_Module
 {
 	/** \ArtfulRobot\Ajax_Response object that we write to.
 	 */
 	protected $response;
-	/** array of authgroups that the person must be in
+	/** array of permissions that the person must have
 	 *  in order to run this module
 	 *  if empty, anyone can run it.
 	 */ 
@@ -39,15 +39,17 @@ abstract class Ajax_Module
 	function __construct( $response )
 	{
 		if ( ! ($response instanceof \ArtfulRobot\Ajax_Response) )
-			throw new Exception("\\ArtfulRobot\\Ajax_Module::__construct requires \\ArtfulRobot\\Ajax_Response object.");
+			throw new \Exception("\\ArtfulRobot\\Ajax_Module::__construct requires \\ArtfulRobot\\Ajax_Response object.");
 		$this->response = $response;
 	}
 
-	/** Externally callable method - ensures check_permissions is called before run_module
+	/** Externally callable method - ensures checkPermissions is called before run_module
 	 */
-	final public function run()
+	public final function run()
 	{
-		if (! $this->check_permissions()) throw new \ArtfulRobot\Ajax_Exception("Permission denied.");
+		if (! $this->checkPermissions()) {
+            throw new \ArtfulRobot\Ajax_Exception("Permission denied.");
+        }
 		$this->run_module();
 	}
 
@@ -55,22 +57,23 @@ abstract class Ajax_Module
 	 */
 	abstract protected function run_module();
 
+	//public final function checkPermissions()/*{{{*/
 	/** Check permissions using CMS::userInGroup(), return true|false 
 	 *
 	 * Nb. a minimal CMS class must therefore be created for each CMS it runs under
 	 */
-	public function check_permissions()
+	public final function checkPermissions()
 	{
-		// if no minimal CMS class, no security(!)
-		if (! class_exists('\CMS')) return true;
-
-		// no groups_required = ok
+		// no groups_required = ok, no security
 		if (! $this->groups_required) return true;
 
 		// all must match
-		foreach ($this->groups_required as $group_name)
-			if (!\CMS::userInGroup($group_name)) return false;
+		foreach ($this->groups_required as $group_name) {
+			if (! AJAX_Bridge::checkPermission($group_name)) {
+                return false;
+        }}
 		return true;
-	}
+	}/*}}}*/
+
 
 }
