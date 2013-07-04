@@ -48,12 +48,13 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  loadProfile sets a lot of stuff at once.
  *  All profiles include error_log on finish.
- *  online: file on finish only.
+ *  online: file on fatal only.
+ *  file_minimal : file important+
  *  debug: file for everything
  *  debug_important:  file for important only
- *  unsafeHTML: file everything, finish outputs html. Intercept redirect.
+ *  unsafe_html: file everything, finish outputs html. Intercept redirect.
  *  cterm: output everything to colour terminal
- *  unsafe: output everything using echo in realtime. 
+ *  unsafe_echo: output everything using echo in realtime. 
  *
  */
 
@@ -138,6 +139,10 @@ class Debug
     {
 		static::$current = array();
         // figure out level
+        $prefix = substr($msg,0,2);
+        if (!$prefix) {
+            $prefix = '';
+        }
         $map = array(
             '->' => static::LEVEL_FINISH_REDIRECT,
             '$$' => static::LEVEL_FINISH_NATURAL,
@@ -145,10 +150,12 @@ class Debug
             '!!' => static::LEVEL_IMPORTANT,
             '>>' => static::LEVEL_STACK,
             '<<' => static::LEVEL_STACK);
-        if (array_key_exists(static::$current['prefix'], $map)) {
+        if (array_key_exists($prefix, $map)) {
+            static::$current['prefix'] = $prefix;
             $level = $map[static::$current['prefix']];
         } else {
             $level = static::LEVEL_LOG;
+            static::$current['prefix'] = '';
         }
 
         // do not respond if we're not used at this level
@@ -245,16 +252,27 @@ class Debug
 		return true;
 	} // }}}
 	// public static function handleException($exception) // {{{
-	/** exception handler 
+	/** uncaught exception handler - calls fatal()
 	 */
 	public static function handleException($exception)
 	{
-        static::logException($exception);
-        exit;// ??? xxx
+		self::fatal("Uncaught Exception: (backtrace follows) "
+                . ( $exception->getCode() 
+                    ? '(code ' . $exception->getCode() . ')' 
+                    : '' ) 
+                . $exception->getMessage() , static::getTrace($exception->getTrace()));
 	} // }}}
-	public static function logException($exception)//{{{
+	//public static function logException($exception)//{{{
+    /** log exception with backtrace at LEVEL_FINISH_FATAL but not itself fatal
+     *  This will trigger all the fatal level services that are setup,
+     *  If one of those causes an exit (e.g. outputHtml) then it WILL be fatal
+     *  This way on a dev environment this call will be fatal, and
+     *  on a live one it might write a file but carry on to produce a friendly 
+     *  error message for users.
+     */
+	public static function logException($exception)
 	{
-		self::log("XX Exception: "
+		self::log("XX Caught Exception: (backtrace follows) "
                 . ( $exception->getCode() 
                     ? '(code ' . $exception->getCode() . ')' 
                     : '' ) 
@@ -372,11 +390,11 @@ class Debug
             // write everything to a file
             static::setServiceLevel('file', static::LEVEL_LOG);
             // crashes result in error_log and html
-            static::setFatalServices('file','error_log','output_html');
+            static::setFatalServices('file','error_log','store','output_html');
             // redirects are intercepted
-            static::setRedirectServices('intercept_redirect','file','output_html');
+            static::setRedirectServices('intercept_redirect','file','store','output_html');
             // templates can access log html at finish.
-            static::setFinishServices('allow_html','file');
+            static::setFinishServices('allow_html','store','file');
 
         } elseif ($profile == 'cterm') {
             // everything out to cterm
@@ -463,11 +481,11 @@ class Debug
         if ( isset(static::$store['vars']) && is_object( static::$store['vars'] ) )
             static::$store['vars']  = serialize(static::$store['vars'] );
 
-        // fatal? Add a trace
-        if (static::$current['prefix'] == 'XX') {
+        // fatal? Add a trace as only calls through handleException() will have one 
+        if (static::$current['prefix'] == 'XX' && substr(static::$current['msg'],0,12)!='XX Exception') {
             static::$store[] = array(
                     'msg'=>'Backtrace:',
-					'level' => self::LEVEL_ABNORMAL_EXIT,
+					'level' => self::LEVEL_IMPORTANT,
                     'prefix'=>'backtrace',
                     'mem'=>'',
                     'depth'=>'',
@@ -481,7 +499,7 @@ class Debug
     protected static function serviceOutputHtml()/*{{{*/
     {
         // output html version of stored log
-        echo static::getHtml();
+        echo static::generateHtml();
     }/*}}}*/
     protected static function serviceInterceptRedirect()/*{{{*/
     {
@@ -599,7 +617,7 @@ class Debug
 		if (!$trace) $trace = debug_backtrace();
 
 		$penultimate = false;
-		while (!empty($trace[0]) && ($trace[0]['class'] == 'ArtfulRobot\Debug')) {
+		while (!empty($trace[0]['class']) && ($trace[0]['class'] == 'ArtfulRobot\Debug')) {
 			$penultimate=array_shift($trace);
 		}
 		if($penultimate) {
@@ -609,7 +627,18 @@ class Debug
     }/*}}}*/
     protected static function setEndServices($new_services,$new_level)/*{{{*/
     {
-        // validate services
+        // validate services and ensure that outputHtml is the last thing.
+        $outputHtml = false;
+
+
+        if (in_array('output_html', $new_services)) {
+            $new_services = array_diff($new_services, array('store','output_html'));
+            // make store the first thing
+            array_unshift($new_services, 'store');
+            // append output_html as the last thing (it calls exit)
+            array_push($new_services, 'output_html');
+        }
+
         foreach ($new_services as &$new_service) {
             if (!isset(static::$services[$new_service])) {
                 throw new \Exception("Debugger does not know '$new_service'. Knows only " . implode(', ',array_keys(static::$services)));
@@ -677,7 +706,10 @@ class Debug
 		$html = "
 <script>
 function arlDebugUI() {
-	if (!window.arlDebugCss) jQuery(\"$css\").appendTo('head');
+	if (window.arlDebugCss) {
+        return;
+    }
+    jQuery(\"$css\").appendTo('head');
 	window.arlDebugCss = 1;
 	var d=jQuery('.arl-debug');
 	d.find('.arl-debug-var-toggle').unbind('click').click(function(){
@@ -693,7 +725,7 @@ function arlDebugUI() {
 if(typeof jQuery=='undefined') {
 	var jqTag = document.createElement('script');
 	jqTag.src = '//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js';
-	jqTag.onload = arlDebugUI;
+	jqTag.onload = function(){jQuery(arlDebugUI);};
 	document.getElementsByTagName('head')[0].appendChild(jqTag);
 } else {
 	jQuery(arlDebugUI);
