@@ -34,8 +34,7 @@ class PDO_Query
 		if ( ! is_array($params) ) return;
 
 		// scan params for array values
-		foreach ($this->params as $key=>$value)
-		{
+		foreach ($this->params as $key=>$value) {
 			if (!is_array($value)) continue;
 
 			$c = count($value);
@@ -48,8 +47,7 @@ class PDO_Query
             } else {
 				$i=0;
 				$replacement_params = array();
-				while( count($value)>0 )
-				{
+				while( count($value)>0 ) {
                     $single_val = array_shift($value);
 					$single_key = $key . "__" . $i++;
 					$this->params[$single_key] = $single_val;
@@ -69,7 +67,7 @@ class PDO_Query
 
 	public function __toString()
 	{
-		return "\ArtfulRobot\PDO_Query: \n"
+		return "\\ArtfulRobot\PDO_Query: \n"
 			. strtr($this->sql, array("\t"=>"  "))
 			. "\nParams:\n" 
 			. print_r($this->params,1);

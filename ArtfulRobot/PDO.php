@@ -8,6 +8,10 @@ class PDO extends \PDO
 	const FORMAT_TIME = 'G.i.s';
 	const FORMAT_DATE = 'Y-m-d';
 	const FORMAT_DATETIME = 'Y-m-d G.i.s';
+
+    /** enable/disable query debugging */
+    public $debug = true;
+
     //public static function validQueryArg($query){{{
     /** ensure query is a ArtfulRobot\PDO_Query object */
     public static function validQueryArg($query)
@@ -20,6 +24,20 @@ class PDO extends \PDO
             throw new \Exception("Invalid query argument. Expected ArtfulRobot\\PDO_Query or String.");
         }
     }//}}}
+	//public function prepare(\ArtfulRobot\PDO_Query|string $query, $driver_opts=null)/*{{{*/
+	/** Wrapper for the sake of inclcuding debugging 
+     */
+	public function prepare($query, $driver_opts=null)
+	{
+        $query = static::validQueryArg($query);
+		$this->debug("PDO::prepare $query->comment",array('SQL'=>$query->sql,'params'=>$query->params));
+        if ($driver_opts) {
+            $stmt = parent::prepare($query->sql,$driver_opts);
+        } else {
+            $stmt = parent::prepare($query->sql);
+        }
+		return $stmt;
+	}/*}}}*/
 	//public function fetchSingle(\ArtfulRobot\PDO_Query|string $query, $col_name=null)/*{{{*/
 	/** Run the \ArtfulRobot\PDO_Query supplied and return first (or $col_name) field from first row */
 	public function fetchSingle($query, $col_name=null)
@@ -35,35 +53,35 @@ class PDO extends \PDO
 			$output = \ArtfulRobot\Utils::arrayValue( $col_name, $row);
 		}
 
-		\ArtfulRobot\Debug::log("! fetchSingle returning: $output");
+		$this->debug("! fetchSingle returning: $output");
 		return $output;
 	}/*}}}*/
 	public function fetchRowAssoc( $query )/*{{{*/
 	{
         $query = static::validQueryArg($query);
-		\ArtfulRobot\Debug::log(">>$query->comment");
+		$this->debug(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt) 
+		if (!$stmt)
 		{
-			\ArtfulRobot\Debug::log("<< failed to run");
+			$this->debug("<< failed to run");
 			return null;
 		}
 
 		$output = $stmt->fetch( PDO::FETCH_ASSOC );
 
-		\ArtfulRobot\Debug::log("<< row fetched");
+		$this->debug("<< row fetched");
 		return $output;
 	}/*}}}*/
 	public function fetchRowsAssoc($query , $key_field = null )/*{{{*/
 	{
         $query = static::validQueryArg($query);
-		\ArtfulRobot\Debug::log(">>$query->comment");
+		$this->debug(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt) 
+		if (!$stmt)
 		{
-			\ArtfulRobot\Debug::log("<< failed to run");
+			$this->debug("<< failed to run");
 			return null;
 		}
 		$output = array();
@@ -73,23 +91,23 @@ class PDO extends \PDO
 		else while ($row = $stmt->fetch( PDO::FETCH_ASSOC ))
 			$output[] = $row;
 
-		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
+		$this->debug("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
 	// public function fetchRowsSingle(\ArtfulRobot\PDO_Query|String $query , $col_name = null, $key_field = null )/*{{{*/
-	/** fetch array of single fields (defaults to first field), optionally indexed by another field 
-	 * 
+	/** fetch array of single fields (defaults to first field), optionally indexed by another field
+	 *
 	 *  Nb. specifying key_field is quite different to not.
 	 */
 	public function fetchRowsSingle($query , $col_name = null, $key_field = null )
 	{
         $query = static::validQueryArg($query);
-		\ArtfulRobot\Debug::log(">>$query->comment");
+		$this->debug(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt) 
+		if (!$stmt)
 		{
-			\ArtfulRobot\Debug::log("<< failed to run");
+			$this->debug("<< failed to run");
 			return null;
 		}
 		$output = array();
@@ -106,7 +124,7 @@ class PDO extends \PDO
 				$output[] = $row[ $col_name ];
 		}
 
-		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
+		$this->debug("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
 	// public function fetchAffectedCount(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
@@ -115,17 +133,17 @@ class PDO extends \PDO
 	public function fetchAffectedCount( $query )
 	{
         $query = static::validQueryArg($query);
-		\ArtfulRobot\Debug::log(">>$query->comment");
+		$this->debug(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt) 
+		if (!$stmt)
 		{
-			\ArtfulRobot\Debug::log("<< failed to run");
+			$this->debug("<< failed to run");
 			return null;
 		}
-		
+
 		$count = $stmt->rowCount();
-		\ArtfulRobot\Debug::log("<< $count affected");
+		$this->debug("<< $count affected");
 		return $count;
 	}/*}}}*/
 	// public function fetchInsertId(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
@@ -134,17 +152,17 @@ class PDO extends \PDO
 	public function fetchInsertId( $query )
 	{
         $query = static::validQueryArg($query);
-		\ArtfulRobot\Debug::log(">>$query->comment");
+		$this->debug(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt) 
+		if (!$stmt)
 		{
-			\ArtfulRobot\Debug::log("<< failed to run");
+			$this->debug("<< failed to run");
 			return null;
 		}
-		
+
 		$id = $this->lastInsertId();
-		\ArtfulRobot\Debug::log("<< id: $id");
+		$this->debug("<< id: $id");
 		return $id;
 	}/*}}}*/
 	//public function fetchFoundRows()/*{{{*/
@@ -165,21 +183,22 @@ class PDO extends \PDO
 			if (! $query->params) $stmt = $this->query($query->sql);
 			else
 			{
-				$stmt = $this->prepare($query->sql);
+                // we don't call our own prepare method as this only adds logging
+				$stmt = parent::prepare($query->sql);
 				if (! $stmt->execute($query->params) )
 					throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
 			}
-			
-			Debug::log( $query->comment, array(
-				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
-				'params:' =>$query->params,                               
-				'time:'   =>sprintf("%0.3fs", microtime(true) - $mtime), 
-				'rows:'   =>$stmt->rowCount(),                                             
+
+			$this->debug( $query->comment, array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),
+				'params:' =>$query->params,
+				'time:'   =>sprintf("%0.3fs", microtime(true) - $mtime),
+				'rows:'   =>$stmt->rowCount(),
 				));
 		} catch(\Exception $e) {
-			Debug::log( "!! Exception caused by: $query->comment", array(
-				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
-				'params:' =>$query->params,                              
+			$this->debug( "!! Exception caused by: $query->comment", array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),
+				'params:' =>$query->params,
 				));
 			// throw the exception again now.
 			throw $e;
@@ -189,7 +208,7 @@ class PDO extends \PDO
 
 	//public static function castDatetime( $date, $format='datetime', $false_value=null)/*{{{*/
 	/** prepare a string that should be a date|datetime|time
-	 * 
+	 *
 	 * @param string $date
 	 * @param string $format one of datetime(default), date or time
 	 * @param mixed $false_value returned if $date is ZLS/null/0/false
@@ -197,7 +216,7 @@ class PDO extends \PDO
 	public static function castDatetime( $date, $format='datetime', $false_value=null)
 	{
 		// nothing sent?
-		if (! $date) 
+		if (! $date)
 		{
 			// special case, "now" strtotime will handle this nicely.
 			if ($false_value != 'now') return $false_value;
@@ -212,5 +231,13 @@ class PDO extends \PDO
 
 		return date($format, $time);
 	}/*}}}*/
+    protected function debug($m,$p=null)/*{{{*/
+    {
+        if (!$this->debug) {
+            return;
+        }
+
+        Debug::log($m, $p);
+    }/*}}}*/
 }
 
