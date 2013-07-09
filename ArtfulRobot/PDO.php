@@ -8,15 +8,6 @@ class PDO extends \PDO
 	const FORMAT_TIME = 'G.i.s';
 	const FORMAT_DATE = 'Y-m-d';
 	const FORMAT_DATETIME = 'Y-m-d G.i.s';
-    const CACHE_MAX = 20;
-    const CACHE_MIN = 10;
-
-    /** SQL statement cache */
-    protected $sql_cache = array();
-
-    /** enable/disable any calls to Debug */
-    public  $debug = false;
-
     //public static function validQueryArg($query){{{
     /** ensure query is a ArtfulRobot\PDO_Query object */
     public static function validQueryArg($query)
@@ -44,37 +35,35 @@ class PDO extends \PDO
 			$output = \ArtfulRobot\Utils::arrayValue( $col_name, $row);
 		}
 
-        if ($this->debug) {
-            \ArtfulRobot\Debug::log("! fetchSingle returning: $output");
-        }
+		\ArtfulRobot\Debug::log("! fetchSingle returning: $output");
 		return $output;
 	}/*}}}*/
 	public function fetchRowAssoc( $query )/*{{{*/
 	{
         $query = static::validQueryArg($query);
-		$this->debug && \ArtfulRobot\Debug::log(">>$query->comment");
+		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt)
+		if (!$stmt) 
 		{
-			$this->debug && \ArtfulRobot\Debug::log("<< failed to run");
+			\ArtfulRobot\Debug::log("<< failed to run");
 			return null;
 		}
 
 		$output = $stmt->fetch( PDO::FETCH_ASSOC );
 
-		$this->debug && \ArtfulRobot\Debug::log("<< row fetched");
+		\ArtfulRobot\Debug::log("<< row fetched");
 		return $output;
 	}/*}}}*/
 	public function fetchRowsAssoc($query , $key_field = null )/*{{{*/
 	{
         $query = static::validQueryArg($query);
-		$this->debug && \ArtfulRobot\Debug::log(">>$query->comment");
+		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt)
+		if (!$stmt) 
 		{
-			$this->debug && \ArtfulRobot\Debug::log("<< failed to run");
+			\ArtfulRobot\Debug::log("<< failed to run");
 			return null;
 		}
 		$output = array();
@@ -84,23 +73,23 @@ class PDO extends \PDO
 		else while ($row = $stmt->fetch( PDO::FETCH_ASSOC ))
 			$output[] = $row;
 
-		$this->debug && \ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
+		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
 	// public function fetchRowsSingle(\ArtfulRobot\PDO_Query|String $query , $col_name = null, $key_field = null )/*{{{*/
-	/** fetch array of single fields (defaults to first field), optionally indexed by another field
-	 *
+	/** fetch array of single fields (defaults to first field), optionally indexed by another field 
+	 * 
 	 *  Nb. specifying key_field is quite different to not.
 	 */
 	public function fetchRowsSingle($query , $col_name = null, $key_field = null )
 	{
         $query = static::validQueryArg($query);
-		$this->debug && \ArtfulRobot\Debug::log(">>$query->comment");
+		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt)
+		if (!$stmt) 
 		{
-			$this->debug && \ArtfulRobot\Debug::log("<< failed to run");
+			\ArtfulRobot\Debug::log("<< failed to run");
 			return null;
 		}
 		$output = array();
@@ -117,7 +106,7 @@ class PDO extends \PDO
 				$output[] = $row[ $col_name ];
 		}
 
-		$this->debug && \ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
+		\ArtfulRobot\Debug::log("<< " . count($output) . " rows fetched");
 		return $output;
 	}/*}}}*/
 	// public function fetchAffectedCount(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
@@ -126,17 +115,17 @@ class PDO extends \PDO
 	public function fetchAffectedCount( $query )
 	{
         $query = static::validQueryArg($query);
-		$this->debug && \ArtfulRobot\Debug::log(">>$query->comment");
+		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt)
+		if (!$stmt) 
 		{
-			$this->debug && \ArtfulRobot\Debug::log("<< failed to run");
+			\ArtfulRobot\Debug::log("<< failed to run");
 			return null;
 		}
-
+		
 		$count = $stmt->rowCount();
-		$this->debug && \ArtfulRobot\Debug::log("<< $count affected");
+		\ArtfulRobot\Debug::log("<< $count affected");
 		return $count;
 	}/*}}}*/
 	// public function fetchInsertId(\ArtfulRobot\PDO_Query|String $query )/*{{{*/
@@ -145,17 +134,17 @@ class PDO extends \PDO
 	public function fetchInsertId( $query )
 	{
         $query = static::validQueryArg($query);
-		$this->debug && \ArtfulRobot\Debug::log(">>$query->comment");
+		\ArtfulRobot\Debug::log(">>$query->comment");
 
 		$stmt = $this->prepAndExecute( $query );
-		if (!$stmt)
+		if (!$stmt) 
 		{
-			$this->debug && \ArtfulRobot\Debug::log("<< failed to run");
+			\ArtfulRobot\Debug::log("<< failed to run");
 			return null;
 		}
-
+		
 		$id = $this->lastInsertId();
-		$this->debug && \ArtfulRobot\Debug::log("<< id: $id");
+		\ArtfulRobot\Debug::log("<< id: $id");
 		return $id;
 	}/*}}}*/
 	//public function fetchFoundRows()/*{{{*/
@@ -168,68 +157,39 @@ class PDO extends \PDO
 	//public function prepAndExecute( \ArtfulRobot\PDO_Query|string $query )/*{{{*/
 	/** prepare the \ArtfulRobot\PDO_Query given, then execute it and return a PDOStatement object
 	 */
-	public function prepAndExecute($query)
+	public function prepAndExecute(  $query )
 	{
         $query = static::validQueryArg($query);
 		$mtime = microtime(true);
-
-        $stmt = $this->getStmt($query);
-
 		try {
-			if (! $query->params) {
-				if (! $stmt->execute() )
-					throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
-
-            } else {
+			if (! $query->params) $stmt = $this->query($query->sql);
+			else
+			{
+				$stmt = $this->prepare($query->sql);
 				if (! $stmt->execute($query->params) )
 					throw new Exception("Failed to execute statement (SQL error " . $stmt->errorCode().")");
 			}
-
-			$this->debug && Debug::log( $query->comment, array(
-				'sql:'    =>strtr($query->sql, array("\t" => '  ')),
-				'params:' =>$query->params,
-				'time:'   =>sprintf("%0.3fs", microtime(true) - $mtime),
-				'rows:'   =>$stmt->rowCount(),
+			
+			Debug::log( $query->comment, array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
+				'params:' =>$query->params,                               
+				'time:'   =>sprintf("%0.3fs", microtime(true) - $mtime), 
+				'rows:'   =>$stmt->rowCount(),                                             
 				));
 		} catch(\Exception $e) {
-			$this->debug && Debug::log( "!! Exception caused by: $query->comment", array(
-				'sql:'    =>strtr($query->sql, array("\t" => '  ')),
-				'params:' =>$query->params,
+			Debug::log( "!! Exception caused by: $query->comment", array(
+				'sql:'    =>strtr($query->sql, array("\t" => '  ')),      
+				'params:' =>$query->params,                              
 				));
 			// throw the exception again now.
 			throw $e;
 		}
 		return $stmt;
 	}/*}}}*/
-    protected function getStmt($query)
-    {
-        // do we have this cached?
-        if (!empty($this->sql_cache[$query->sql])) {
-            // yes, inc. count
-            $this->sql_cache[$query->sql]['usage']++;
-        } else {
-            // no, cache it now.
-            $this->sql_cache[$query->sql]['usage']=1;
-            $this->sql_cache[$query->sql]['stmt']= $this->prepare($query->sql);
-        }
-
-        // return stmt from cache.
-        $stmt = $this->sql_cache[$query->sql]['stmt'];
-
-        // cache too big - remove single use ones.
-        if (count($this->sql_cache)>static::CACHE_MAX) {
-            Debug::log("!! clearing prepared statement cache");
-            usort($this->sql_cache, function($a,$b){
-                return ($a<$b?-1:$a==$b?0:1);} );
-            // keep most popular 10 queries.
-            array_splice($this->sql_cache,static::CACHE_MIN);
-        }
-        return $stmt;
-    }
 
 	//public static function castDatetime( $date, $format='datetime', $false_value=null)/*{{{*/
 	/** prepare a string that should be a date|datetime|time
-	 *
+	 * 
 	 * @param string $date
 	 * @param string $format one of datetime(default), date or time
 	 * @param mixed $false_value returned if $date is ZLS/null/0/false
@@ -237,7 +197,7 @@ class PDO extends \PDO
 	public static function castDatetime( $date, $format='datetime', $false_value=null)
 	{
 		// nothing sent?
-		if (! $date)
+		if (! $date) 
 		{
 			// special case, "now" strtotime will handle this nicely.
 			if ($false_value != 'now') return $false_value;
