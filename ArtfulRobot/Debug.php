@@ -130,7 +130,9 @@ class Debug
     /** holds text for serviceOutputHtml */
     protected static $redirect_preamble;
 
-    
+    /** allows pushProfile and popProfile to temporarily change debugging state */
+    protected static $profile_stack=array();
+
     // main use functions
     //public static function log( $msg, $vars=null )/*{{{*/
     /** Main logging method
@@ -414,6 +416,22 @@ class Debug
             throw new \Exception("unknown debug profile: $profile. Known: unsafe_echo, cterm, unsafe_html, file_minimal, file, online");
         }
 	} // }}}
+	public static function pushProfile($profile)//{{{
+	{
+        static::log("Debug::pushProfile('$profile')");
+        $current = array('functions' => static::$functions);
+        array_push(static::$profile_stack, $current);
+        static::loadProfile($profile);
+	} // }}}
+	public static function popProfile()//{{{
+	{
+        static::log("Debug::popProfile");
+        $current = array_pop(static::$profile_stack);
+        if (!$current) {
+            throw new \Exception("Debug::popProfile called on empty stack");
+        }
+        static::$functions = $current['functions'];
+	} // }}}
     public static function setTextDepth($on=true)/*{{{*/
     {
         static::$opts['text_depth'] = (bool) $on;
@@ -696,7 +714,7 @@ class Debug
 .arl-debug-vars.expanded>pre {display:block;}
 .arl-debug-msg {cursor:pointer;}
 .arl-debug-msg:hover {background-color:#e0f8f8;color:black;}
-.arl-debug-selected { background-color:#e0f8f8;color:black;border-left:solid 6px #28f; box-shadow: -2px 4px 6px 2px;margin-left:0;}
+.arl-debug-selected { background-color:#e0f8f8;color:black;border-left:solid 6px #28f; box-shadow: -2px 4px 6px 2px rgba(0,0,0,0.4);margin-left:0;margin-bottom:1em;}
 </style>";
 
 		$css = strtr($css, array(
