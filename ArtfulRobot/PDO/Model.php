@@ -16,11 +16,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
     /** Definitions must be specified as an array indexed by fieldname
       * of arrays including keys cast, size, null
-      * 
+      *
       * @var definition */
     static protected $definition;
 
-    /** @var bool if set INSERT statements will not set id field */ 
+    /** @var bool if set INSERT statements will not set id field */
     static protected $id_is_auto_increment=true;
 
     /** @var string optional alias, e.g. surveyId */
@@ -41,13 +41,13 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     protected $model_props_w=array();
 
     // abstract(ish) static protected function getConnection(){{{
-    /** Must return a \ArtfulRobot\PDO object 
+    /** Must return a \ArtfulRobot\PDO object
       *
       * Nb. I would declare this abstract to generate compile-time
       * errors if a subclass did not  implement it, however 'abstract static'
       * functions are not allowed (which theoretically makes sense)
       * so I implement the insistance as a method that throws an exception.
-      * 
+      *
       * See my post:
       * http://stackoverflow.com/questions/14894635/alternative-model-for-php-abstract-static-class-methods
      */
@@ -57,27 +57,29 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     //public static function buildCollection( $filters, $order=null )//{{{
     /**
-      * return a Collection object 
+      * return a Collection object
       */
     public static function buildCollection( $filters, $order=null )
     {
+        Debug::log(">>" . __CLASS__. ":: ".__FUNCTION__." called with filters:", $filters);
         $collection = new Collection();
 
         $sql = static::buildCollectionSql($params, $filters, $order);
-        
+
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Fetch records from " . static::TABLE_NAME,
                 $sql, $params));
-        if ($stmt->errorCode()!='00000') 
+        if ($stmt->errorCode()!='00000')
             throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
 
         while ($row = $stmt->fetch( \PDO::FETCH_ASSOC )) {
             // create an object of the class
-            $obj = new static; 
+            $obj = new static;
             $obj->loadFromArray($row,false,self::CAST_DB);
             $collection->append($obj, $obj->id);
             unset($obj);
         }
+        Debug::log("<< Returning collection with " . $collection->count() . " entries");
         return $collection;
     }//}}}
     //public static function buildCollectionSql( &params, $filters, $order=null )//{{{
@@ -87,7 +89,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     public static function buildCollectionSql( &$params, $filters, $order=null )
 	{
         $sql = static::sqlWhere($params, $filters);
-        
+
         if ($order === null) $order = static::$default_order;
         if ($order) $sql .= " ORDER BY $order";
 
@@ -95,12 +97,12 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 	} // }}}
     //public static function bulkDelete( $filters )//{{{
     /**
-      * return a Collection object 
-      * 
-      * $filters is an array of 
+      * return a Collection object
+      *
+      * $filters is an array of
       *     field => 'value'
       * or  field => { operator:'>=', value: 'value' }
-      * 
+      *
       * filters are ANDed together.
       */
     public static function bulkDelete( $filters )
@@ -110,7 +112,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
                 "Delete records from " . static::TABLE_NAME,
                 "DELETE FROM `" . static::TABLE_NAME . "` $sql", $params));
-        if ($stmt->errorCode()!='00000') 
+        if ($stmt->errorCode()!='00000')
             throw new Exception("PDO error: " . print_r($stmt->errorInfo(),1));
 
         // clear cache, which will stop loadCached() returning an out of date
@@ -119,7 +121,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         self::$cached[get_called_class()] = array();
     }//}}}
     //public static function loadCached( $id )//{{{
-    /** Returns cache or creates object 
+    /** Returns cache or creates object
      *  Used to load models from the database; ensures all php models for one record are shared
      */
     public static function loadCached( $id, $data=null )
@@ -128,10 +130,12 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if (isset(self::$cached[$object_type][$id])) return self::$cached[$object_type][$id];
 
         // create and populate new object
-        $obj = new static; 
-        if (is_array($data)) $obj->loadFromArray($data);
-        else $obj->loadFromDatabase($id,false);
-
+        $obj = new static;
+        if (is_array($data)) {
+            $obj->loadFromArray($data);
+        } else {
+            $obj->loadFromDatabase($id,false);
+        }
         // cache and return
         return self::$cached[$object_type][$id] = $obj;
     }//}}}
@@ -145,13 +149,13 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }//}}}
     //public static function loadFirstMatch( $filters, $order=null )//{{{
     /** Returns the first match for the $filters given
-	 *  
+	 *
      */
     public static function loadFirstMatch( $filters, $order=null)
     {
 		return static::buildCollection($filters, $order)->current();
         $sql = static::sqlWhere($params, $filters);
-        
+
         if ($order === null) $order = static::$default_order;
         if ($order) $sql .= " ORDER BY $order";
 
@@ -162,14 +166,14 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                 "SELECT * FROM `" . static::TABLE_NAME . "` $sql", $params));
 		if (!$row) return null;
 		// create an object of the class
-		$obj = new static; 
+		$obj = new static;
 		$obj->loadFromArray($row,false,self::CAST_DB);
         return $obj;
     }//}}}
     //public static function sqlWhere( &$params, $filters )//{{{
     /** Returns the WHERE clause including "WHERE" (or '') based on $filters
-      * 
-      * $filters is an array of 
+      *
+      * $filters is an array of
       *     field => 'value'
       * or  field => { operator:'>=', value: 'value' }
       * or  field => { operator:'<=', value: 'value' }
@@ -185,7 +189,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       * or  field => { operator:'IS NOT NULL'}
 	  *
 	  * how to do between? or field null|<=this todo
-      * 
+      *
       * filters are ANDed together.
      */
     public static function sqlWhere( &$params, $filters )
@@ -249,10 +253,10 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if ( array_key_exists($lookup, $this->myData)) return $this->myData[$lookup];
 
         // other properties
-// now getDefinition()        if ($name == 'definition') 
+// now getDefinition()        if ($name == 'definition')
 // now getFieldNames()        if ($name == 'field_names')     return array_keys($this->myData);
 // now unsavedChanges()        if ($name == 'unsaved_changes') return $this->unsaved_changes;
-//        if ($name == 'is_new')           return $this->isNew(); // xxx should be moved to method so it can be over-ridden @todo 
+//        if ($name == 'is_new')           return $this->isNew(); // xxx should be moved to method so it can be over-ridden @todo
         // htmlSafeData now moved too
 
         // unknown
@@ -307,8 +311,8 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         $this->loadDefaults();
 
 		$id = $this->castData('id', $givenId);
-			
-		if (!$id) throw new Exception( get_class($this) 
+
+		if (!$id) throw new Exception( get_class($this)
                 . "::loadFromDatabase called without proper id (given: '$givenId')");
 
         $stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
@@ -318,9 +322,9 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
         // no rows may be allowable if $not_found_creates_new
         if ($stmt->rowCount()==0 && $not_found_creates_new) return $this;
-                
+
         // more than one record always wrong. Zero records wrong unless $not_found_creates_new set.
-        if ($stmt->rowCount()!=1) throw new Exception(get_class($this) 
+        if ($stmt->rowCount()!=1) throw new Exception(get_class($this)
                 . "::loadFromDatabase failed to load single row from " . static::TABLE_NAME . " with id $id");
 
         $this->myData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -334,7 +338,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     //public function loadFromArray( Array $src, $is_new=false, $cast_data=2 )/*{{{*/
     /** load model data from array.
-      * 
+      *
       * @param bool $is_new sets internal flag for isNew(). e.g. false for data from db, true for other
       * @param $cast_data. 2=full cast (untrusted/user input), 1=db cast, 0=no casting
       */
@@ -478,7 +482,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                 $sql,
                 $data));
 
-        if ( $stmt->errorCode() != '00000' ) throw new Exception( 
+        if ( $stmt->errorCode() != '00000' ) throw new Exception(
                 get_class($this) . " failed to create row errorCode:' " . $stmt->errorCode() . "':" . print_r(static::getConnection()->errorInfo(),1));
 
         // we must reset our ID if auto_increment
@@ -491,7 +495,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         $sql = array();
         foreach ($this->myData as $key=>$value)
         {
-            if ($key!='id') 
+            if ($key!='id')
                 $sql[]= "`$key` = :$key";
 
             $data[":$key"] = $value;
@@ -546,13 +550,13 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
             {
                 // if null allowed, then zls = null
                 if ($null) return null;
-                else throw new Exception( get_class($this) . " tried to set $name to '', but cannot be null. Unclear what you wanted (may have defaulted to 1 jan 1970)"); 
+                else throw new Exception( get_class($this) . " tried to set $name to '', but cannot be null. Unclear what you wanted (may have defaulted to 1 jan 1970)");
             }
             if ($cast == 'time' && $value!='now')
                 $value = "1 Jan 1970 $value";
 
             $time=strtotime($value);
-            if ($time ===false) throw new Exception( get_class($this) . " tried to set $name to unparseable $cast '$value'"); 
+            if ($time ===false) throw new Exception( get_class($this) . " tried to set $name to unparseable $cast '$value'");
 
             if ($cast == 'time') return date( self::FORMAT_TIME, $time);
             if ($cast == 'date') return date( self::FORMAT_DATE, $time);
@@ -586,7 +590,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     //protected function castDbData()/*{{{*/
     /** convert data from PDO to correct type.
-      * 
+      *
       * PHP's PDO (5.3) driver returns strings for everything.
       * This is a quick conversion run after loading data from db
       * for integers and floats.
