@@ -27,10 +27,10 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
   */
 abstract class AJAX_ModuleGroup extends \ArtfulRobot\AJAX_Module
 {
-	/** undefined, or list of allowed task methods */
-	private $task_methods;
+	/** undefined, or array of allowed task methods */
+	protected $task_methods;
 
-	function run_module()
+	function runModule()
 	{
 		$task = \ArtfulRobot\Utils::arrayValue('task', $this->request);
 		if (! $task )

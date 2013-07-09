@@ -43,19 +43,19 @@ abstract class AJAX_Module
 		$this->response = $response;
 	}
 
-	/** Externally callable method - ensures checkPermissions is called before run_module
+	/** Externally callable method - ensures checkPermissions is called before runModule
 	 */
 	public final function run()
 	{
 		if (! $this->checkPermissions()) {
             throw new \ArtfulRobot\Ajax_Exception("Permission denied.");
         }
-		$this->run_module();
+		$this->runModule();
 	}
 
 	/** do-ing code goes in here. 
 	 */
-	abstract protected function run_module();
+	abstract protected function runModule();
 
 	//public final function checkPermissions()/*{{{*/
 	/** Check permissions using CMS::userInGroup(), return true|false 
