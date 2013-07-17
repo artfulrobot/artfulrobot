@@ -462,6 +462,7 @@ class Debug
     protected static function serviceEcho()/*{{{*/
     {
         echo static::getText() . "\n";
+        flush();
     }/*}}}*/
     protected static function serviceColourTerminal()/*{{{*/
     {
@@ -476,6 +477,7 @@ class Debug
             . ($deets['vars'] 
                ?  "\t" . str_replace("\n","\n\t", $deets['vars']). "\n"
                : "");
+        flush();
 
     }/*}}}*/
     protected static function serviceErrorLog()/*{{{*/
