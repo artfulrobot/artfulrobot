@@ -111,7 +111,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 	// so the subclasses list is not inherited.
 	arlClass.subclasses = [];
 
-	// add in our getCallback method 
+	// add in our getCallback method
 	arlClass.prototype.getCallback = function (method) {/*{{{*/
 		if (! this[method]) throw new artfulrobot.Exception("getCallback: Object does not have '"+method+"'",this);
 		// reference to our instance
@@ -128,7 +128,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 				// store original context (e.g. a jQuery object)
 				context.origContext = this;
 				// call method from object context
-				context[method].apply(context, args);
+				return context[method].apply(context, args);
 			});
 	}/*}}}*/
 
