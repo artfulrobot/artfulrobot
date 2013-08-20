@@ -48,7 +48,7 @@ abstract class AJAX_Module
 	public final function run()
 	{
 		if (! $this->checkPermissions()) {
-            throw new \ArtfulRobot\Ajax_Exception("Permission denied.");
+            throw new \Exception("Permission denied.");
         }
 		$this->runModule();
 	}

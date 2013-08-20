@@ -48,13 +48,13 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  loadProfile sets a lot of stuff at once.
  *  All profiles include error_log on finish.
- *  online: file on fatal only.
- *  file_minimal : file important+
- *  debug: file for everything
- *  debug_important:  file for important only
- *  unsafe_html: file everything, finish outputs html. Intercept redirect.
- *  cterm: output everything to colour terminal
- *  unsafe_echo: output everything using echo in realtime. 
+ *  online          : file on fatal only.
+ *  file_minimal    : file important+
+ *  debug           : file for everything
+ *  debug_important : file for important only
+ *  unsafe_html     : file everything, finish outputs html. Intercept redirect.
+ *  cterm           : output everything to colour terminal
+ *  unsafe_echo     : output everything using echo in realtime.
  *
  */
 
