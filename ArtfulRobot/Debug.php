@@ -48,13 +48,14 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  loadProfile sets a lot of stuff at once.
  *  All profiles include error_log on finish.
- *  online          : file on fatal only.
- *  file_minimal    : file important+
- *  debug           : file for everything
- *  debug_important : file for important only
- *  unsafe_html     : file everything, finish outputs html. Intercept redirect.
- *  cterm           : output everything to colour terminal
- *  unsafe_echo     : output everything using echo in realtime.
+ *  profile         error_reporting     continue_anyway      meaning
+ *  online                                            file on fatal only.
+ *  file_minimal    -1                  file important+
+ *  debug           -1                  file for everything
+ *  debug_important -1                  file for important only
+ *  unsafe_html     -1                  file everything, finish outputs html. Intercept redirect.
+ *  cterm           -1                  output everything to colour terminal
+ *  unsafe_echo     -1                  output everything using echo in realtime.
  *
  */
 
@@ -353,6 +354,9 @@ class Debug
     // other config/settings
 	public static function loadProfile($profile )//{{{
 	{
+        // take control of errors, exceptions
+        set_error_handler(array('\\ArtfulRobot\\Debug','handleError'));
+        set_exception_handler(array('\\ArtfulRobot\\Debug','handleException'));
 		// reset
     	static::$functions = array(
             1 => array(),
@@ -363,10 +367,15 @@ class Debug
             6 => array(),
         );
 
+        // use all error reporting
+        error_reporting(E_ALL | E_STRICT );
+
         if ($profile == 'online') {
             // Don't do anything unless we have fatal error, 
             // in which case file and error_log
             static::setFatalServices('file','error_log');
+            // ignore strict and notice errors
+            error_reporting(E_ALL & ~E_STRICT & ~ E_NOTICE);
 
         } elseif ($profile == 'file') {
             static::setTextDepth();
@@ -392,7 +401,7 @@ class Debug
             // write everything to a file
             static::setServiceLevel('file', static::LEVEL_LOG);
             // crashes result in error_log and html
-            static::setFatalServices('file','error_log','store','output_html');
+            static::setFatalServices('file','error_log','output_html');
             // redirects are intercepted
             static::setRedirectServices('intercept_redirect','file','store','output_html');
             // templates can access log html at finish.
@@ -443,6 +452,10 @@ class Debug
     public static function setTextVars($on=true)/*{{{*/
     {
         static::$opts['text_vars'] = (bool) $on;
+    }/*}}}*/
+    public static function setMailTo($mail_to)/*{{{*/
+    {
+        static::$opts['mail_to'] = $mail_to;
     }/*}}}*/
     public static function setSlow($slow=0.1)/*{{{*/
     {
@@ -524,6 +537,17 @@ class Debug
     protected static function serviceInterceptRedirect()/*{{{*/
     {
         // dummy service, picked up by redirect() instead.
+    }/*}}}*/
+    protected static function serviceMail()/*{{{*/
+    {
+        if (empty( static::$opts['mail_to'] )) {
+            error_log("Debug::serviceMail called without mail_to address!");
+            return;
+        }
+        // output html version of stored log
+        $email = new Email( static::$opts['mail_to'], "Debug log", static::generateHtml() );
+        $email->send();
+
     }/*}}}*/
     // internals
     protected static function getText( $implode=true )/*{{{*/
@@ -651,12 +675,18 @@ class Debug
         $outputHtml = false;
 
 
-        if (in_array('output_html', $new_services)) {
-            $new_services = array_diff($new_services, array('store','output_html'));
+        if (in_array('output_html', $new_services)
+            ||in_array('mail', $new_services)) {
+            // remove store and put it at the start
+            $new_services = array_diff($new_services, array('store'));
             // make store the first thing
             array_unshift($new_services, 'store');
-            // append output_html as the last thing (it calls exit)
-            array_push($new_services, 'output_html');
+
+            if (in_array('output_html', $new_services)) {
+                $new_services = array_diff($new_services, array('output_html'));
+                // append output_html as the last thing (it calls exit)
+                array_push($new_services, 'output_html');
+            }
         }
 
         foreach ($new_services as &$new_service) {
