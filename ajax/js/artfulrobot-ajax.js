@@ -918,7 +918,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
     getState:function() //{{{
     {
         // return an object that describes the current state
-        // this should be used by setState to restore this state
+        // this should be used by restoreState to restore this state
         // nb. this state should call getState on any necessary subobject(s)
         return{};
     },//}}}
