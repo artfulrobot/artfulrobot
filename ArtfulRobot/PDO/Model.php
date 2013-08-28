@@ -35,10 +35,6 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     protected $unsaved_changes=false;
     /** @var bool true if not in database */
     protected $is_new=true;
-    /** @var array additional properties gettable from extended getter method */
-    protected $model_props_r=array();
-    /** @var array additional properties settable from extended setter method */
-    protected $model_props_w=array();
 
     // abstract(ish) static protected function getConnection(){{{
     /** Must return a \ArtfulRobot\PDO object
@@ -237,11 +233,16 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if ($id !== null) $this->loadFromDatabase( $id, $not_found_creates_new );
         else $this->loadDefaults();
     }/*}}}*/
+    public function __clone()  // {{{
+    {
+        Debug::log(__CLASS__ . " object cloned");
+        // called when someone clones this object
+        // unset id, set is_new
+        $this->is_new = true;
+        $this->myData['id'] = null;
+    } // }}}
     public function __get($name)  // {{{
     {
-        // try over-ridden getter function first.
-        if(in_array($name, $this->model_props_r))
-            return $this->getter($name);
 
         // if not try to return myData[$name]
         // ...test if we've been initilaised.
@@ -252,19 +253,15 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // ...know this field?
         if ( array_key_exists($lookup, $this->myData)) return $this->myData[$lookup];
 
+        return $this->getter($name);
         // other properties
 // now getDefinition()        if ($name == 'definition')
 // now getFieldNames()        if ($name == 'field_names')     return array_keys($this->myData);
 // now unsavedChanges()        if ($name == 'unsaved_changes') return $this->unsaved_changes;
 //        if ($name == 'is_new')           return $this->isNew(); // xxx should be moved to method so it can be over-ridden @todo
-        // htmlSafeData now moved too
-
-        // unknown
-        throw new Exception( get_class($this) . " does not have requested '$name' property");
     } // }}}
     public function __set($name, $newValue)  // {{{
     {
-        if (in_array($name, $this->model_props_w)) return $this->setter($name,$newValue);
         $lookup = ($name === static::$id_alias) ? 'id' : $name;
         if ( is_array($this->myData)
                 && array_key_exists($lookup, $this->myData) )
@@ -277,15 +274,25 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
                 $this->myData[$lookup] = $cast;
                 $this->unsaved_changes = true; //only when changed.
             }
-            return;
+        } else {
+            $this->setter($name,$newValue);
         }
 
+    } // }}}
+    //protected function getter($name){{{
+    /** override this function if you want to use additional __get properties */
+    protected function getter($name)
+    {
+            throw new Exception( get_class($this) . " does not know how to set property '$name'."
+                            . " -- myData keys are: " . ($this->myData?implode(', ', array_keys($this->myData)):'undefined'));
+                            }//}}}
+    //protected function setter($name, $newValue){{{
+    /** override this if you want to have custom __set-able properties */
+    protected function setter($name, $newValue)
+    {
         throw new Exception( get_class($this) . " does not know how to set property '$name'."
                 . " -- myData keys are: " . ($this->myData?implode(', ', array_keys($this->myData)):'undefined'));
-
     } // }}}
-    abstract protected function getter($name);
-    abstract protected function setter($name, $newValue) ;
     public function jsonSerialize()  // {{{
     {
         // nb. PHP 5.4 will call this automatically on json_encode();

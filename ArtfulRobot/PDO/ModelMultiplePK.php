@@ -65,6 +65,14 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 		if (is_array($id) && $id) $this->loadFromDatabase( $id, $not_found_creates_new=true  );
 		else $this->loadDefaults();
 	}/*}}}*/
+    public function __clone()  // {{{
+    {
+        // called when someone clones this object
+        // unset id, set is_new
+        $this->is_new = true;
+        // because this won't be an auto increment field, it's up to the cloner to
+        // give it a unique PK.
+    } // }}}
 	public function loadFromDatabase( $id, $not_found_creates_new=true  )/*{{{*/
 	{
 		// clear current data first

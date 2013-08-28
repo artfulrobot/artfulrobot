@@ -91,14 +91,14 @@ class PDO_ModelCreator
   */
 class Model_$classname extends \ArtfulRobot\PDO_Model
 {
-	protected \$TABLE_NAME = '$tablename';
+	const TABLE_NAME = '$tablename';
 	protected \$definition = array(
 		$def
 		);
 	protected function getter(\$name) {}
 	protected function setter(\$name, \$value) {}
-	/** this function must initialise an \ArtfulRobot\PDO object in \$this->conn */
-	abstract protected function db_connect();
+	/** this function must return an \ArtfulRobot\PDO object */
+	abstract static protected function getConnection() ;
 } // }}}
 
 PHP;
