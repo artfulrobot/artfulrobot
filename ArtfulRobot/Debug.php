@@ -652,7 +652,7 @@ class Debug
                 static::$current['msg'] = "<< SLOW: " . substr(static::$current['msg'],2); 
             }
             static::$current['depth'] = 0;
-            static::$depth--;
+            static::$depth>0 && static::$depth--;
         }
     }/*}}}*/
     protected static function getTrace($trace=null)/*{{{*/
