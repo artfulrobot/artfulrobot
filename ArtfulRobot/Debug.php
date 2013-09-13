@@ -190,6 +190,7 @@ class Debug
 	} //}}}
 	public static function redirect($href, $http_response_code=303) // {{{
 	{
+        static::$redirect_preamble = '';
         foreach (static::$functions[static::LEVEL_FINISH_REDIRECT] as $_) {
             if ($_ == 'serviceInterceptRedirect') {
                 static::$redirect_preamble = "<a href='$href' style='margin-bottom:1em;color:#07f;display:block;' >Click link to continue:
@@ -201,7 +202,7 @@ class Debug
         static::log( '->Redirect [' . $http_response_code. "] to $href ");
 
         // issue normal redirect if we're not intercepting it.
-        if (!static::$opts['redirect_intercept']) {
+        if (!static::$redirect_preamble) {
             if     ($http_response_code == '301' ) header($_SERVER["SERVER_PROTOCOL"] . " 301 Moved Permanently");
             elseif ($http_response_code == '302' ) header($_SERVER["SERVER_PROTOCOL"] . " 302 Found but, not the best URL to use.");
             elseif ($http_response_code == '303' ) header($_SERVER["SERVER_PROTOCOL"] . " 303 See other by GET");
