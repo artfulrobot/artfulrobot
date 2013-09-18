@@ -741,9 +741,10 @@ class Debug
 .arl-debug-mem { float:right;margin-left:7px;color:#888; }
 .arl-debug-var-toggle { cursor:pointer; }
 .arl-debug-var-toggle:hover { color:#28f; }
-.arl-debug-var-toggle:before { content: 'Show Vars'; font-size:10px; }
-.arl-debug-vars.expanded .arl-debug-var-toggle:before { content: 'Hide Vars' }
-.arl-debug-vars pre {display:none; background-color:#faf8f0;padding:0 7px;margin:0 6px 6px;border:solid 1px #aaa;border-radius:3px 3px 3px 3px;font-size:10px;color:#242;}
+.arl-debug-var-toggle:before { content: 'Show'; font-size:10px; }
+.arl-debug-vars { background-color:#faf8f0;padding:0 7px;margin:0 6px 6px;border:solid 1px #aaa;border-radius:3px 3px 3px 3px;font-size:10px;color:#242;white-space:pre;}
+.arl-debug-vars.expanded>.arl-debug-var-toggle:before { content: 'Hide';color:#bba; }
+.arl-debug-vars pre {display:none; }
 .arl-debug-vars.expanded>pre {display:block;}
 .arl-debug-msg {cursor:pointer;}
 .arl-debug-msg:hover {background-color:#e0f8f8;color:black;}
@@ -807,9 +808,10 @@ if(typeof jQuery=='undefined') {
 			$line .="</span>" 
                 . (isset($row['mem']) ? "<div class='arl-debug-mem'>$row[mem]</div>" : '')
                 . (!empty($row['vars'])
-                    ? "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>"
-                      . htmlspecialchars(print_r($row['vars'],1))
-                      . "</pre></div>"
+                    ? //"<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>"
+                      //. htmlspecialchars(print_r($row['vars'],1))
+                       self::varDumpHTML($row['vars'])
+                      //. "</pre></div>"
                     : '');
                 
             if ($row['prefix'] == '>>') {
@@ -817,7 +819,9 @@ if(typeof jQuery=='undefined') {
                 $line .= "<div class='arl-debug-stack-start'>";
             } elseif ($row['prefix'] == '<<') {
                 $line .= "</div></div></div>"; // close self, and 2 outers.
-                $depth--;
+                if (--$depth<0) {
+                    $depth=0;
+                };
             } elseif ($row['prefix'] == 'backtrace') {
                 $line .= str_repeat("</div></div></div>",$depth);
                 $depth =0;
@@ -828,6 +832,37 @@ if(typeof jQuery=='undefined') {
         }
         $html .= "</div>";
 
+        return $html;
+    }/*}}}*/
+    protected static function varDumpHTML($var)/*{{{*/
+    {
+//        file_put_contents("/tmp/testdata", serialize($var));
+        $var = explode("\n",print_r($var,1));
+        $indent = 0;
+        $html = "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>";
+
+        $i=0;
+        while ($var) {
+            $line = array_shift($var);
+            if (!$line) { continue; }
+
+            if (preg_match('/^( *)([()])$/',$line,$matches)) {
+                $i = strlen($matches[1]);
+                if ($i % 4) {
+                    // let's assume this indent is not valid
+                    $html .= htmlspecialchars($line) . "\n";
+                } elseif ($matches[2]=='(') {
+                    $html .= "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>(\n";
+                } else {
+                    $html .= ")</pre></div>\n";
+                }
+            } else {
+                $html .= htmlspecialchars(trim($line)) . "\n";
+            }
+        }
+
+        $html .= "</pre></div>\n";
+        
         return $html;
     }/*}}}*/
 }/*}}}*/
