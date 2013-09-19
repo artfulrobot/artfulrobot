@@ -57,7 +57,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
       */
     public static function buildCollection( $filters, $order=null )
     {
-        Debug::log(">>" . __CLASS__. ":: ".__FUNCTION__." called with filters:", $filters);
+        Debug::log(">>" . get_called_class(). ":: ".__FUNCTION__." called with filters:", $filters);
         $collection = new Collection();
 
         $sql = static::buildCollectionSql($params, $filters, $order);
@@ -235,7 +235,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     public function __clone()  // {{{
     {
-        Debug::log(__CLASS__ . " object cloned");
+        Debug::log(get_called_class() . " object cloned");
         // called when someone clones this object
         // unset id, set is_new
         $this->is_new = true;
