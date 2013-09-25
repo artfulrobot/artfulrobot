@@ -467,7 +467,7 @@ class Debug
         if (isset(static::$fh)) {
             static::log("Changing file to $filename");
             fclose(static::$fh);
-            unset(static::$fh);
+            static::$fh=null;
         }
         static::$opts['file'] = $filename;
         static::$opts['file_append'] = (bool) $append;
