@@ -292,7 +292,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 				myDebug && console.log('key: ', key);
 
 				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
-					{  
+					{
 						myDebug && console.log('adding as event listener '+part[key]);
 						// old: tmp[key] = part[key];
 
@@ -308,7 +308,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 						}
 					}
 				else if (key=='element' || key=='content' ) continue;
-				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');jQuery(tmp).html(part[key]);}
                 // do not add attrs with null values. useful for selected attr. on SELECT elements.
 				else if (artfulrobot.typeOf(part[key])=='null' ) continue;
 				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
