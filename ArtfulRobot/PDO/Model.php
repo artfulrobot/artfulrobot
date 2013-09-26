@@ -53,7 +53,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     //public static function buildCollection( $filters, $order=null )//{{{
     /**
-      * return a Collection object
+      * build a Collection object with objects of this class based on filters
+      *
+      * @param Array $filters
+      * @param string|null $order literal SQL appended to "ORDER BY " if used.
+      * @returns Collection object
       */
     public static function buildCollection( $filters, $order=null )
     {
@@ -81,6 +85,10 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     //public static function buildCollectionSql( &params, $filters, $order=null )//{{{
     /**
       * sets up params and returns SQL for buildCollection
+      *
+      * @param[in,out] Array $params query parameters array - will get populated
+      * @param Array $filters
+      * @param string|null $order literal SQL appended to "ORDER BY " if used.
       */
     public static function buildCollectionSql( &$params, $filters, $order=null )
 	{
