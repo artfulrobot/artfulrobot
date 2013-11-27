@@ -2,7 +2,7 @@
 namespace ArtfulRobot;
 
 // class ARL_Collection implements Iterator
-/** handles a collection of objects, iterateable 
+/** handles a collection of objects, iterateable
  *  basically, this is a wrapper for php's array, but without ever returning
  *  the array itself
  */
@@ -23,43 +23,43 @@ class Collection implements \Iterator, \Countable
 	/** object Id field for primary index */
 	protected $id='id';
 
-	public function __construct($owner=null) 
+	public function __construct($owner=null)
 	{
 		$this->rewind();
 		$this->owner = $owner;
 	}
 
-    public function rewind() 
+    public function rewind()
 	{
         $this->position = 0;
     }
 
-    public function count() 
+    public function count()
 	{
         return count($this->objects);
     }
 
-    public function current() 
+    public function current()
 	{
         return $this->valid() ? $this->objects[$this->position]['object'] : null;
     }
 
-    public function key() 
+    public function key()
 	{
         return $this->position;
     }
 
-    public function next() 
+    public function next()
 	{
         ++$this->position;
     }
 
-    public function valid() 
+    public function valid()
 	{
         return isset($this->objects[$this->position]);
     }
 
-    public function first() 
+    public function first()
 	{
         $this->rewind();
         return $this->current();
@@ -77,7 +77,7 @@ class Collection implements \Iterator, \Countable
 	}
 	// public function find( $criteria, $findNext=false ) {{{
     /** search for the next object in the collection that matches criteria
-      * 
+      *
       * $criteria = Array( prop=>val [,...]) or callback
       * $findNext : normally start from first element, set true for findNext.
       */
@@ -97,7 +97,7 @@ class Collection implements \Iterator, \Countable
 				$this->next();
 				$match = true;
 				foreach ($criteria as $key=>$val) {
-					if ($o->$key != $val) { 
+					if ($o->$key != $val) {
 						$match = false;
 						break;
 					}
