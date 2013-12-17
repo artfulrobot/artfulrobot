@@ -247,6 +247,7 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         // called when someone clones this object
         // unset id, set is_new
         $this->is_new = true;
+        $this->unsaved_changes = true;
         $this->myData['id'] = null;
     } // }}}
     public function __get($name)  // {{{
