@@ -245,7 +245,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 	}
 	else if ( type === 'null' ) 
 	{ 
-		alert("Encountered a null, expected string, array, object");
+		myDebug && console.log("Encountered a null, expected string, array, object - create nothing");
 		return; 
 	}
 	// convert single objects to arrays
@@ -268,8 +268,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 		var part = arr[i];
 		type = artfulrobot.typeOf( part );
 		myDebug && console.warn('part:', part);
-		if (type == 'string' || type == 'number')
-		{
+		if (type == 'string' || type == 'number') {
 			myDebug && console.log('appending TextNode:' + part );
 			df.appendChild( document.createTextNode( String(part) ) );
 		} else if (type == 'array' ) {
@@ -325,9 +324,9 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 			// add this to our document fragment
 			df.appendChild( tmp );
 			myDebug && console.log('...success');
-		}
-		else 
-		{
+		} else if (type == 'null' ) {
+			myDebug && console.log('ignoring Null');
+		} else {
 			alert("Error:\nartfulrobot.createElement '" + type + "' type encountered within content array, expected string or object");
 		}
 	}
