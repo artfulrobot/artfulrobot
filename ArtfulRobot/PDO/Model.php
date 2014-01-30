@@ -99,6 +99,20 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
 
 		return "SELECT * FROM `" . static::TABLE_NAME . "` $sql";
 	} // }}}
+    //public static function countCollection( $filters )//{{{
+    /**
+      * counts the collection
+      * @param Array $filters - see buildCollection
+      */
+    public static function countCollection( $filters )
+	{
+        $params = array();
+        $sql = "SELECT COUNT(*) FROM `" . static::TABLE_NAME . "` ". static::sqlWhere($params, $filters);
+		return  (int) static::getConnection()->fetchSingle( new \ArtfulRobot\PDO_Query(
+            "countCollection query",
+            $sql,
+            $params) );
+	} // }}}
     //public static function bulkDelete( $filters )//{{{
     /**
       * return a Collection object
