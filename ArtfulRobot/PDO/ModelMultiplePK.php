@@ -150,7 +150,7 @@ abstract class PDO_ModelMultiplePK extends \ArtfulRobot\PDO_Model
 			. " SET " . implode(", ", $sql)
 			. " WHERE $pk_where";
 		$stmt = static::getConnection()->prepAndExecute( new \ArtfulRobot\PDO_Query(
-				"Update record {$this->myData['id']} in " . static::TABLE_NAME,
+				"Update record $pk_where  in " . static::TABLE_NAME,
 				$sql,
 				$data));
 		$this->unsaved_changes = false;

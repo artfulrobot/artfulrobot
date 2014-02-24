@@ -53,11 +53,15 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     //public static function buildCollection( $filters, $order=null )//{{{
     /**
-      * return a Collection object
+      * build a Collection object with objects of this class based on filters
+      *
+      * @param Array $filters
+      * @param string|null $order literal SQL appended to "ORDER BY " if used.
+      * @returns Collection object
       */
     public static function buildCollection( $filters, $order=null )
     {
-        Debug::log(">>" . __CLASS__. ":: ".__FUNCTION__." called with filters:", $filters);
+        Debug::log(">>" . get_called_class(). ":: ".__FUNCTION__." called with filters:", $filters);
         $collection = new Collection();
 
         $sql = static::buildCollectionSql($params, $filters, $order);
@@ -81,6 +85,10 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     //public static function buildCollectionSql( &params, $filters, $order=null )//{{{
     /**
       * sets up params and returns SQL for buildCollection
+      *
+      * @param[in,out] Array $params query parameters array - will get populated
+      * @param Array $filters
+      * @param string|null $order literal SQL appended to "ORDER BY " if used.
       */
     public static function buildCollectionSql( &$params, $filters, $order=null )
 	{
@@ -90,6 +98,20 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
         if ($order) $sql .= " ORDER BY $order";
 
 		return "SELECT * FROM `" . static::TABLE_NAME . "` $sql";
+	} // }}}
+    //public static function countCollection( $filters )//{{{
+    /**
+      * counts the collection
+      * @param Array $filters - see buildCollection
+      */
+    public static function countCollection( $filters )
+	{
+        $params = array();
+        $sql = "SELECT COUNT(*) FROM `" . static::TABLE_NAME . "` ". static::sqlWhere($params, $filters);
+		return  (int) static::getConnection()->fetchSingle( new \ArtfulRobot\PDO_Query(
+            "countCollection query",
+            $sql,
+            $params) );
 	} // }}}
     //public static function bulkDelete( $filters )//{{{
     /**
@@ -235,10 +257,11 @@ abstract class PDO_Model // in PHP 5.4 we could do this: implements \JsonSeriali
     }/*}}}*/
     public function __clone()  // {{{
     {
-        Debug::log(__CLASS__ . " object cloned");
+        Debug::log(get_called_class() . " object cloned");
         // called when someone clones this object
         // unset id, set is_new
         $this->is_new = true;
+        $this->unsaved_changes = true;
         $this->myData['id'] = null;
     } // }}}
     public function __get($name)  // {{{

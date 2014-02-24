@@ -245,7 +245,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 	}
 	else if ( type === 'null' ) 
 	{ 
-		alert("Encountered a null, expected string, array, object");
+		myDebug && console.log("Encountered a null, expected string, array, object - create nothing");
 		return; 
 	}
 	// convert single objects to arrays
@@ -268,8 +268,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 		var part = arr[i];
 		type = artfulrobot.typeOf( part );
 		myDebug && console.warn('part:', part);
-		if (type == 'string' || type == 'number')
-		{
+		if (type == 'string' || type == 'number') {
 			myDebug && console.log('appending TextNode:' + part );
 			df.appendChild( document.createTextNode( String(part) ) );
 		} else if (type == 'array' ) {
@@ -292,7 +291,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 				myDebug && console.log('key: ', key);
 
 				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
-					{  
+					{
 						myDebug && console.log('adding as event listener '+part[key]);
 						// old: tmp[key] = part[key];
 
@@ -308,7 +307,7 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 						}
 					}
 				else if (key=='element' || key=='content' ) continue;
-				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');jQuery(tmp).html(part[key]);}
                 // do not add attrs with null values. useful for selected attr. on SELECT elements.
 				else if (artfulrobot.typeOf(part[key])=='null' ) continue;
 				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
@@ -325,9 +324,9 @@ artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 			// add this to our document fragment
 			df.appendChild( tmp );
 			myDebug && console.log('...success');
-		}
-		else 
-		{
+		} else if (type == 'null' ) {
+			myDebug && console.log('ignoring Null');
+		} else {
 			alert("Error:\nartfulrobot.createElement '" + type + "' type encountered within content array, expected string or object");
 		}
 	}
