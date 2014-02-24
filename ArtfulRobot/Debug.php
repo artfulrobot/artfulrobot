@@ -2,7 +2,7 @@
 namespace ArtfulRobot;
 
 /*
-	Copyright 2007-2011 Rich Lott 
+	Copyright 2007-2014 Rich Lott
 
 This file is part of Artful Robot Libraries.
 
@@ -25,25 +25,43 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
 /** Debug class provides debugging facility
  *
  *  This may be used for all debugging needs. See doc.
- *
  *  It is used internally by all Artful Robot Libraries code.
- *  
  *  It is turned off by default.
+ *
+ *  It logs various levels of message, and can be configured to log each
+ *  level of message to different services.
+ *
+ *  Services include immediate outputs like terminal (inc. colour terminals), html
+ *  and to a file, but there is also a store service which captures log messages
+ *  in a buffer to be later processed in one go by another service like email or
+ *  output html.
+ *
+ *  There are functions for handling errors and exceptions.
+ *
+ *  Fatal errors will cause either an exit() or will call the configured exit callback
+ *  function. This way you can have the debugger catch errors, do something useful
+ *  like log to email, then pass execution back to something that can present the
+ *  user with a nicer error page (they'll be thrilled).
  *
  *  Synopsis:
  *
- *  set_error_handler( array('\ArtfulRobot\Debug','handleError') );
- *  set_exception_handler(array('\ArtfulRobot\Debug','handleException') );
+ *  Using a debug profile:
+ *      \ArtfulRobot\Debug::loadProfile(<profilename>);
  *
- *  \ArtfulRobot\Debug::setServiceLevel('cterm', \ArtfulRobot\Debug::LEVEL_LOG);
- *  \ArtfulRobot\Debug::log("a line of log", $var);
- *  \ArtfulRobot\Debug::log(">> starting a group/function");
- *  \ArtfulRobot\Debug::log("a line of log", $var);
- *  \ArtfulRobot\Debug::log("<< ending a group/function - will get time in ms");
- *  \ArtfulRobot\Debug::log("!!an important line of log");
- *  \ArtfulRobot\Debug::log("I need to use <b>html</b> in my message so I end with <html>");
- *  \ArtfulRobot\Debug::fatal("Something real bad happened");
- *  \ArtfulRobot\Debug::redirect("/");
+ *  Manually configuring
+ *      set_error_handler( array('\ArtfulRobot\Debug','handleError') );
+ *      set_exception_handler(array('\ArtfulRobot\Debug','handleException') );
+ *      \ArtfulRobot\Debug::setServiceLevel('cterm', \ArtfulRobot\Debug::LEVEL_LOG);
+ *
+ *  Logging
+ *      \ArtfulRobot\Debug::log("a line of log", $var);
+ *      \ArtfulRobot\Debug::log(">> starting a group/function");
+ *      \ArtfulRobot\Debug::log("a line of log", $var);
+ *      \ArtfulRobot\Debug::log("<< ending a group/function - will get time in ms");
+ *      \ArtfulRobot\Debug::log("!!an important line of log");
+ *      \ArtfulRobot\Debug::log("I need to use <b>html</b> in my message so I end with <html>");
+ *      \ArtfulRobot\Debug::fatal("Something real bad happened");
+ *      \ArtfulRobot\Debug::redirect("/");
  *
  *
  *  loadProfile sets a lot of stuff at once.
@@ -134,6 +152,9 @@ class Debug
     /** allows pushProfile and popProfile to temporarily change debugging state */
     protected static $profile_stack=array();
 
+    /** can use a function callback instead of exit. e.g. to give user nice(r) message */
+    protected static $exit_callback=false;
+
     // main use functions
     //public static function log( $msg, $vars=null )/*{{{*/
     /** Main logging method
@@ -211,7 +232,7 @@ class Debug
 
 			header( "Location: $href");
         }
-		/* we close the session because otherwise there's a slim chance that 
+		/* we close the session because otherwise there's a slim chance that
 		 * the redirected page will run and write its session before this one does.
 		 */
 		session_write_close();
@@ -219,19 +240,26 @@ class Debug
 	} // }}}
 	public static function fatal( $msg='fatal exit', $vars=null )//{{{
 	{
-        // log 
+        // log
         self::log( "XX $msg", $vars);
         // we must now exit.
-        exit;
+        if ($fn=static::$exit_callback) {
+            // cease handling errors - don't want loop
+            restore_error_handler();
+            restore_exception_handler();
+            $fn($msg, $vars);
+        } else {
+            exit;
+        }
 	} //}}}
 	// public static function handleError($errno, $errstr, $errfile, $errline) // {{{
-	/** error handler 
+	/** error handler
 	 */
 	public static function handleError($errno, $errstr, $errfile, $errline)
 	{
 		// if error_reporting is turned off for this type of error, do nothing.
 		// this is important as code may well want to turn errors off temporarily, or use @something()
-		if (! (error_reporting() & $errno )) return; 
+		if (! (error_reporting() & $errno )) return;
 
 		switch ($errno) {
             case E_USER_WARNING:
@@ -256,14 +284,19 @@ class Debug
 		return true;
 	} // }}}
 	// public static function handleException($exception) // {{{
-	/** uncaught exception handler - calls fatal()
+	/** uncaught exception handler - calls fatal() to log it.
+     *
+     * Configuration determines the possible outcomes:
+     * - exit()
+     * - calls the exit callback
+     * - re-throws the exception after unregistering the exception handler.
 	 */
 	public static function handleException($exception)
 	{
 		self::fatal("Uncaught Exception: (backtrace follows) "
-                . ( $exception->getCode() 
-                    ? '(code ' . $exception->getCode() . ')' 
-                    : '' ) 
+                . ( $exception->getCode()
+                    ? '(code ' . $exception->getCode() . ')'
+                    : '' )
                 . $exception->getMessage() , static::getTrace($exception->getTrace()));
 	} // }}}
 	//public static function logException($exception)//{{{
@@ -271,23 +304,23 @@ class Debug
      *  This will trigger all the fatal level services that are setup,
      *  If one of those causes an exit (e.g. outputHtml) then it WILL be fatal
      *  This way on a dev environment this call will be fatal, and
-     *  on a live one it might write a file but carry on to produce a friendly 
+     *  on a live one it might write a file but carry on to produce a friendly
      *  error message for users.
      */
 	public static function logException($exception)
 	{
 		self::log("XX Caught Exception: (backtrace follows) "
-                . ( $exception->getCode() 
-                    ? '(code ' . $exception->getCode() . ')' 
-                    : '' ) 
+                . ( $exception->getCode()
+                    ? '(code ' . $exception->getCode() . ')'
+                    : '' )
                 . $exception->getMessage() , static::getTrace($exception->getTrace()));
 	} // }}}
     //public static function getHtml()/*{{{*/
-    /** return html version of the log, so you can put it at the right place in a template. 
-     *  
+    /** return html version of the log, so you can put it at the right place in a template.
+     *
      *  This is only allowed by setting the serviceAllowHtml.
      *  e.g. you could setFinishServices('allow_html');
-     *  and then when you call getHtml() you'll get the log so long as 
+     *  and then when you call getHtml() you'll get the log so long as
      *  finish() has been called.
      *
      *  or you could setServiceLevel('allow_html','ALL') and then the log
@@ -301,6 +334,10 @@ class Debug
         }
         return static::generateHtml();
     }//}}}
+    public static function getFile()/*{{{*/
+    {
+        return static::$opts['file'] ;
+    }/*}}}*/
     // config: when to trigger services
     //public static function setServiceLevel($new_service,$new_level=self::LEVEL_DISABLE)/*{{{*/
     /** set what level a particular service kicks in at
@@ -325,7 +362,7 @@ class Debug
         foreach (static::$functions as $level=>$functions) {
             if ($level>$new_level ) {
                 // remove the service from this level
-                static::$functions[$level] = 
+                static::$functions[$level] =
                     array_diff(static::$functions[$level], array($new_service));
             } else {
                 // add the service in (if not already in)
@@ -352,6 +389,14 @@ class Debug
     {
         static::setEndServices(func_get_args(),static::LEVEL_FINISH_NATURAL);
     }/*}}}*/
+    public static function setExitCallback($callback=null)/*{{{*/
+    {
+        if ($callback && is_callable($callback)) {
+            static::$exit_callback = $callback;
+        } else {
+            static::$exit_callback = false;
+        }
+    }/*}}}*/
     // other config/settings
 	public static function loadProfile($profile )//{{{
 	{
@@ -372,7 +417,7 @@ class Debug
         error_reporting(E_ALL | E_STRICT );
 
         if ($profile == 'online') {
-            // Don't do anything unless we have fatal error, 
+            // Don't do anything unless we have fatal error,
             // in which case file and error_log
             static::setFatalServices('file','error_log');
             // ignore strict and notice errors
@@ -483,12 +528,12 @@ class Debug
         $deets = static::getText(false) ;
         echo "\033[1;30m" . $deets['depth'] . "\033[0m"
             ."\033[1;32m" . $deets['mem'] . "\033[0m"
-            . ( static::$current['level'] <= static::LEVEL_IMPORTANT 
+            . ( static::$current['level'] <= static::LEVEL_IMPORTANT
               ? "\033[1;31m"
               : "\033[1;37m" )
             . trim($deets['msg']," \n\r") . "\033[0m"
             . $deets['mem'] . "\n"
-            . ($deets['vars'] 
+            . ($deets['vars']
                ?  "\t" . str_replace("\n","\n\t", $deets['vars']). "\n"
                : "");
         flush();
@@ -515,7 +560,7 @@ class Debug
         if ( isset(static::$store['vars']) && is_object( static::$store['vars'] ) )
             static::$store['vars']  = serialize(static::$store['vars'] );
 
-        // fatal? Add a trace as only calls through handleException() will have one 
+        // fatal? Add a trace as only calls through handleException() will have one
         if (static::$current['prefix'] == 'XX' && substr(static::$current['msg'],0,12)!='XX Exception') {
             static::$store[] = array(
                     'msg'=>'Backtrace:',
@@ -558,12 +603,12 @@ class Debug
             // else built text format
             static::$current['text'] = array();
 
-            static::$current['text']['depth'] = 
+            static::$current['text']['depth'] =
                 static::$opts['text_depth']
                 ? str_repeat( '-',  self::$depth) . '|'
                 : '';
 
-            static::$current['text']['mem'] = 
+            static::$current['text']['mem'] =
                 static::$opts['text_mem']
                 ?   sprintf("%0.1fMb ", memory_get_usage()/1024/1024)
                 : '';
@@ -571,7 +616,7 @@ class Debug
             static::$current['text']['msg'] = static::$current['msg'];
 			// strip <html> tag from end of msg - no use to us.
 			if (substr(static::$current['msg'], -6)=="<html>") {
-				static::$current['text']['msg'] = 
+				static::$current['text']['msg'] =
 					strip_tags(strtr(static::$current['msg'], array(
 						'<html>' => '',
 						'<strong>' => '**',
@@ -630,7 +675,7 @@ class Debug
 				static::setServiceLevel('file');
 				static::fatal("Could not write $filename");
 			}
-            fwrite(static::$fh, 
+            fwrite(static::$fh,
                     "-------------------------------------------------------------------\n" .
                     "Debug log at " . date('H:i:s d M Y') . "\n\n");
         }
@@ -650,7 +695,7 @@ class Debug
             static::$current['msg'] .= sprintf(' %0.3fs', $time_diff);
             if ($time_diff>static::$opts['slow']) {
                 static::$current['level'] = static::LEVEL_IMPORTANT;
-                static::$current['msg'] = "<< SLOW: " . substr(static::$current['msg'],2); 
+                static::$current['msg'] = "<< SLOW: " . substr(static::$current['msg'],2);
             }
             static::$current['depth'] = 0;
             static::$depth>0 && static::$depth--;
@@ -658,6 +703,7 @@ class Debug
     }/*}}}*/
     protected static function getTrace($trace=null)/*{{{*/
     {
+        // @todo need to check for low memory and return array() if likely to cause crash with debug_backtrace
 		// remove ourselves from the trace.
 		if (!$trace) $trace = debug_backtrace();
 
@@ -803,15 +849,15 @@ if(typeof jQuery=='undefined') {
 
 			if (substr($row['msg'], -6)=="<html>") $line .= str_replace('<html>','',$row['msg']);
 			else $line .= htmlspecialchars($row['msg']);
-		   
-			$line .="</span>" 
+
+			$line .="</span>"
                 . (isset($row['mem']) ? "<div class='arl-debug-mem'>$row[mem]</div>" : '')
                 . (!empty($row['vars'])
                     ? "<div class='arl-debug-vars'><div class='arl-debug-var-toggle'></div><pre>"
                       . htmlspecialchars(print_r($row['vars'],1))
                       . "</pre></div>"
                     : '');
-                
+
             if ($row['prefix'] == '>>') {
                 $depth++;
                 $line .= "<div class='arl-debug-stack-start'>";
