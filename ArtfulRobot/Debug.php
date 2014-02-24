@@ -49,8 +49,8 @@ Artful Robot Libraries.  If not, see <http://www.gnu.org/licenses/>.
  *      \ArtfulRobot\Debug::loadProfile(<profilename>);
  *
  *  Manually configuring
- *      set_error_handler( array('\ArtfulRobot\Debug','handleError') );
- *      set_exception_handler(array('\ArtfulRobot\Debug','handleException') );
+ *      \ArtfulRobot\Debug::setExceptionHandler();
+ *      \ArtfulRobot\Debug::setErrorHandler();
  *      \ArtfulRobot\Debug::setServiceLevel('cterm', \ArtfulRobot\Debug::LEVEL_LOG);
  *
  *  Logging
@@ -155,6 +155,12 @@ class Debug
     /** can use a function callback instead of exit. e.g. to give user nice(r) message */
     protected static $exit_callback=false;
 
+    /** if we are exception handler, should we pass on to previous handler after processing? */
+    protected static $rethrow_execptions=true;
+
+    /** used by rethrow_exceptions */
+    protected static $previous_exception_handler=null;
+
     // main use functions
     //public static function log( $msg, $vars=null )/*{{{*/
     /** Main logging method
@@ -238,19 +244,27 @@ class Debug
 		session_write_close();
 		exit;
 	} // }}}
-	public static function fatal( $msg='fatal exit', $vars=null )//{{{
+	//public static function fatal( $msg='fatal exit', $vars=null )//{{{
+    /** publicly accessible fatal method.
+     *
+     *  Mostly call this in place of exit() to ensure all finish level debug services
+     *  are delivered.
+     *
+     *  Adds a backtrace automatically.
+     *
+     *  Will use exit_callback if provided.
+     */
+	public static function fatal( $msg='fatal exit', $vars=null )
 	{
-        // log
-        self::log( "XX $msg", $vars);
-        // we must now exit.
-        if ($fn=static::$exit_callback) {
-            // cease handling errors - don't want loop
-            restore_error_handler();
-            restore_exception_handler();
-            $fn($msg, $vars);
+        // where to add backtrace?
+        if ($vars === null) {
+            $vars = static::getTrace();
         } else {
-            exit;
+            $vars = array('variables'=>$vars, 'backtrace'=>static::getTrace() );
         }
+
+        self::log( "XX $msg", $vars);
+        self::exitNow();
 	} //}}}
 	// public static function handleError($errno, $errstr, $errfile, $errline) // {{{
 	/** error handler
@@ -278,42 +292,54 @@ class Debug
 		}
         $msg.="Error [$errno] $errstr. <br />\n:sp +$errline $errfile<html>";
 
-		if ($errno & self::$opts['ignore_errors']) static::log($msg . " (Execution set to continue for this type of error)");
-		else static::fatal($msg);
+		if ($errno & self::$opts['ignore_errors']) {
+            static::log($msg . " (Execution set to continue for this type of error)");
+
+        } else {
+            // fatal error. Restore error handler so we can't get in a loop
+            restore_error_handler();
+            static::fatal($msg);
+        }
 		/* Don't execute PHP internal error handler */
 		return true;
 	} // }}}
 	// public static function handleException($exception) // {{{
-	/** uncaught exception handler - calls fatal() to log it.
+	/** uncaught exception handler, logs and either rethrows or exits
      *
-     * Configuration determines the possible outcomes:
-     * - exit()
-     * - calls the exit callback
-     * - re-throws the exception after unregistering the exception handler.
 	 */
-	public static function handleException($exception)
+	public static function handleException(\Exception $exception)
 	{
-		self::fatal("Uncaught Exception: (backtrace follows) "
-                . ( $exception->getCode()
-                    ? '(code ' . $exception->getCode() . ')'
-                    : '' )
-                . $exception->getMessage() , static::getTrace($exception->getTrace()));
+        self::logException($exception, false);
+
+        // now we either rethrow it...
+        if (self::$rethrow_execptions) {
+            if (is_callable(self::$previous_exception_handler)) {
+                call_user_func(self::$previous_exception_handler, $exception);
+            }
+        }
+
+        // ... or we need to exit
+        self::exitNow();
 	} // }}}
 	//public static function logException($exception)//{{{
     /** log exception with backtrace at LEVEL_FINISH_FATAL but not itself fatal
      *  This will trigger all the fatal level services that are setup,
      *  If one of those causes an exit (e.g. outputHtml) then it WILL be fatal
+     *
      *  This way on a dev environment this call will be fatal, and
      *  on a live one it might write a file but carry on to produce a friendly
      *  error message for users.
      */
-	public static function logException($exception)
+	public static function logException($exception, $caught=true)
 	{
-		self::log("XX Caught Exception: (backtrace follows) "
+        $message = "XX "
+                . ($caught ? "Caught" : "Uncaught" )
+                . "Exception: (backtrace follows) "
                 . ( $exception->getCode()
                     ? '(code ' . $exception->getCode() . ')'
                     : '' )
-                . $exception->getMessage() , static::getTrace($exception->getTrace()));
+                . $exception->getMessage();
+		self::log( $message, static::getTrace($exception->getTrace()));
 	} // }}}
     //public static function getHtml()/*{{{*/
     /** return html version of the log, so you can put it at the right place in a template.
@@ -397,12 +423,46 @@ class Debug
             static::$exit_callback = false;
         }
     }/*}}}*/
+    public static function setExceptionRethrow($rethrow=true)/*{{{*/
+    {
+        static::$rethrow_execptions = (bool) $rethrow;
+    }/*}}}*/
+    //public static function setExceptionHandler()/*{{{*/
+    /** sets this up to handle exceptions
+     *
+     * Important to use this and not set_exception_handler directly
+     * if you want to have Debug rethrow exceptions because
+     * restore_exception_handler() does not work from within an
+     * exception handler
+     */
+    public static function setExceptionHandler()
+    {
+        if (self::$previous_exception_handler !== null) {
+            // we have already been called.
+            return;
+        }
+        self::$previous_exception_handler = set_exception_handler(array('\\ArtfulRobot\\Debug','handleException'));
+
+        // for compatibility's sake
+        return self::$previous_exception_handler;
+    }/*}}}*/
+    //public static function setErrorHandler()/*{{{*/
+    /** sets this up to handle errors
+     *
+     * This is not important, could use set_error_handler direct,
+     * but provided because setExceptionHandler IS important,
+     * so having a corresponding setErrorHandler might be clearer.
+     */
+    public static function setErrorHandler()
+    {
+        return set_error_handler(array('\\ArtfulRobot\\Debug','handleError'));
+    }/*}}}*/
     // other config/settings
 	public static function loadProfile($profile )//{{{
 	{
         // take control of errors, exceptions
-        set_error_handler(array('\\ArtfulRobot\\Debug','handleError'));
-        set_exception_handler(array('\\ArtfulRobot\\Debug','handleException'));
+        self::setExceptionHandler();
+        self::setErrorHandler();
 		// reset
     	static::$functions = array(
             1 => array(),
@@ -560,16 +620,6 @@ class Debug
         if ( isset(static::$store['vars']) && is_object( static::$store['vars'] ) )
             static::$store['vars']  = serialize(static::$store['vars'] );
 
-        // fatal? Add a trace as only calls through handleException() will have one
-        if (static::$current['prefix'] == 'XX' && substr(static::$current['msg'],0,12)!='XX Exception') {
-            static::$store[] = array(
-                    'msg'=>'Backtrace:',
-					'level' => self::LEVEL_IMPORTANT,
-                    'prefix'=>'backtrace',
-                    'mem'=>'',
-                    'depth'=>'',
-                    'vars'=>static::getTrace() );
-        }
     }/*}}}*/
     protected static function serviceAllowHtml()/*{{{*/
     {
@@ -596,6 +646,18 @@ class Debug
 
     }/*}}}*/
     // internals
+	protected static function exitNow()//{{{
+	{
+        // we must now exit.
+        if ($fn=static::$exit_callback) {
+            // do this by calling external callback
+            $fn($msg, $vars);
+
+        } else {
+            // normal exit
+            exit;
+        }
+	} //}}}
     protected static function getText( $implode=true )/*{{{*/
     {
         if (! isset(static::$current['text'])) {
@@ -646,12 +708,6 @@ class Debug
             }
             static::$current['text']['vars'] = $vars ? "\nVars: {{{\n$vars }}}" : '';
 
-            // fatal? Add a trace
-            if (static::$current['prefix'] == 'XX') {
-                foreach (static::getTrace() as $_) {
-                    static::$current['text']['vars'] .= "\nBacktrace:{{{\n" . print_r($_,1) . "}}}";
-                }
-            }
         }
         if ($implode) return implode('', static::$current['text']) . "\n";
         return static::$current['text'];
@@ -705,14 +761,12 @@ class Debug
     {
         // @todo need to check for low memory and return array() if likely to cause crash with debug_backtrace
 		// remove ourselves from the trace.
-		if (!$trace) $trace = debug_backtrace();
+		if (!$trace) {
+            $trace = debug_backtrace();
+        }
 
-		$penultimate = false;
 		while (!empty($trace[0]['class']) && ($trace[0]['class'] == 'ArtfulRobot\Debug')) {
-			$penultimate=array_shift($trace);
-		}
-		if($penultimate) {
-			array_unshift($trace, $penultimate);
+			array_shift($trace);
 		}
 		return $trace;
     }/*}}}*/
@@ -914,6 +968,5 @@ if(typeof jQuery=='undefined') {
         }
         return $html;
     }/*}}}*/
-}/*}}}*/
-
+}
 
