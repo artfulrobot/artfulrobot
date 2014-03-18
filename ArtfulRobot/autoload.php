@@ -10,7 +10,7 @@ spl_autoload_register( function ($className)
     }
 
     $fileName = dirname(__FILE__) . DIRECTORY_SEPARATOR
-                . str_replace('_', DIRECTORY_SEPARATOR, $matches[1]) . '.php';
+                . strtr($matches[1],array('_'=> DIRECTORY_SEPARATOR, '\\' => DIRECTORY_SEPARATOR)) . '.php';
 
     if (!file_exists($fileName)) {
         error_log("ArtfulRobot autoload: File for class '$className' not found at $fileName");
