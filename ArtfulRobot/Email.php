@@ -68,9 +68,13 @@ class Email
 	//public function setTo($to)/*{{{*/
 	/** append 'to' address
 	  */
-	public function setTo($to)
+	public function setTo($to, $append=false)
 	{
-		$this->to[] = $to;
+        if ($append) {
+            $this->to[] = $to;
+        } else {
+            $this->to = array($to);
+        }
 	}/*}}}*/
 	//public function setFrom($from)/*{{{*/
 	/** set from address */
