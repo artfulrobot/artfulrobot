@@ -256,6 +256,7 @@ class Debug
      */
 	public static function fatal( $msg='fatal exit', $vars=null )
 	{
+        error_log("ArtfulRobot\\Debug::fatal");
         // where to add backtrace?
         if ($vars === null) {
             $vars = static::getTrace();
@@ -264,7 +265,7 @@ class Debug
         }
 
         self::log( "XX $msg", $vars);
-        self::exitNow();
+        self::exitNow($msg, $vars);
 	} //}}}
 	// public static function handleError($errno, $errstr, $errfile, $errline) // {{{
 	/** error handler
@@ -311,15 +312,20 @@ class Debug
 	{
         self::logException($exception, false);
 
+        // we should not attempt to handle further exceptions
+        set_exception_handler(null);
+        set_error_handler(null);
+
         // now we either rethrow it...
         if (self::$rethrow_execptions) {
             if (is_callable(self::$previous_exception_handler)) {
                 call_user_func(self::$previous_exception_handler, $exception);
+            } else {
             }
         }
 
         // ... or we need to exit
-        self::exitNow();
+        self::exitNow('uncaught exception', $exception);
 	} // }}}
 	//public static function logException($exception)//{{{
     /** log exception with backtrace at LEVEL_FINISH_FATAL but not itself fatal
@@ -646,8 +652,9 @@ class Debug
 
     }/*}}}*/
     // internals
-	protected static function exitNow()//{{{
+	protected static function exitNow($msg='', $vars=null)//{{{
 	{
+        error_log("ArtfulRobot\\Debug::exitNow");
         // we must now exit.
         if ($fn=static::$exit_callback) {
             // do this by calling external callback
@@ -762,7 +769,7 @@ class Debug
         // @todo need to check for low memory and return array() if likely to cause crash with debug_backtrace
 		// remove ourselves from the trace.
 		if (!$trace) {
-            $trace = debug_backtrace();
+            $trace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS );
         }
 
 		while (!empty($trace[0]['class']) && ($trace[0]['class'] == 'ArtfulRobot\Debug')) {
