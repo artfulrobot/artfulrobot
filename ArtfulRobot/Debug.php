@@ -314,7 +314,8 @@ class Debug
 
         // we should not attempt to handle further exceptions
         set_exception_handler(null);
-        set_error_handler(null);
+        // php 5.5+ set_error_handler(null);
+        restore_error_handler();
 
         // now we either rethrow it...
         if (self::$rethrow_execptions) {
