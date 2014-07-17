@@ -313,20 +313,18 @@ class Debug
         self::logException($exception, false);
 
         // we should not attempt to handle further exceptions
-        set_exception_handler(null);
+        set_exception_handler(self::$previous_exception_handler);
         // php 5.5+ set_error_handler(null);
         restore_error_handler();
 
         // now we either rethrow it...
         if (self::$rethrow_execptions) {
-            if (is_callable(self::$previous_exception_handler)) {
-                call_user_func(self::$previous_exception_handler, $exception);
-            } else {
-            }
+          throw($exception);
         }
-
-        // ... or we need to exit
-        self::exitNow('uncaught exception', $exception);
+        else {
+          // ... or we need to exit
+          self::exitNow('uncaught exception', $exception);
+        }
 	} // }}}
 	//public static function logException($exception)//{{{
     /** log exception with backtrace at LEVEL_FINISH_FATAL but not itself fatal
