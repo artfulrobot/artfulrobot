@@ -67,7 +67,7 @@ class Onceler
 			$source[$key] = false;
 			return false;
 		}
-		error_log("!! setting new token $token");
+		//error_log("!! setting new token $token");
 		// new token
 		$spent_tokens[$token] = true;
 		return true;
