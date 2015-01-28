@@ -7,7 +7,7 @@
   "license": "GPL",
   "require": {
     "php": ">=5.3.0"
-  }
+  },
   "authors": [
     {
       "name": "Rich Lott",
