@@ -106,9 +106,7 @@ passing an array of values to a placeholder for an `IN` clause.
 Create `composer.json` file:
 
     {
-      require: [
-        { "artfulrobot/artfulrobot": ">1.0.0" }
-      ]
+      require: { "artfulrobot/artfulrobot": ">1.0.0" }
     }
 
 Download [composer](https://getcomposer.org/download/) then run
