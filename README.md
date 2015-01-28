@@ -107,7 +107,7 @@ Create `composer.json` file:
 
     {
       require: [
-        { "artfulrobot/artfulrobot": "1.0.0" }
+        { "artfulrobot/artfulrobot": ">1.0.0" }
       ]
     }
 
