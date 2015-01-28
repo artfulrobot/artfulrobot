@@ -3,9 +3,6 @@
 This is a set of general purpose libraries that I have written and used across
 a number of projects.
 
-**Only the code under 'ArtfulRobot/' should be used** The rest is strictly deprecated
-and will be removed at my earliest opportunity.
-
 The classes under the `ArtfulRobot` directory are compatible with a PSR-0 autoloader and
 the code is aiming for
 [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md),
@@ -117,11 +114,4 @@ Create `composer.json` file:
 Download [composer](https://getcomposer.org/download/) then run
 
     $ php composer.phar install
-
-
-# Deprecated and dragonous
-
-As mentioned above, anything outside of the ArtfulRobot directory
-should NOT be used, is probably hideously coded, will be removed without
-warning.
 
