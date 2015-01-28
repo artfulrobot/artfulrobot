@@ -11,6 +11,11 @@ the code is aiming for
 [PSR-2](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md),
 it may not all be quite there yet.
 
+## ArtfulRobot\RestApi
+
+This class provides a way to talk to RESTful web services. Simple services may choose to use
+this class directly, whereas others that require special signing etc. are best implemented
+as subclasses. Subclasses are provided for Twitter and Flickr.
 
 ## ArtfulRobot\CSV
 
