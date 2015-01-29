@@ -10,19 +10,33 @@ class RestApi_Flickr extends RestApi {
   protected $server = 'https://api.flickr.com/services/rest';
 
   /** Flickr API key */
-  protected $flickr_api_key = '';
+  protected $api_key = '';
 
   /** Flickr API secret */
-  protected $flickr_api_secret = '';
+  protected $api_secret = '';
 
   /** Flickr methods that require signing */
   protected $flickr_sign = array(
     'flickr.photo.delete',
   );
 
+  /**
+   * Settings must include api_key and optionally api_secret
+   */
   public function __construct($settings=array()) {
-    $this->flickr_api_key = $settings['api_key'];
-    $this->flickr_api_secret = $settings['api_secret'];
+    // required keys
+    foreach (array('api_key') as $_) {
+      if (empty($settings[$_])) {
+        throw new \Exception(__CLASS__ . " constructor called missing required $_ setting.");
+      }
+      $this->$_ = $settings[$_];
+    }
+
+    // optional keys
+    foreach (array('api_secret') as $_) {
+      $this->$_ = array_key_exists($_, $settings) ? $settings[$_] : '';
+    }
+
   }
   /**
    * Certain flickr API functions require signing.
@@ -32,11 +46,11 @@ class RestApi_Flickr extends RestApi {
   protected function buildRequestAlter() {
 
     // All requests need this
-    $this->payload['api_key'] = $this->flickr_api_key;
+    $this->payload['api_key'] = $this->api_key;
 
     if (!empty($this->payload['method']) && in_array($this->payload['method'], $this->flickr_sign)) {
       // we need to sign this.
-      $crunch = $this->flickr_api_secret;
+      $crunch = $this->api_secret;
       ksort($this->payload);
       foreach ($this->payload as $key=>$val) {
         $crunch .= $key . $val;
