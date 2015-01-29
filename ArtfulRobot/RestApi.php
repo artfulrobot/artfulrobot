@@ -8,7 +8,7 @@ namespace ArtfulRobot;
  *
  * Synopsis:
  *
- * $rest = new \FoE\RestApi('http://example.com');
+ * $rest = new \ArtfulRobot\RestApi('http://example.com');
  * $rest->create($uri, $data);
  * $rest->get($uri);
  * $rest->delete($uri);
@@ -28,8 +28,8 @@ class RestApi {
     'PUT'    => 'PUT',
   );
 
-  /** Whether to send data as json in POST requests */
-  protected $json_request = TRUE;
+  /** Whether to send data as json */
+  protected $json_request = FALSE;
 
   /** Whether to request json in the return */
   protected $accept_json_response = TRUE;
@@ -42,6 +42,17 @@ class RestApi {
   protected $ssl_verify_host = 2;
   /** Turn on XDEBUG-ing */
   protected $xdebug_ide_key = '';
+
+
+  // Per-request internals
+  protected $method = '';
+  protected $url = '';
+  protected $headers = array();
+  protected $payload;
+  protected $body;
+
+  // Public methods for configuration.
+
   /**
    * Standard constructor optionally takes base server URL.
    *
@@ -63,40 +74,6 @@ class RestApi {
           . gettype($settings) . " received.");
       }
     }
-  }
-
-  /** Perform a REST GET command for fetching resources.
-   *
-   * This must have no side effects (i.e. it must not create, delete or update anything).
-   *
-   * The uri can be a string, or a template, see RestApi::request()
-   */
-  public function get($uri, $data=null) {
-    return $this->request('GET', $uri, $data);
-  }
-
-  /** Perform a REST POST command for creating new resources.
-   *
-   * The uri can be a string, or a template, see RestApi::request()
-   */
-  public function post($uri, $data=null) {
-    return $this->request('POST', $uri, $data);
-  }
-
-  /** Perform a REST DELETE command for deleting resources.
-   *
-   * The uri can be a string, or a template, see RestApi::request()
-   */
-  public function delete($uri, $data=null) {
-    return $this->request('DELETE', $uri, $data);
-  }
-
-  /** Perform a REST PUT command for updating resources.
-   *
-   * The uri can be a string, or a template, see RestApi::request()
-   */
-  public function put($uri, $data=null) {
-    return $this->request('PUT', $uri, $data);
   }
 
   /**
@@ -146,6 +123,52 @@ class RestApi {
   public function verbIsValid($verb) {
     return array_key_exists($verb, $this->verb_to_http_method);
   }
+
+
+  // Public methods for making (or testing) requests
+
+  /** Perform a REST GET command for fetching resources.
+   *
+   * This must have no side effects (i.e. it must not create, delete or update anything).
+   *
+   * The uri can be a string, or a template, see RestApi::request()
+   */
+  public function get($uri, $data=null) {
+    return $this->request('GET', $uri, $data);
+  }
+
+  /** Perform a REST POST command for creating new resources.
+   *
+   * The uri can be a string, or a template, see RestApi::request()
+   */
+  public function post($uri, $data=null) {
+    return $this->request('POST', $uri, $data);
+  }
+
+  /** Perform a REST DELETE command for deleting resources.
+   *
+   * The uri can be a string, or a template, see RestApi::request()
+   */
+  public function delete($uri, $data=null) {
+    return $this->request('DELETE', $uri, $data);
+  }
+
+  /** Perform a REST PUT command for updating resources.
+   *
+   * The uri can be a string, or a template, see RestApi::request()
+   */
+  public function put($uri, $data=null) {
+    return $this->request('PUT', $uri, $data);
+  }
+
+  /**
+   * Debug
+   */
+  public function getMockRequest($method, $uri='', $data=null) {
+    $this->buildRequest($method, $uri, $data);
+    return $this->requestMock();
+  }
+
   /** static shortcut method */
   public static function api($verb, $url, $data=null) {
     $rest = new RestApi();
@@ -154,12 +177,82 @@ class RestApi {
     }
     return $rest->$verb($url, $data);
   }
+
+
+  // Private internal methods
+
   /**
-   * Set up headers
-   *
-   * Extend this if your service requires special headers, e.g. OAuth signing.
+   * Set up things we offer.
    */
-  protected function alterHeaders(&$headers) {
+  protected function buildRequest($method, $uri, $data) {
+
+    // Initialise per-request internal vars.
+    $this->method = $method;
+    $this->url = '';
+    $this->body = '';
+    $this->headers = array();
+    $this->payload = $data;
+
+    // What url are we sending to?
+    if (is_array($uri)) {
+      // Implement templating.
+      $this->url = strtr($this->server . $uri[0], $uri[1]);
+    }
+    else {
+      $this->url = $this->server . $uri;
+    }
+
+    // Now allow customisation
+    $this->buildRequestAlter();
+
+    // Finally put payload in headers or body
+
+    // Our json_request flag encodes the data as json
+    if ($this->json_request) {
+      $this->headers['Content-Type'] = 'Application/json;charset=UTF-8';
+      $this->payload = json_encode($this->payload);
+    }
+
+    // Apply default encoding unless we already have a string.
+    if (!is_string($this->payload) && $this->payload !== null) {
+      $this->payload = http_build_query($this->payload);
+    }
+
+
+    // Where to put data?
+    if ($this->payload) {
+      if ($this->method == 'GET') {
+        $this->url .= '?' . $this->payload;
+      }
+      else {
+        $this->body = $this->payload;
+      }
+    }
+
+    // XDebug support.
+    if ($this->xdebug_ide_key) {
+      $this->url .=
+        ( (strpos($this->url,'?')===FALSE)
+          ? '?'
+          : '&' )
+        . "XDEBUG_SESSION_START=" . rawurlencode($this->xdebug_ide_key);
+    }
+    // Clear this, not needed now.
+    $this->payload = '';
+  }
+  /**
+   * Allow sub classes to customise the request
+   *
+   * This may alter $this->payload and $this->headers
+   *
+   * At the end, the payload will either be a ready built string or
+   * an array which will be processed as follows:
+   *
+   * - if json is to be used, and it's not a GET request,
+   *   json_encode will be called on it.
+   * - then http_build_query will be applied.
+   */
+  protected function buildRequestAlter() {
 
   }
 
@@ -171,52 +264,26 @@ class RestApi {
    * @todo Currently we ignore headers in responses. If we need these we'll impliment it.
    */
   protected function request($method, $uri, $data) {
+
+    // Most customisation will be done here.
+    // It should end with a headers array and body.
+    $this->buildRequest($method, $uri, $data);
+    // Now make request.
+
     $curl = curl_init();
-    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
-    $headers = array();
+    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->method);
 
-    // Impliment templating for uris
-    if (is_array($uri)) {
-      $uri = strtr(reset($uri), end($uri));
-    }
-
-    if ($data) {
-      // Are we to make it into JSON?
-      if ($this->json_request && $method != 'GET') {
-        $data = json_encode($data);
-        $headers['Content-Type'] = 'Application/json;charset=UTF-8';
-      }
-      else {
-        $data = $this->buildQuery($data);
-      }
-      // Where to put any data
-      if ($method == 'GET') {
-        $uri .= '?' . $data;
-      }
-      else {
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
-        $headers['Content-Length'] = strlen($data) ;
-      }
-    }
-
-    // Prefer JSON response?
-    if ($this->accept_json_response) {
-      $headers['Accept'] =  'Application/json';
+    if ($this->body) {
+      curl_setopt($curl, CURLOPT_POSTFIELDS, $this->body);
+      $headers['Content-Length'] = strlen($this->body) ;
     }
 
     // Set headers.
-    $this->alterHeaders($headers);
-    if ($headers) {
-      foreach ($headers as $k=>$v) {
-        $headers[$k] = "$k: $v";
-      }
-      curl_setopt($curl, CURLOPT_HTTPHEADER, array_values($headers));
+    $headers = array();
+    foreach ($this->headers as $k=>$v) {
+      $headers[] = "$k: $v";
     }
-
-    // XDebug?
-    if ($this->xdebug_ide_key) {
-      $uri .= ((strpos($uri, '?')>0) ? '&' : '?' ) . "XDEBUG_SESSION_START=" . rawurlencode($this->xdebug_ide_key);
-    }
+    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
     // Optional Authentication:
     if ($this->http_basic_auth) {
@@ -227,7 +294,7 @@ class RestApi {
     curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, $this->ssl_verify_peer);
     curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, $this->ssl_verify_host);
 
-    curl_setopt($curl, CURLOPT_URL, $this->server . $uri);
+    curl_setopt($curl, CURLOPT_URL, $this->url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     $result = curl_exec($curl);
     $info = curl_getinfo($curl);
@@ -235,14 +302,35 @@ class RestApi {
 
     return RestApiResponse::createFromCurl($result, $info);
   }
+
   /**
-   * Function to build the query string.
-   *
-   * This is separated out so that subclasses can extend this function,
-   * e.g. to provide signing.
+   * Finally we assemble and send the request.
    */
-  protected function buildQuery($data) {
-    return http_build_query($data);
+  protected function requestMock() {
+    // Copy the headers array.
+    $headers = $this->headers;
+    // Create the first line of the request
+    $request = $this->method . ' ' . $this->url . " HTTP/1.1\n";
+
+    // mock Curl's headers.
+    if ($this->http_basic_auth) {
+      $headers['Authorization'] = "Basic $this->http_basic_auth";
+    }
+    if ($this->ssl_verify_peer) {
+    }
+
+    if ($this->ssl_verify_host) {
+    }
+    if ($this->body) {
+      $headers['Content-Length'] = strlen($this->body) ;
+    }
+    // Add in headers, then body.
+    foreach ($headers as $k=>$v) {
+      $request .= "$k: $v\n";
+    }
+    $request .= "\n$this->body";
+
+    return $request;
   }
 
 }
