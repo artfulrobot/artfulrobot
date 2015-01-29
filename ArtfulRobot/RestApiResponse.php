@@ -60,19 +60,18 @@ class RestApiResponse {
     if (empty($info['http_code'])) {
       throw new \Exception("Missing http_code in curl info");
     }
-    if (empty($info['content_type'])) {
-      throw new \Exception("Missing content_type in curl info");
-    }
-
     // create object
     $object = new static($info['http_code']);
 
-    if (preg_match('@^application/json@i', $info['content_type'])) {
-      $object->body = json_decode($body);
+    if (!empty($info['content_type'])) {
+      if (preg_match('@^application/json@i', $info['content_type'])) {
+        $object->body = json_decode($body);
+      }
+      else {
+        $object->body = $body;
+      }
     }
-    else {
-      $object->body = $body;
-    }
+
     return $object;
   }
 }

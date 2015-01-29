@@ -20,29 +20,29 @@ class RestApi_Flickr extends RestApi {
     'flickr.photo.delete',
   );
 
-  public function __construct($settings=null) {
-    $this->flickr_api_key = $settings['flickr_import_widget_api_key'];
-    $this->flickr_api_secret = $settings['flickr_import_widget_api_secret'];
+  public function __construct($settings=array()) {
+    $this->flickr_api_key = $settings['api_key'];
+    $this->flickr_api_secret = $settings['api_secret'];
   }
   /**
-   * Function to build the query string.
-   *
    * Certain flickr API functions require signing.
+   *
+   * This may alter $this->payload and $this->headers
    */
-  protected function buildQuery($data) {
-    // All requests need this
-    $data['api_key'] = $this->flickr_api_key;
+  protected function buildRequestAlter() {
 
-    if (!empty($data['method']) && in_array($data['method'], $this->flickr_sign)) {
+    // All requests need this
+    $this->payload['api_key'] = $this->flickr_api_key;
+
+    if (!empty($this->payload['method']) && in_array($this->payload['method'], $this->flickr_sign)) {
       // we need to sign this.
       $crunch = $this->flickr_api_secret;
-      ksort($data);
-      foreach ($data as $key=>$val) {
+      ksort($this->payload);
+      foreach ($this->payload as $key=>$val) {
         $crunch .= $key . $val;
       }
-      $data['api_sig'] = md5($crunch);
+      $this->payload['api_sig'] = md5($crunch);
     }
-    return parent::buildQuery($data);
   }
   /** Returns the url to a photo from a photo object.
    *  https://farm{farm-id}.staticflickr.com/{server-id}/{id}_{secret}.jpg
