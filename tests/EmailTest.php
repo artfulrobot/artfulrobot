@@ -47,6 +47,18 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
         $email = $this->getTestEmail();
         $this->assertTrue($email->send());
     }
+    /**
+     * Tests outputs
+     */
+    public function testOutputToMailer()
+    {
+        $email = $this->getTestEmail();
+        $mailer_inputs = $email->getMailerInputs();
+        $this->assertEquals(static::EMAIL_WITH_NAME_TO, $mailer_inputs->to);
+        $this->assertEquals(static::EMAIL_WITH_NAME_FROM, $mailer_inputs->from);
+        $this->assertEquals(static::EMAIL, $mailer_inputs->return_path);
+        $this->assertEquals(static::TEST_SUBJECT, $mailer_inputs->subject);
+    }
     public function testSendWithAttachment()
     {
       $email = $this->getTestEmail();
@@ -187,3 +199,4 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
 
 }
 
+// vim: sw=4 ts=4
