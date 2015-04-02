@@ -77,49 +77,57 @@ class Email
         }
         return $this;
     }
-    /** return 'to' address that has been set
+    /**
+     * return 'to' address that has been set
      */
     public function getTo()
     {
         return $this->to;
     }
-    /** return 'from' address that has been set
+    /**
+     * return 'from' address that has been set
      */
     public function getFrom()
     {
         return $this->from;
     }
-    /** return 'return_path' address that has been set
+    /**
+     * return 'return_path' address that has been set
      */
     public function getReturnPath()
     {
         return $this->return_path;
     }
-    /** return 'reply_to' address that has been set
+    /**
+     * return 'reply_to' address that has been set
      */
     public function getReplyTo()
     {
         return $this->reply_to;
     }
-    /** return subject that has been set
+    /**
+     * return subject that has been set
      */
     public function getSubject()
     {
         return $this->subject;
     }
-    /** return text version of message.
+    /**
+     * return text version of message.
      */
     public function getMessageText()
     {
         return empty($this->body['text']) ? null : $this->body['text'];
     }
-    /** return html body.
+    /**
+     * return html body.
      */
     public function getMessageHtml()
     {
         return empty($this->body['html']) ? null : $this->body['html'];
     }
-    /** append 'to' address
+    /**
+     * append 'to' address
      */
     public function setTo($to, $append=false)
     {
@@ -129,27 +137,36 @@ class Email
             $this->to = array($to);
         }
     }
-    /** set from address */
+    /**
+     * set from address
+     */
     public function setFrom($from)
     {
         $this->from = $from;
     }
-    /** set return path */
+    /**
+     * set return path
+     */
     public function setReturnPath($return_path)
     {
         $this->return_path = $return_path;
     }
-    /** set Reply-To field */
+    /**
+     * set Reply-To field
+     */
     public function setReplyTo($from)
     {
         $this->reply_to = $reply_to;
     }
-    /** set subject */
+    /**
+     * set subject
+     */
     public function setSubject($subject)
     {
         $this->subject = $subject;
     }
-    /** Set an arbitrary header.
+    /**
+     * Set an arbitrary header.
      *
      * Special headers are handled by their setter; some are disallowed.
      *
@@ -186,7 +203,9 @@ class Email
     public function setMailService($callback) {
         $this->mail_service = $callback;
     }
-    /** adds text message */
+    /**
+     * adds text message
+     */
     public function setMessageText($message)
     {
         $message = $this->rfc822LineEndings($message);
@@ -194,7 +213,8 @@ class Email
         $message = mb_convert_encoding($message, 'UTF-8', static::mbDetectEncoding($message));
         $this->body['text'] = $message;
     }
-    /** adds html message
+    /**
+     * adds html message
      *
      * the related_files is an array(
      *    "name" => filename
@@ -227,7 +247,8 @@ class Email
         }
         $this->attachments[] = $filename;
     }
-    /** Ensure line endings conform to RFC 822.
+    /**
+     * Ensure line endings conform to RFC 822.
      */
     public function rfc822LineEndings($string)
     {
@@ -235,7 +256,8 @@ class Email
         // this is more efficient than trying to identify \r and \n on their own.
         return preg_replace('@(\r\n|\n|\r)@', "\r\n", $string);
     }
-    /** create and send email
+    /**
+     * create and send email
      *
      * Assemble the inputs to the mail service (typically PHP's mail() function).
      */
@@ -270,7 +292,8 @@ class Email
         return $mail_result;
     }
 
-    /** getMailerInputs
+    /**
+     * getMailerInputs
      *
      * Assemble and return the inputs in a StdClass object - so they can be tested.
      */
@@ -280,13 +303,14 @@ class Email
         return (object) array(
             'to' => $this->mailer_to,
             'subject' => $this->mailer_subject,
-            'body' => $this->mailer_body,
             'from' => $this->mailer_from,
             'return_path' => $this->mailer_return_path,
+            'mailer_headers' => $this->mailer_headers,
+            'body' => $this->mailer_body,
         );
     }
-
-     /** Assemble the inputs to the mail service (typically PHP's mail() function).
+    /**
+     * Assemble the inputs to the mail service (typically PHP's mail() function).
      *
      * Thanks to Drupal for some of this code
      */
@@ -299,8 +323,9 @@ class Email
         // take a copy of input headers - we mangle this.
         $headers = $this->headers;
 
-        // compile To: header.
-        $headers['To'] = implode(', ', $this->to);
+        // compile To: header. This is kept separate because it's a separate field for the mailer.
+        unset($headers['To']);
+        $this->mailer_to = implode(', ', $this->to);
 
         // Set a From: header and Sender: if we have that.
         if ($this->from) {
@@ -309,6 +334,11 @@ class Email
             if (empty($headers['Sender'])) {
                 $headers['Sender']= $this->from;
             }
+        }
+        // Move the from header elsewhere.
+        if (isset($headers['From'])) {
+            $this->mailer_from = $headers['From'];
+            unset($headers['From']);
         }
 
         // Set Reply-To: header
@@ -466,7 +496,6 @@ class Email
             preg_replace('@^\s+<@m','<', $this->body['html'])
         ))));
     }
-
     protected function createHtmlFromText()
     {
         // add <br/> at line endings
@@ -585,7 +614,7 @@ class Email
 
         // ok let's call it Latin1 now
         return "ISO-8859-1";
-    } // }}}
+    }
     static public function mimeHeaderEncode($data)
     {
         $encoding = self::mbDetectEncoding($data);
@@ -603,5 +632,7 @@ class Email
         mb_internal_encoding($orig_encoding);
         return $encoded;
     }
+
 }
 
+// vim: sw=4 ts=4
