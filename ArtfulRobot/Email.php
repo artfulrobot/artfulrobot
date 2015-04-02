@@ -28,13 +28,32 @@ class Email
     protected $body = array();
     protected $attachments = array();
     protected $uid;
+    /**
+     * holds value used in first param to mailer, typically PHP's mail()
+     */
     protected $mailer_to;
-    protected $mailer_from;
-    protected $mailer_return_path;
+    /**
+     * holds value used in second param to mailer, typically PHP's mail()
+     */
     protected $mailer_subject;
-    protected $mailer_headers;
+    /**
+     * holds value used in third param to mailer, typically PHP's mail()
+     */
     protected $mailer_body;
-    /** Callback for actually sending the assembled email. */
+    /**
+     * holds value used in fourth param to mailer, typically PHP's mail()
+     */
+    protected $mailer_headers;
+    /**
+     * holds value used in fifth param to mailer, typically PHP's mail().
+     *
+     * This string will be prefixed "-f " and can be used to set return path
+     * on compatible systems.
+     */
+    protected $mailer_return_path;
+    /**
+     * Callback for actually sending the assembled email.
+     */
     protected $mail_service = 'mail';
 
     /**
@@ -301,11 +320,10 @@ class Email
     {
         $this->assembleMailerInputs();
         return (object) array(
-            'to' => $this->mailer_to,
-            'subject' => $this->mailer_subject,
-            'from' => $this->mailer_from,
             'return_path' => $this->mailer_return_path,
+            'to' => $this->mailer_to,
             'mailer_headers' => $this->mailer_headers,
+            'subject' => $this->mailer_subject,
             'body' => $this->mailer_body,
         );
     }
@@ -317,7 +335,7 @@ class Email
     protected function assembleMailerInputs()
     {
         // Reset mailer params.
-        $this->mailer_to = $this->mailer_from = $this->mailer_subject = $this->mailer_body = $this->mailer_return_path = '';
+        $this->mailer_to = $this->mailer_subject = $this->mailer_body = $this->mailer_return_path = '';
         $this->mailer_headers = array();
 
         // take a copy of input headers - we mangle this.
@@ -334,11 +352,6 @@ class Email
             if (empty($headers['Sender'])) {
                 $headers['Sender']= $this->from;
             }
-        }
-        // Move the from header elsewhere.
-        if (isset($headers['From'])) {
-            $this->mailer_from = $headers['From'];
-            unset($headers['From']);
         }
 
         // Set Reply-To: header
