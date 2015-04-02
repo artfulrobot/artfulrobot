@@ -55,9 +55,16 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
         $email = $this->getTestEmail();
         $mailer_inputs = $email->getMailerInputs();
         $this->assertEquals(static::EMAIL_WITH_NAME_TO, $mailer_inputs->to);
-        $this->assertEquals(static::EMAIL_WITH_NAME_FROM, $mailer_inputs->from);
+        // Check that the From header got set correctly
+        $this->assertTrue( strpos($mailer_inputs->mailer_headers, "From: " . static::EMAIL_WITH_NAME_FROM . "\r\n")!==FALSE);
+        // Check that the Sender header was coppied from the From one.
+        $this->assertTrue( strpos($mailer_inputs->mailer_headers, "Sender: " . static::EMAIL_WITH_NAME_FROM . "\r\n")!==FALSE);
+        // Check return path
         $this->assertEquals(static::EMAIL, $mailer_inputs->return_path);
+        // Check subject
         $this->assertEquals(static::TEST_SUBJECT, $mailer_inputs->subject);
+        // Check that headers handled by the mailer are not also in the headers
+        $this->assertEquals(0, preg_match('/^(Subject|To):/m', $mailer_inputs->mailer_headers) );
     }
     public function testSendWithAttachment()
     {
