@@ -222,7 +222,9 @@ class RestApi {
     // Where to put data?
     if ($this->payload) {
       if ($this->method == 'GET') {
-        $this->url .= '?' . $this->payload;
+        // Append to or add a query string.
+        $this->url .= ((strpos($this->url, '?')===FALSE) ? '?' : '&')
+          . $this->payload;
       }
       else {
         $this->body = $this->payload;
