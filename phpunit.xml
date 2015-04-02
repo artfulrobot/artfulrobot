@@ -1,0 +1,8 @@
+<phpunit bootstrap="ArtfulRobot/autoload.php">
+  <!-- note: above bootstrap is not needed if you got this installed by composer -->
+  <testsuites>
+    <testsuite name="tests">
+      <directory>tests</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>
