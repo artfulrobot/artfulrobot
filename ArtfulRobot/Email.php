@@ -16,7 +16,7 @@ namespace ArtfulRobot;
  *
  *
  *
-  */
+ */
 class Email
 {
     protected $headers = array();
@@ -217,6 +217,15 @@ class Email
         }
     }
     /**
+     * Normally a UID is generated, but for testing
+     * it's useful to be able to specify this.
+     *
+     */
+    public function setUidSeed($seed)
+    {
+        $this->uid = md5($seed);
+    }
+    /**
      * Allow dependency injection to replace PHP's mail() function used to send mail.
      */
     public function setMailService($callback) {
@@ -251,8 +260,13 @@ class Email
         $this->body['html'] = $message;
         $this->body['related'] = $related_files;
     }
-    /** add attachment */
-    public function addAttachment( $filename )
+    /**
+     * Add attachment
+     *
+     * Optionally pass a different filename - so you can rename the file
+     * as seen by the email client.
+     */
+    public function addAttachment($filename, $rename=null)
     {
         $filename = realpath($filename);
         if (!file_exists($filename)) {
@@ -261,10 +275,10 @@ class Email
         if (!is_readable($filename)) {
             throw new Exception("File $filename not readable.");
         }
-        if (in_array($filename, $this->attachments)) {
-            return ;
+        if (isset($this->attachments[$filename])) {
+            return;
         }
-        $this->attachments[] = $filename;
+        $this->attachments[$filename] = $rename;
     }
     /**
      * Ensure line endings conform to RFC 822.
@@ -450,49 +464,56 @@ class Email
             $body .= strtr($html, $subs)
                 ."\r\n";
 
-            foreach ($this->body['related'] as $name => $filename)
-                $body .=
-                "--ARE-rel-$uid\r\n"
-                . $this->attach($filename, $name)
-                . "\r\n";
+            foreach ($this->body['related'] as $name => $filename) {
+                $body .= "--ARE-rel-$uid\r\n"
+                        . $this->attach($filename, $name)
+                        . "\r\n";
+            }
 
-            $body .=
-                "--ARE-rel-$uid--\r\n"
-                . "\r\n";
+            $body .= "--ARE-rel-$uid--\r\n"
+                    . "\r\n";
 
         }
-        $body .=
-            "--ARE-alt-$uid--\r\n"
-            ."\r\n";
+        $body .= "--ARE-alt-$uid--\r\n"
+                ."\r\n";
 
-        if ($this->attachments)
-        {
+        if ($this->attachments) {
             //read the atachment file contents into a string,
             //encode it with MIME base64,
             //and split it into smaller chunks
-            foreach ($this->attachments as $_)
-                $body .= 
-                "--ARE-mixed-$uid\r\n"
-                . $this->attach($_);
+            foreach ($this->attachments as $filename=>$rename) {
+                $body .= "--ARE-mixed-$uid\r\n"
+                    . $this->attach($filename, null, $rename);
+            }
         }
         $body .= "--ARE-mixed-$uid--\r\n";
 
         $this->mailer_body = $body;
     }
-    /** internal function to create attachment */
-    protected function attach($filename, $cid=null)
+    /**
+     * internal function to create attachment
+     */
+    protected function attach($filename, $cid=null, $rename=null)
     {
-        if (!file_exists($filename)) throw new Exception("File $filename not found.");
+        if (!file_exists($filename)) {
+            throw new Exception("File $filename not found.");
+        }
         $mime = trim(shell_exec("file -bi " . escapeshellarg( $filename )));
         $file = basename($filename);
-        $attachment = 
+        if ($rename === null) {
+            $rename = $file;
+        }
+        
+        mb_internal_encoding( "UTF-8");
+        $rename = mb_encode_mimeheader($rename);
+        $attachment =
             "Content-Type: $mime"
-            .( $cid ? '' : ";\r\n name=\"$file\"" )
+            .( $cid ? '' : ";\r\n name=\"$rename\"" )
             . "\r\n"
             ."Content-Transfer-Encoding: base64\r\n"
             .( $cid ? "Content-ID: <ARE-CID-$cid>\r\n" 
             : "Content-Disposition: attachment;\r\n"
-            ." filename=\"$file\"\r\n")
+            ." filename=\"$rename\"\r\n")
             ."\r\n"
             .chunk_split(base64_encode(file_get_contents($filename)))
             ."\r\n";
