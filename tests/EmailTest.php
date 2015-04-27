@@ -11,6 +11,42 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
       BODY_TEXT            = "Text body\r\n\r\nGoes here",
       BODY_HTML            = '<p>Body is <strong>HTML</strong>.</p>';
 
+    public function testAttachmentAttached()
+    {
+        $email = $this->getTestEmail();
+        $email->addAttachment(dirname(__FILE__) . '/fixtures/1px.png');
+        $mailer_inputs = $email->getMailerInputs();
+        $this->assertContains("Content-Type: image/png; charset=binary;\r\n name=\"1px.png\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment;\r\n filename=\"1px.png\"\r\n",
+            $mailer_inputs->body, "Unexpected or missing attachment headers.");
+    }
+    public function testAttachmentMulti()
+    {
+        $email = $this->getTestEmail();
+        $email->addAttachment(dirname(__FILE__) . '/fixtures/1px.png');
+        $email->addAttachment(dirname(__FILE__) . '/fixtures/textfile.txt');
+        $mailer_inputs = $email->getMailerInputs();
+        $this->assertContains("Content-Type: image/png; charset=binary;\r\n name=\"1px.png\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment;\r\n filename=\"1px.png\"\r\n",
+            $mailer_inputs->body, "Unexpected or missing 1px.png attachment.");
+        $this->assertContains("Content-Type: text/plain; charset=us-ascii;\r\n name=\"textfile.txt\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment;\r\n filename=\"textfile.txt\"\r\n",
+            $mailer_inputs->body, "Unexpected or missing textfile.txt attachment.");
+    }
+    public function testAttachmentRenamedAttached()
+    {
+        $email = $this->getTestEmail();
+        $email->addAttachment(dirname(__FILE__) . '/fixtures/1px.png','foo.png');
+        $mailer_inputs = $email->getMailerInputs();
+        $this->assertContains("Content-Type: image/png; charset=binary;\r\n name=\"foo.png\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment;\r\n filename=\"foo.png\"\r\n",
+            $mailer_inputs->body, "Unexpected or missing attachment headers.");
+    }
+    public function testAttachmentRenamedUtf8Attached()
+    {
+        $email = $this->getTestEmail();
+        $email->addAttachment(dirname(__FILE__) . '/fixtures/1px.png','f».png');
+        $mailer_inputs = $email->getMailerInputs();
+        $encoded = '=?UTF-8?B?ZsK7LnBuZw==?=';
+        $this->assertContains("Content-Type: image/png; charset=binary;\r\n name=\"$encoded\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment;\r\n filename=\"$encoded\"\r\n",
+            $mailer_inputs->body, "Unexpected or missing attachment headers.");
+    }
     public function testConstructorSetsFields()
     {
         $email = $this->getTestEmail();
