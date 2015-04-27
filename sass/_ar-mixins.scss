@@ -1,0 +1,11 @@
+/**
+ * These are to replace stuff I used to use from compass, mostly.
+ */
+
+@mixin box-sizing($foo) {
+  box-sizing: $foo;
+}
+@mixin transition($args...) {
+  -webkit-transition:$args;
+  transition:$args;
+}
