@@ -1,11 +1,26 @@
 /**
  * These are to replace stuff I used to use from compass, mostly.
  */
-
-@mixin box-sizing($foo) {
-  box-sizing: $foo;
-}
 @mixin transition($args...) {
   -webkit-transition:$args;
   transition:$args;
+}
+
+
+// The following mixins do nothing! Browsers have caught up. Do not use these mixins going forward.
+@mixin box-sizing($foo) {
+  box-sizing: $foo;
+}
+@mixin box-shadow($args...) {
+  box-shadow: $args;
+}
+@mixin border-radius($args...) {
+  border-radius: $args;
+}
+@mixin background($args...) {
+  background: $args;
+}
+// Thing is, this does nothing
+@function linear-gradient($args...) {
+  @return unquote('linear-gradient(' + $args + ')');
 }
