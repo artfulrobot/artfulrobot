@@ -5,8 +5,7 @@ class CsvParserTest extends \PHPUnit_Framework_TestCase {
 
     public function testBasicParse()
     {
-      $csv = new CsvParser();
-      $csv->loadFromFile(dirname(__FILE__) . '/fixtures/testcase-1.csv');
+      $csv = CsvParser::createFromFile(dirname(__FILE__) . '/fixtures/testcase-1.csv');
       $i=0;
       $expectations = [['Rich',  40], ['Fred',  1000], ['Wilma',  ''], ['',  56], ['Bam Bam', '']];
       foreach ($csv as $row) {

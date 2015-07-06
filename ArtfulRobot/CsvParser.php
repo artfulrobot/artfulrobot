@@ -7,10 +7,33 @@
  *
  * @author: Rich Lott / Artful Robot
  * @licence: GPL3+
+ *
  */
 
 namespace ArtfulRobot;
 
+/**
+ * Parse a CSV file.
+ *
+ * Synopsis:
+ *
+ *     $csv = CsvParser::createFromFile('foo.csv');
+ *     print "Name: $csv->Name\n";
+ *     print "Age: $csv->Age\n";
+ *     print "Name: " . $csv->getCell($col=0) . "\n";
+ *     foreach ($csv as $row) {
+ *        print "Hello, $row->Name\n";
+ *     }
+ *     print "There are " . $csv->count() . " rows\n";
+ *
+ * Notes
+ *
+ * - You can access cells of the current row by header name, unless empty.
+ * - All headers must be unique (or blank); an exception is thrown if duplicate headers are found.
+ * - Within the data range, a zero-length string is returned if there is no data.
+ * - $row in the above code is actually identical to the object itself; the foreach just moves the internal pointer.
+ *
+ */
 class CsvParser implements \Iterator {
 
   /**
@@ -81,10 +104,14 @@ class CsvParser implements \Iterator {
   /**
    * Open and parse an entire CSV file
    */
-  public function loadFromFile($filename) {
+  public function loadFromFile($filename, $max_buffer_length=null) {
+
+    if ($max_buffer_length===null) {
+      $max_buffer_length = 1000;
+    }
     // Parse CSV file
     $csv_file = fopen($filename, "r");
-    $row_data = fgetcsv($csv_file, 1000, ",");
+    $row_data = fgetcsv($csv_file, $max_buffer_length, ",");
     if ($row_data === FALSE) {
       throw new \InvalidArgumentException("Failed to read a row of CSV from '$filename'");
     }
@@ -102,7 +129,7 @@ class CsvParser implements \Iterator {
     // Load data
     $this->data = [];
     $row = 1;
-    while (($row_data = fgetcsv($csv_file, 1000, ",")) !== FALSE) {
+    while (($row_data = fgetcsv($csv_file, $max_buffer_length, ",")) !== FALSE) {
       $this->data[$row] = $row_data;
       $row++;
     }
@@ -110,6 +137,15 @@ class CsvParser implements \Iterator {
     fclose($csv_file);
     $this->rewind();
     return $this;
+  }
+
+  /**
+   * Factory method to create an object and load a file.
+   */
+  public static function createFromFile($filename, $max_buffer_length = null) {
+    $csv_parser = new static();
+    $csv_parser->loadFromFile($filename, $max_buffer_length);
+    return $csv_parser;
   }
 
 
