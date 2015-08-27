@@ -1,3 +1,5 @@
 *.swp
 *~
 ~*
+# locally these contain my credentials. Checked in is the template.
+tests/fixtures/mailchimp-credentials.php
