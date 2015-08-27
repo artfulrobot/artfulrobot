@@ -28,7 +28,12 @@ class RestApi_Mailchimp3 extends RestApi {
     }
 
     // Set URL based on datacentre identifier at end of api key.
-    $datacenter = substr($this->api_key, -3);
+    preg_match('/^.*-([^-]+)$/', $this->api_key, $matches);
+    if (empty($matches[1])) {
+      throw new \Exception("Invalid API key - could not extract datacentre from given API key.");
+    }
+    $datacenter = $matches[1];
+
     $this->server = "https://$datacenter.api.mailchimp.com/3.0/";
 
     // Set auth
@@ -62,4 +67,38 @@ class RestApi_Mailchimp3 extends RestApi {
     return md5(strtolower($email));
   }
 
+
+  // Helper methods.
+  /**
+   * Subscribe someone. If they are already on the list, send a patch.
+   *
+   * @param string $list List ID
+   * @param array $member_data Must include email_address. Can include another array under merge_fields
+   */
+  public function subscribeToList($list, $member_data) {
+    if (empty($member_data['email_address'])) {
+      throw new \Exception("Missing email_address key in \$member_data parameter.");
+    }
+
+    // First try to create the member, assuming they would not sign up if they already were.
+    $url = "lists/$list/members";
+    $params = ['status' => 'subscribed'] + $member_data;
+    $response = $this->post($url, $params);
+    if ($response->status == 200) {
+      // Success.
+      return TRUE;
+
+    } elseif ($response->status == 400) {
+      // They are already a member. Send Patch.
+      unset($params['email_address']);
+      $member_url = "$url/" . $this->emailMd5($member_data['email_address']);
+      $result = $this->patch($member_url, $params);
+      if ($result->status == 200) {
+        return TRUE;
+      }
+    }
+
+    // Oh no.
+    return FALSE;
+  }
 }
