@@ -52,26 +52,4 @@ class RestApiResponse {
       throw new \Exception("Attempt to set unknown property '$prop'");
     }
   }
-  /** Factory method to create from Curl
-   *
-   * If the data received is json, it is decoded.
-   */
-  public static function createFromCurl($body, $info) {
-    if (empty($info['http_code'])) {
-      throw new \Exception("Missing http_code in curl info");
-    }
-    // create object
-    $object = new static($info['http_code']);
-
-    if (!empty($info['content_type'])) {
-      if (preg_match('@^application/json@i', $info['content_type'])) {
-        $object->body = json_decode($body);
-      }
-      else {
-        $object->body = $body;
-      }
-    }
-
-    return $object;
-  }
 }
