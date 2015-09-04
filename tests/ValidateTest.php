@@ -46,21 +46,21 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
    */
   public function testDateParseEmpty() {
     $v = new Validate(['date'=>'', 'id'=>'']);
-    $v->date->validDate();
+    $v->date->castToDate();
   }
 
   /**
    */
   public function testDateParseEmptyAllowed() {
     $v = new Validate(['date'=>'', 'id'=>'']);
-    $r = $v->date->allowEmpty()->validDate();
+    $r = $v->date->allowEmpty()->castToDate();
     $this->assertInstanceOf('\ArtfulRobot\ValidateItem', $r);
   }
   /**
    */
   public function testDateParseValid() {
     $v = new Validate(['date'=>'20 Jul 2007', 'id'=>'']);
-    $r = $v->date->validDate();
+    $r = $v->date->castToDate();
     $this->assertInstanceOf('\ArtfulRobot\ValidateItem', $r);
     $this->assertEquals('2007-07-20', (string) $r);
     $this->assertEquals('2007-07-20', $r());
@@ -71,7 +71,7 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
    */
   public function testDateParseInvalid() {
     $v = new Validate(['date'=>'toady', 'id'=>'']);
-    $r = $v->date->validDate();
+    $r = $v->date->castToDate();
     $this->assertInstanceOf('\ArtfulRobot\ValidateItem', $r);
   }
   /**
@@ -96,7 +96,7 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
    */
   public function testInt() {
     $v = new Validate(['id'=>-1]);
-    $v->id->integer(1);
+    $v->id->castToInt(1);
   }
   /**
    * @expectedException \InvalidArgumentException
@@ -104,7 +104,7 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
    */
   public function testIntWithString() {
     $v = new Validate(['id'=>'foo']);
-    $v->id->integer(1);
+    $v->id->castToInt(1);
   }
 }
 

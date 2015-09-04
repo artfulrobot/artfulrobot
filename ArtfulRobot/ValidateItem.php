@@ -75,7 +75,7 @@ class ValidateItem {
     $this->value = $value;
     return $this;
   }
-  public function validDate($format='Y-m-d') {
+  public function castToDate($format='Y-m-d') {
     if ($this->allow_empty && empty($this->value)) {
       return $this;
     }
@@ -86,11 +86,17 @@ class ValidateItem {
     $this->value = date($format, $time);
     return $this;
   }
-  public function integer($min=0) {
+  public function castToInt($min=0) {
     $_ = (int) $this->value;
     if ($_ < $min) {
       throw new \InvalidArgumentException("$this->key must be above $min");
     }
     $this->value = $_;
+    return $this;
+  }
+  public function castToBool() {
+    $_ = (bool) $this->value;
+    $this->value = $_;
+    return $this;
   }
 }
