@@ -3,9 +3,9 @@ namespace ArtfulRobot;
 
 abstract class PDO_Model implements \JsonSerializable
 {
-    const FORMAT_TIME = 'G.i.s';
+    const FORMAT_TIME = 'H:i:s';
     const FORMAT_DATE = 'Y-m-d';
-    const FORMAT_DATETIME = 'Y-m-d G.i.s';
+    const FORMAT_DATETIME = 'Y-m-d H:i:s';
     const TABLE_NAME = '';
     const CAST_NONE = 0;
     const CAST_DB = 1;
