@@ -39,6 +39,8 @@ class RestApi_Mailchimp3 extends RestApi {
     // Set auth
     $this->setAuth('dummy-username', $this->api_key);
     $this->setJson(true, true);
+    // 2015 Jan: certificates fail to validate.
+    $this->setSslVerify(FALSE, 2);
   }
   /**
    * Create RestApiResponse from curl result.
