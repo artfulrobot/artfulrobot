@@ -91,6 +91,16 @@ class RestApi {
 
   /**
    * Whether to do SSL certificat verifications.
+   *
+   * @param bool $peer Whether do validate the certificate against certificate
+   * chain up to a trusted certificate installed on your server.
+   * @param int $host
+   * - 2: check that the domain in the certificate is the same as that used to connect
+   * - 1: historical use, but may replace '2' in future Curls
+   * - 0: no checks.
+   *
+   * @see http://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYPEER.html
+   * @see http://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYHOST.html
    */
   public function setSslVerify($peer=TRUE, $host=2) {
     $host = (int) $host;
@@ -216,7 +226,7 @@ class RestApi {
     // Finally put payload in headers or body
 
     // Our json_request flag encodes the data as json
-    if ($this->json_request) {
+    if ($this->json_request && $this->payload) {
       $this->headers['Content-Type'] = 'Application/json;charset=UTF-8';
       $this->payload = json_encode($this->payload);
     }
@@ -285,15 +295,14 @@ class RestApi {
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->method);
 
-    if ($this->body) {
-      curl_setopt($curl, CURLOPT_POSTFIELDS, $this->body);
-      $headers['Content-Length'] = strlen($this->body) ;
-    }
-
     // Set headers.
     $headers = array();
     foreach ($this->headers as $k=>$v) {
       $headers[] = "$k: $v";
+    }
+    if ($this->body) {
+      curl_setopt($curl, CURLOPT_POSTFIELDS, $this->body);
+      $headers['Content-Length'] = strlen($this->body) ;
     }
     curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
