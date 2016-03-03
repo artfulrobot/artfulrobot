@@ -524,11 +524,16 @@ class Email
         $this->body['text'] = $this->rfc822LineEndings( strip_tags(
             // convert brs to single \n
             preg_replace('@<br( */)?' . '>@i',"\n",
-            // convert end of block-level things to \n\n
-            preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n",
-            // remove whitespace at start of lines before tag
-            preg_replace('@^\s+<@m','<', $this->body['html'])
-        ))));
+                // convert end of block-level things to \n\n
+                preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n",
+                    // remove whitespace at start of lines before tag
+                    preg_replace('@^\s+<@m','<',
+                        // remove html entities.
+                        html_entity_decode(
+                            // change &nbsp; to space and remove other htmlentities
+                            str_replace('&nbsp;', ' ',
+                                $this->body['html'])
+        ))))));
     }
     protected function createHtmlFromText()
     {

@@ -9,7 +9,7 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
       EMAIL                = 'foo@example.com',
       TEST_SUBJECT         = 'Test Subject',
       BODY_TEXT            = "Text body\r\n\r\nGoes here",
-      BODY_HTML            = '<p>Body is <strong>HTML</strong>.</p>';
+      BODY_HTML            = '<p>Body is&nbsp;<strong>HTML</strong> &amp; that is all.</p>';
 
     public function testAttachmentAttached()
     {
@@ -211,7 +211,9 @@ class EmailTest extends \PHPUnit_Framework_TestCase {
       // text version should only be created when it doesn't exist.
       $email->setMessageText('');
       $mailer_inputs = $email->getMailerInputs();
-      $this->assertRegExp('/Body is HTML./', $mailer_inputs->body, "Body does not appear to contain text version of html");
+      // Tests that the tags are stripped and the &nbsp; is converted to a space
+      // also that & is decoded.
+      $this->assertRegExp('/Body is HTML & that is all./', $mailer_inputs->body, "Body does not appear to contain text version of html");
     }
     public function testHtmlVersionCreatedFromText()
     {
