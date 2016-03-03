@@ -13,15 +13,16 @@ namespace ArtfulRobot;
 class ValidateItem {
   protected $validate;
   protected $value;
+  protected $raw;
   protected $allow_empty = FALSE;
   protected $empty_value = null;
+  protected $is_missing;
 
-  public function __construct($validate, $key) {
-    $this->validate = $validate;
+  public function __construct($key, $value, $is_missing) {
     $this->key = $key;
-    if ($this->validate->inputExists($key)) {
-      $this->value = $this->validate->input($key);
-    }
+    $this->value = $value;
+    $this->raw = $value;
+    $this->is_missing = $is_missing;
   }
   public function __invoke() {
     return $this->__get('v');
@@ -39,12 +40,32 @@ class ValidateItem {
     elseif ($prop == 'string') {
       return (string)$_;
     }
+    elseif ($prop == 'missing') {
+      return $this->is_missing;
+    }
+    elseif ($prop == 'given') {
+      return ! $this->is_missing;
+    }
     elseif ($prop == 'int') {
       return (int)$_;
     }
     elseif ($prop == 'bool') {
       return (bool) $_;;
     }
+    elseif ($prop == 'raw') {
+      return $this->raw;
+    }
+    elseif ($prop == 'date') {
+      // hmmm....
+      // Date string Y-m-d wanted.
+      $time = strtotime($_);
+      if ($time === FALSE) {
+        throw new \InvalidArgumentException("$this->key is an invalid date.");
+      }
+      return date('Y-m-d', $time);
+    }
+    throw new \Exception("Request Item does not have property '$prop'");
+
   }
   public function __tostring() {
     return $this->__get('string');
@@ -98,7 +119,7 @@ class ValidateItem {
    * This is more specific than defaultIfEmpty.
    */
   public function defaultIfMissing($default) {
-    if ($this->value === null) {
+    if ($this->is_missing) {
       $this->set($default);
     }
     return $this;
@@ -157,7 +178,15 @@ class ValidateItem {
     }
     return $this;
   }
+  /**
+   * Sets the value.
+   *
+   * If value is itself a ValidateItem, the value of that is extracted.
+   */
   public function set($value) {
+    if ($value instanceof ValidateItem) {
+      $value = $value->value;
+    }
     $this->value = $value;
     return $this;
   }

@@ -81,6 +81,18 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
     $r = $v->foo->set('bar');
     $this->assertInstanceOf('\ArtfulRobot\ValidateItem', $r);
     $this->assertEquals('bar', $r());
+
+    $this->assertInstanceOf('\ArtfulRobot\ValidateItem',
+      $v->b->set($v->foo));
+    $this->assertEquals('bar', $v->b->value);
+  }
+  /**
+   */
+  public function testRaw() {
+    $v = new Validate(['date'=>'2007-07-20 + 1 day']);
+    $v->date->castToDate();
+    $this->assertEquals('2007-07-20 + 1 day', $v->date->raw);
+    $this->assertEquals('2007-07-21', $v->date->string);
   }
   /**
    */

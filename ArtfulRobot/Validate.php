@@ -16,15 +16,35 @@ class Validate{
   public function __construct($input) {
     $this->input = $input;
   }
-  public function inputExists($key) {
+  /**
+   * Return true if the input exists [for given key].
+   */
+  public function inputExists($key=null) {
+    if ($key === null) {
+      return !empty($this->input);
+    }
     return isset($this->input[$key]);
+  }
+  public function notEmpty() {
+    if (!$this->inputExists()) {
+      throw new \Exception("No data!");
+    }
+    return $this;
   }
   public function input($key) {
     return $this->input[$key];
   }
   public function __get($key) {
     if (!array_key_exists($key, $this->items)) {
-      $this->items[$key] = new ValidateItem($this, $key);
+      if ($this->inputExists($key)) {
+        $is_missing = FALSE;
+        $value = $this->input[$key];
+      }
+      else {
+        $is_missing = TRUE;
+        $value = null;
+      }
+      $this->items[$key] = new ValidateItem($key, $value, $is_missing);
     }
     return $this->items[$key];
   }
