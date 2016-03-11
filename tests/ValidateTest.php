@@ -24,6 +24,36 @@ class ValidateTest extends \PHPUnit_Framework_TestCase {
     $this->assertEquals('foo', $v->id->defaultIfEmpty('foo')->v);
   }
   /**
+   * Provides postcodes to test.
+   */
+  public function postcodeProvider() {
+    return [
+      ['OX4 2HZ'    , 'OX4 2HZ'  , 'valid control']         ,
+      ['ox4 2HZ'    , 'OX4 2HZ'  , 'valid lowercase']       ,
+      [' OX4 2HZ '  , 'OX4 2HZ'  , 'pre/post spaces']       ,
+      ['OX4  2HZ'   , 'OX4 2HZ'  , 'multiple spaces']       ,
+      ['OX4  2 HZ'  , 'OX4 2HZ'  , 'extra space']           ,
+      ['OX4  2 H Z' , 'OX4 2HZ'  , 'spaces everywhere']     ,
+      ['OX42HZ'     , 'OX4 2HZ'  , 'missing space']         ,
+      ['OX 42 HZ'   , 'OX4 2HZ'  , 'spaces around numbers'] ,
+      ['NR322QG'    , 'NR32 2QG' , 'real1']                 ,
+      ['BA140AL'    , 'BA14 0AL' , 'real2']                 ,
+      ['BS24 8 EH'  , 'BS24 8EH' , 'real3']                 ,
+      ['bd184rz'    , 'BD18 4RZ' , 'real4']                 ,
+      ['YO243XN'    , 'YO24 3XN' , 'real5']                 ,
+      ['CF241AA'    , 'CF24 1AA' , 'real6']                 ,
+      ['RM141ER'    , 'RM14 1ER' , 'real7']                 ,
+    ];
+  }
+  /**
+   * @dataProvider postcodeProvider
+   */
+  public function testPostcodes($given, $expected, $message) {
+    $v = new Validate(['p'=>$given]);
+    $this->assertEquals($expected, (string) $v->p->castToUKPostcode(), "Failed on: $message");
+  }
+
+  /**
    * @expectedException \InvalidArgumentException
    * @expectedExceptionMessage foo missing.
    */

@@ -11,6 +11,11 @@ namespace ArtfulRobot;
  */
 
 class ValidateItem {
+  /**
+   * http://www.regextester.com/?fam=60203
+   */
+  const VALID_UK_POSTCODE_REGEX = '/^(GIR 0AA)|((([A-Z][0-9][0-9]?)|(([A-Z][A-HJ-Y][0-9][0-9]?)|(([A-Z][0-9][A-Z])|([A-Z][A-HJ-Y][0-9]?[A-Z])))) [0-9][A-Z]{2})$/';
+
   protected $validate;
   protected $value;
   protected $raw;
@@ -103,6 +108,46 @@ class ValidateItem {
     $_ = (bool) $this->value;
     $this->value = $_;
     return $this;
+  }
+  /**
+   * Try to coerce given user in put into a UK postcode.
+   */
+  public function castToUKPostcode() {
+    if ($this->allow_empty && empty($this->value)) {
+      return $this;
+    }
+
+    // First, trim excess spaces and make it upper case.
+    $this->value = trim(preg_replace('/ {2,}/',' ',strtoupper($this->value)));
+    if (preg_match(static::VALID_UK_POSTCODE_REGEX, $this->value)) {
+      return $this;
+    }
+
+    // if the user entered multiple spaces, try to match it with every combination.
+    $parts = explode(' ', $this->value);
+    if (count($parts)>2) {
+      for ($i=1;$i<count($parts);$i++) {
+        $try = implode('', array_slice($parts,0,$i)) . ' ' . implode('', array_slice($parts,$i));
+        if (preg_match(static::VALID_UK_POSTCODE_REGEX, $try)) {
+          $this->value = $try;
+          return $this;
+        }
+      }
+    }
+
+    // Still here. OK try removing ALL spaces.
+    $_ = implode('', $parts);
+    // Now try inserting a space at every possible place until we have a match.
+    for ($i=1;$i<strlen($_);$i++) {
+      $try = substr($_,0,$i) . ' ' . substr($_,$i);
+      if (preg_match(static::VALID_UK_POSTCODE_REGEX, $try)) {
+        $this->value = $try;
+        return $this;
+      }
+    }
+
+    // Postcode did not match.
+    throw new \InvalidArgumentException("Could not recognise UK postcode");
   }
   /**
    * If the value is empty, set it to this default.
