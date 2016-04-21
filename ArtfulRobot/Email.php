@@ -419,9 +419,9 @@ class Email
     {
         // if html email, make sure text is there as alternative.
         if ($this->body['html'] && ! $this->body['text']) {
-            $this->createTextFromHtml();
+            $this->body['text'] = $this->convertHtmlToText();
         } elseif ($this->body['text'] && ! $this->body['html']) {
-            $this->createHtmlFromText();
+            $this->body['html'] = $this->convertTextToHtml();
         }
 
         // email should be 70 characters max
@@ -519,9 +519,9 @@ class Email
             ."\r\n";
         return $attachment;
     }
-    protected function createTextFromHtml()
+    public function convertHtmlToText()
     {
-        $this->body['text'] = $this->rfc822LineEndings( strip_tags(
+        $text = $this->rfc822LineEndings( strip_tags(
             // convert brs to single \n
             preg_replace('@<br( */)?' . '>@i',"\n",
                 // convert end of block-level things to \n\n
@@ -534,8 +534,9 @@ class Email
                             str_replace('&nbsp;', ' ',
                                 $this->body['html'])
         ))))));
+        return $text;
     }
-    protected function createHtmlFromText()
+    public function convertTextToHtml()
     {
         // add <br/> at line endings
         $html = str_replace("\r\n", "<br />\r\n", $this->body['text']);
@@ -552,7 +553,7 @@ class Email
                 @x',"<a href='$1$2$3'\r\n >$2</a>",
             $html);
 
-        $this->body['html'] = $html;
+        return $html;
     }
 
     static public function mbDetectEncoding( $string, $detect_order=null )
