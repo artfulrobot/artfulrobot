@@ -48,5 +48,8 @@ class Validate{
     }
     return $this->items[$key];
   }
+  public function getInput() {
+    return $this->input;
+  }
 }
 
