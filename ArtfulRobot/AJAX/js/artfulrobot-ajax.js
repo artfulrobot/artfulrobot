@@ -111,7 +111,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 	// so the subclasses list is not inherited.
 	arlClass.subclasses = [];
 
-	// add in our getCallback method 
+	// add in our getCallback method
 	arlClass.prototype.getCallback = function (method) {/*{{{*/
 		if (! this[method]) throw new artfulrobot.Exception("getCallback: Object does not have '"+method+"'",this);
 		// reference to our instance
@@ -128,7 +128,7 @@ artfulrobot.defineClass = function() {/*{{{*/
 				// store original context (e.g. a jQuery object)
 				context.origContext = this;
 				// call method from object context
-				context[method].apply(context, args);
+				return context[method].apply(context, args);
 			});
 	}/*}}}*/
 
@@ -212,24 +212,31 @@ artfulrobot.htmlentities = {/*{{{*/
 	otimes : '\u2297',
 	pound  : '\u00A3'
 };/*}}}*/
-artfulrobot.createFragmentFromArray = function( arr ) // {{{
+artfulrobot.createFragmentFromArray = function( arr, nodes) // {{{
 {
 /* example: call with AAA.
    AAA is either a string or an array of BBBs
    BBB is either a string, or an object CCC
    CCC is like { element: 'div', content: AAA }
 
+        var nodes = {}; // optional 2nd parameter
 		html.appendChild( createFragmentFromArray( [
 				{ element: 'div', style: 'border:solid 1px red;', content: 'goodbye' },
 				{ element: 'div', style: 'border:solid 1px red;', content: [
 					'aaaaaaaaaaaaa',
 					{ element: 'div', style: 'background-color:#fee', content: 'blah' },
-//					{ element: 'div', style: 'background-color:#ffe', content: 'doob' },
+//					{ element: 'div', style: 'background-color:#ffe', content: 'doob', nodesKey:fred },
 					'bbbbbbbbbbbbb'
 				]}
-			] ));
+			], nodes ));
+
+       This would create and append the fragment and leave nodes.fred with a
+       jQuery object for that div Nb.  if nodesKey matches an existing
+       property, it is overwritten, but otherwise it will extend the nodes
+       object and leave the original proerties in tact.
    */
 	var myDebug=0;
+    nodes = nodes || {};
 	var type = artfulrobot.typeOf(arr);
 	if ( type === 'string' ) 
 	{
@@ -238,7 +245,7 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 	}
 	else if ( type === 'null' ) 
 	{ 
-		alert("Encountered a null, expected string, array, object");
+		myDebug && console.log("Encountered a null, expected string, array, object - create nothing");
 		return; 
 	}
 	// convert single objects to arrays
@@ -261,23 +268,30 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 		var part = arr[i];
 		type = artfulrobot.typeOf( part );
 		myDebug && console.warn('part:', part);
-		if (type == 'string' || type == 'number')
-		{
+		if (type == 'string' || type == 'number') {
 			myDebug && console.log('appending TextNode:' + part );
 			df.appendChild( document.createTextNode( String(part) ) );
-		}
-		else if (type == 'object' ) 
-		{
+		} else if (type == 'array' ) {
+            myDebug && console.log('Recursing for array', part);
+            df.appendChild( artfulrobot.createFragmentFromArray( part, nodes ) );
+            myDebug && console.log('Back from recursion');
+        } else if (type == 'object' ) {
 			myDebug && console.log('Creating ' + part.element + ' element');
 			// create element
 			tmp = document.createElement( part.element );
+            // do we need a reference?
+            if (part.nodesKey) {
+                nodes[part.nodesKey] = jQuery(tmp);
+                // remove it, it's not to become an attribute (alternative: data-nodekey?)
+                delete(part.nodesKey);
+            }
 			// set attributes
 			for (var key in part)
 			{
 				myDebug && console.log('key: ', key);
 
 				if (String(',onblur,onchange,onclick,ondblclick,onfocus,onkeydown,onkeypress,onkeyup,onmousedown,onmousemove,onmouseout,onmouseover,onmouseup,onresize,onscroll,onmouseenter,onmouseleave,').indexOf(','+key+',')>-1)
-					{  
+					{
 						myDebug && console.log('adding as event listener '+part[key]);
 						// old: tmp[key] = part[key];
 
@@ -293,7 +307,9 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 						}
 					}
 				else if (key=='element' || key=='content' ) continue;
-				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');tmp.innerHTML = part[key] ;}
+				else if (key=='innerHTML' ) { myDebug && console.log('setting innerHTML ');jQuery(tmp).html(part[key]);}
+                // do not add attrs with null values. useful for selected attr. on SELECT elements.
+				else if (artfulrobot.typeOf(part[key])=='null' ) continue;
 				else { myDebug && console.log('setting attribute '+key);tmp.setAttribute(key, part[key] );}
 			}
 			myDebug && console.log('created ' + part.element + ' element: ' + tmp + ' ' + df.childNodes.length);
@@ -301,16 +317,16 @@ artfulrobot.createFragmentFromArray = function( arr ) // {{{
 			if (part.content) 
 			{
 				myDebug && console.log('Recursing for ', part.content);
-				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content ) );
+				tmp.appendChild( artfulrobot.createFragmentFromArray( part.content, nodes ) );
 				myDebug && console.log('Back from recursion');
 			}
 			myDebug && console.log('Adding to fragment...');
 			// add this to our document fragment
 			df.appendChild( tmp );
 			myDebug && console.log('...success');
-		}
-		else 
-		{
+		} else if (type == 'null' ) {
+			myDebug && console.log('ignoring Null');
+		} else {
 			alert("Error:\nartfulrobot.createElement '" + type + "' type encountered within content array, expected string or object");
 		}
 	}
@@ -332,6 +348,23 @@ artfulrobot.Exception = artfulrobot.defineClass( {/*{{{*/
 		return msg;
 	}
 });/*}}}*/
+
+// set up artfulrobot.queryString {{{
+// from http://stackoverflow.com/a/3855394/623519
+artfulrobot.queryStringParse = function(){
+    artfulrobot.queryString = (function(a) {
+     if (a == "") return {};
+     var b = {};
+     for (var i = 0; i < a.length; ++i)
+     {
+         var p=a[i].split('=');
+         if (p.length != 2) continue;
+         b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+     }
+     return b;
+     })(window.location.search.substr(1).split('&'));} 
+artfulrobot.queryStringParse();// }}}
+
 /* functions for making forms easier */
 artfulrobot.getRadioValue = function( radioGroupName ) // {{{
 {
@@ -355,154 +388,208 @@ artfulrobot.setSelectOptionByText = function( selectNode, text ) // {{{
 		});
 } // }}}
 
-// artfulrobot.AjaxClass main ajax class {{{ 
-artfulrobot.AjaxClass = artfulrobot.defineClass( 
-{
+// artfulrobot.AjaxClass main ajax class
+artfulrobot.AjaxClass = artfulrobot.defineClass( {
 /** Main Ajax class
  *  Deals with making ajax requests and parsing the responses
  *  into chunks of html(/text), js code, json object, error message
  *
  */
-	initialise: function( opts ) // {{{
-	{
+	initialise: function( opts ) {
 		this.requestFrom = 'ajaxprocess.php'; // default
 		this.method = 'get'; // default
+		this.methodAuto = true; // automatically switch to POST if a value is greater than 512 bytes.
 		this.requests = {};
 		this.uniqueCounter = 1;
+		this.timeout = 0;
+		this.showErrorInPopup = 0;
 
 		opts = opts || {};
 		if (opts.requestFrom) this.setRequestFrom(opts.requestFrom);
 		if (opts.method) this.setMethod(opts.method);
-	},// }}}
-	setRequestFrom: function (requestFrom) // {{{
-	{
+	},
+	setRequestFrom: function (requestFrom) {
 		// set the script to use for ajax requests.
 		this.requestFrom = requestFrom || 'ajaxprocess.php'; // default
-	}, // }}}
-	setMethod: function (postOrGet) // {{{
-	{
+	}, 
+	setMethod: function (postOrGet, methodAuto) {
 		if (postOrGet == 'get' || postOrGet == 'post') this.method=postOrGet;
 		else throw new Error("ajax method must be post or get"); 
-	}, // }}}
-	liveRequests: function () // {{{
-	{
+
+        if ( typeof(methodAuto) !== 'undefined') this.methodAuto = !!methodAuto;
+	}, 
+  setTimeout: function (timeout) { 
+    this.timeout = timeout;
+  }, 
+  setShowErrorInPopup: function (show) { 
+    this.showErrorInPopup = !!show;
+  }, 
+	liveRequests: function () {
 		// count this.requests
 		return artfulrobot.countKeys(this.requests);
-	}, // }}}
-	request: function( givenParams, outputHtmlInsideElement, onSuccessCallback, method ) // {{{
-	{
-		/* We number requests, and return this number. 
-		 * 
-		 * Requests are stored in the object (hash) this.requests, which is an 
+	}, 
+  /**
+   * request(): Deprecated - use sendRequest()
+   */
+	request: function( givenParams, outputHtmlInsideElement, onSuccessCallback, method ) {
+    return this.sendRequest({
+      data: givenParams,
+      node: outputHtmlInsideElement,
+      success: onSuccessCallback,
+      method: method
+    });
+	},
+  /**
+   * New code should use this in place of request.
+   *
+   * opts can contain:
+   * - data
+   * - node node to insert html response into. (kept for backward compat.)
+   * - success callback.
+   * - error callback.
+   * - method use to override default.
+   */
+  sendRequest: function (opts) {
+		/* We number requests, and return this number.
+		 *
+		 * Requests are stored in the object (hash) this.requests, which is an
 		 * object of objects containing various details
 		 *
 		 */
-		
-		// need onSuccessCallback fundction, even if it is blank
-		if ( typeof(onSuccessCallback) == 'undefined' 
-				|| onSuccessCallback == false
-				|| onSuccessCallback === null
-				)  onSuccessCallback=function(){};
 
+		// need onSuccessCallback fundction, even if it is blank
+		if ( typeof(opts.success) == 'undefined' 
+				|| opts.success == false
+				|| opts.success === null
+				)  {
+          // Set a NoOp success function.
+          opts.success =function(){};
+    }
+
+    // Get a number for this request.
 		var requestId = 'ajax' + this.uniqueCounter++;
 
-		var params;
-		var paramsType = artfulrobot.typeOf(givenParams);
-		// given (what we assume to be a) url-encoded string, just pass it along
-		if ( paramsType == 'string' ) params = givenParams;
-		// given an object { key1: val1, key2: val2 ... }
-		else if (paramsType == 'object' )
-		{
+    // Get the opts.data into a URL encoded string
+		var dataEncoded;
+		var paramsType = artfulrobot.typeOf(opts.data);
+		if ( paramsType == 'string' ) {
+      // given (what we assume to be a) url-encoded string, just pass it along
+      dataEncoded = opts.data;
+    }
+		else if (paramsType == 'object' ) {
+      // given an object { key1: val1, key2: val2 ... }
 			// map false|undefined to zls because it's likely parsed as a string
 			// the other end, so 'false' == true.
-			jQuery.each(givenParams, function(i,v)
-				{ if (v===false || v===undefined) givenParams[i]=''; });
+      dataEncoded = {};
+			jQuery.each(opts.data, function(i,v)
+				{ if (v===false || v===undefined) {
+          dataEncoded[i]='';
+        }
+        else {
+          dataEncoded[i]=v;
+        }
+      });
 			// url-encode it
-			params = jQuery.param(givenParams);
+			dataEncoded = jQuery.param(dataEncoded);
 		}
-		// given array of objects with {name:..., value:....}, {...}
-		// as comes from jQuery('form').serializeArray()
-		else if (paramsType == 'array')
-		{
-			jQuery.each(givenParams, function(i,o)
-				{ if (o.value===false || o.value===undefined) givenParams[i].value=''; });
+		else if (paramsType == 'array') {
+      // given array of objects with {name:..., value:....}, {...}
+      // as comes from jQuery('form').serializeArray()
+			jQuery.each(givenParams, function(i,o) {
+          if (o.value===false || o.value===undefined) {
+            dataEncoded[i].value='';
+          }
+          else {
+            dataEncoded[i].value=o.value;
+          }
+        });
 			// url-encode it
-			params = jQuery.param(givenParams);
+			dataEncoded = jQuery.param(dataEncoded);
 		}
-		else
-		{
+		else {
 			throw Error("artfulrobot.AjaxClass.request called with params as unkonwn type: '"+paramsType+"'");
 			return;
 		}
 
 		// create absolute debug uri
 		if (this.requestFrom.match( /^\// ))
-			debugURI = window.location.protocol + '//' 
-				+ window.location.host 
+			debugURI = window.location.protocol + '//'
+				+ window.location.host
 				+ this.requestFrom ;
 		else // requestFrom is relative uri
 		{
-//			alert( this.requestFrom); alert( window.location.pathname); alert( window.location.pathname.replace( /^(.+\/).+?$/,'$1' ));
-			debugURI = window.location.protocol + '//' 
-				+ window.location.host 
+			debugURI = window.location.protocol + '//'
+				+ window.location.host
 				+ window.location.pathname.replace( /^(.+\/)[^\/]*?$/,'$1' )
 				+ this.requestFrom ;
 		}
-		debugURI += '?' + params + '&debug=1',
+		debugURI += '?' + dataEncoded + '&debug=1',
 
-		this.requests[ requestId ] = 
-		{ 
-			debugURI: debugURI,
-			outputHtmlInsideElement: outputHtmlInsideElement,
-			onSuccessCallback: onSuccessCallback,
-			live: 1,
-			stage: 'request'
-		};
+		this.requests[ requestId ] = opts;
+		this.requests[ requestId ].live = 1;
+		this.requests[ requestId ].stage = 'request';
+		this.requests[ requestId ].debugURI = debugURI;
 
 		// override this method if needed
 		this.requestStarts( this.requests[ requestId ] );
 
+    // change from get to post if methodAuto and if needed.
+    var method = this.method;
+    if (this.methodAuto && this.method=='get') {
+        if ( dataEncoded.length>2000 ) {
+            method = 'post';
+        } else {
+            // scan values for length > 512
+            jQuery.map( dataEncoded.split('&'), function(i) {
+                if ((i.length - i.indexOf('='))>512) {
+                    method = 'post';
+                }
+            });
+        }
+    }
+
 		// make request
-		if (jQuery().jquery<'1.5')
-		{
-			window.console && console.warn && console.warn("Running old version of jQuery");
-			jQuery.ajax( 
-			{
-				url:this.requestFrom,
-				data:params,
-				type: (method|| this.method).toUpperCase(),
-				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
-				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
-			} );
+    var requestParams = {
+      url     : this.requestFrom,
+      data    : dataEncoded,
+      timeout : this.timeout,
+      type    : (method|| this.method).toUpperCase(),
+      error   : this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
+      success : this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
+    };
+		if (jQuery().jquery<'1.5') {
+			window.console && console.warn && console.warn("Running old version of jQuery - can cause problems with ajax requests");
 		}
-		else
-		{
-			jQuery.ajax( 
-			this.requestFrom,
-			{
-				data:params,
-				type:method || this.method,
-				failure: this.getCallback('onFailure',requestId), // these two ensure that the fail/success methods
-				success: this.getCallback('onSuccess',requestId) // know which request failed/succeeded.
-			} );
-		}
+    this.requests[requestId].xhr = jQuery.ajax( requestParams );
 
 		return requestId;
-	}, // }}}
-	requestEnded: function( requestId ) // {{{
-	{
+	},
+	requestEnded: function( requestId ) {
 		this.requestEnds( this.requests[requestId] );
 		delete this.requests[requestId];
-		//this.requests[requestId].live = 0;
-	}, // }}}
-	onFailure: function(requestId, t)  // {{{
-	{ 
-		alert( requestId + ': Problem! error: '+t.status);
+	}, 
+	onFailure: function(requestId, t) {
+
+    // Get the request.
+    var request = this.requests[requestId];
+    request.stage = 'error';
+
+    // If we have a custom error callback, defer to that.
+    if (request.error) {
+      request.error(request);
+    }
+    else {
+      alert( requestId + ': Problem! error: '+t.status);
+    }
+    // Clear the text so it cannot be acted upon.
 		t.responseText='';
-		this.requestEnded();
-	}, // }}}
-	onSuccess: function(requestId, t) // {{{
-	{
+		this.requestEnded(requestId);
+	},
+  /**
+   * This is called when we have a response. We might not like the response, and as such it might be an
+   * application level error, but we did get a response.
+   */
+	onSuccess: function(requestId, t) {
 		/* This returns 
 		{objectLength:nnn, errorLength:nnn, codeLength:nnn }
 		object
@@ -570,74 +657,100 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
 			// text returned?
 			var text = rsp.substr(i);
 		}
-		catch(e)
-		{
+		catch(e) {
 			rqst.stage = 'response-parse FAIL';
 			this.seriousError('Bad ajax response.', requestId, rsp );
 			return;
 		}
 
 		// show any non-serious error to user
-		if (error) alert(error);
+		if (error) {
+      // @todo allow other callback for this.
+      alert(error);
+    }
 
 		rqst.stage = "replace element innerHTML...";
-		// update the element if given, and if there's html 
+		// update the element if given, and if there's html
 		// returned from the ajax call
-		if (text!='' && rqst.outputHtmlInsideElement) 
-		{
-			var node = rqst.outputHtmlInsideElement;
+		if (text!='' && rqst.node) {
+			var node = rqst.node;
 			if ( typeof node == 'string' ) node = jQuery('#'+node);
 			else node = jQuery(node);
 			node.html(text);
 		}
 		// do extra stuff
 		rqst.stage = "callback";
-		try
-		{
+		try {
 			// we add this to the object so the caller can know whether it's the one they were expecting to process!
 			obj.requestId = requestId;
-			this.requests[requestId].onSuccessCallback(obj, text);
+			this.requests[requestId].success(obj, text);
 		}
-		catch(e)
-		{
-			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, requestId,rsp);
+		catch(e) {
+			this.seriousError('Failed on callback function. See artfulrobot.ajax.requests.'+requestId, requestId,rsp, e);
 			return;
 		}
 
 		this.requestEnded(requestId);
-	}, // }}}
-	seriousError: function( errorMsg, requestId, responseText ) // {{{
-	{
-		window.console && console.error && console.error( errorMsg, requestId, " ",  responseText);
-		var errorReport = window.open();
-		errorReport.document.write( 
-				'<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
-				+'<body>'
-				+ '<h2>Error: ' + errorMsg + '</h3><p><a href="'
-				+ this.requests[requestId].debugURI
-				+ '" >Re-issue request with php debugging on</a></p>' 
-				+ '<h3>Request:</h3><div>'
-				+ this.requests[requestId].debugURI.replace( /^(.+?)\?.+$/, '$1' )
-				+ '<br /><pre>'
-				+ this.requests[requestId].debugURI.replace( /^(.+?)\?(.+)$/, '$2' ).replace( /&/g, '<br />' )
-				+ '</pre></div>'
-				+ '<h3>Response received:</h3><div>'
-				+ responseText
-				+'</div></body></html>');
+	},
+	abortRequest: function(requestId)  { 
+		if (!this.requests[requestId]) {
+			console && console.warn && console.warn("Attempted to abort non-existant ajax request "+requestId);
+			return false;
+		}
+        if (this.requests[requestId].xhr.readyState<4)
+            this.requests[requestId].xhr.abort();
+		this.requestEnded(requestId);
+		return true;
+	}, 
+  /**
+   * This is an application level error.
+   */
+	seriousError: function( errorMsg, requestId, responseText, exc ) {
+		window.console && console.error && console.error( errorMsg, 'Request: ', requestId, " Response Text:",  responseText);
+    var request = this.requests[requestId];
+    // Log exception if we have one.
+		exc && window.console && console.error && console.error( exc.stack );
+    var errorReport;
+    if (this.showErrorInPopup) {
+      errorReport = window.open();
+    }
+    if (errorReport) {
+      errorReport.document.write( 
+          '<html><head><title>Error report</title><style>h2 {color:#800 ;font-size:16px;} h3 {font-size:14px;margin-bottom:0;} div { border:solid 1px #888; background-color:#ffe;padding:1em; } </style></head>'
+          +'<body>'
+          + '<h2>Error: ' + errorMsg + '</h3><p><a href="'
+          + this.requests[requestId].debugURI
+          + '" >Re-issue request with php debugging on</a></p>' 
+          + '<h3>Request:</h3><div>'
+          + this.requests[requestId].debugURI.replace( /^(.+?)\?.+$/, '$1' )
+          + '<br /><pre>'
+          + this.requests[requestId].debugURI.replace( /^(.+?)\?(.+)$/, '$2' ).replace( /&/g, '<br />' )
+          + '</pre></div>'
+          + '<h3>Response received:</h3><div>'
+          + responseText
+          +'</div></body></html>');
 
-		errorReport.document.close();
-	}, // }}}
+      errorReport.document.close();
+    }
+    else {
+      // Do we have a custom error callback?
+      if (request.error) {
+        request.error(request);
+      }
+      else {
+        alert("A server error occurred");
+      }
+    }
+	}, 
 	requestEnds: function( requestObj ) { },
 	requestStarts: function( requestObj ) { },
-	dump:function() // {{{
-	{
+	dump:function() {
 		if (window.console && console.log ) console.log(this.requests);
 		else alert("No console object available");
-	} // }}}
+	} 
 });
 // set up default instance
 artfulrobot.ajax = new artfulrobot.AjaxClass();
-// }}}
 
 // artfulrobot.ARLObject  -- all arlObjects inherit from this {{{
 /** ARLObject documentation {{{
@@ -724,7 +837,7 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	nextId: 0,// counter for all these objects (regardless of which collection they may be in) so no two get same id
 	debugLevel: 0,
 	sharedMethods: {},
-	initialise: function( parentItem, myName, session, argsArray )// {{{
+	initialise: function( parentItem, myName, session, argsArray, state )// {{{
 	{
 		// needs to know the parent object, in case it needs to shout (to siblings)
 		// this will be undefined for the first object created.
@@ -754,6 +867,8 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		if (this.debugLevel>1) console.info(this.name + '.calling localInitialise');
 		if (artfulrobot.typeOf(argsArray)!='array') argsArray = [];
 		this.localInitialise.apply(this, argsArray);
+        if (state) this.setState(state);
+
 		if (this.debugLevel>1) console.info(this.name + '.initialise done. Claimed id: ' + this.myId );
 		if (this.debugLevel>1) console.log('ends');
 	}, // }}}
@@ -851,6 +966,18 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		return newObj; 
 	}, // }}}
 
+    getState:function() //{{{
+    {
+        // return an object that describes the current state
+        // this should be used by restoreState to restore this state
+        // nb. this state should call getState on any necessary subobject(s)
+        return{};
+    },//}}}
+    restoreState:function(state) //{{{
+    {
+        // do whatever is necessary to restore the state in the object passed.
+    },//}}}
+
 	getSessionForSubObject: function ( soName ) // {{{
 	{ 
 		var x = {};
@@ -899,6 +1026,19 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 		// with code that would stringify it's this._SESSION variable
 		// and send an ajax request to store it.
 		this.saveSession( obj.newFriendlyName, obj.newTitle );
+	}, // }}}
+	setSessionDefaults: function( defs ) // {{{
+	{
+		/** setSessionDefaults checks that each key of defs exists in this._SESSION
+		 *  and if not, creates it with the value from defs.
+		 *  Does not overwrite anything that is there.
+		 */
+		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
+		for (key in defs)
+		{
+			if ( typeof this._SESSION[ key ] == 'undefined' )
+				this._SESSION[ key ] = defs[ key ];
+		};
 	}, // }}}
 
 	destroySubObject: function ( objOrObjId ) // {{{
@@ -971,19 +1111,6 @@ artfulrobot.ARLObject = artfulrobot.defineClass(
 	{
 		msg =  "[" + this.name + "] Object";
 		return msg;
-	}, // }}}
-	setSessionDefaults: function( defs ) // {{{
-	{
-		/** setSessionDefaults checks that each key of defs exists in this._SESSION
-		 *  and if not, creates it with the value from defs.
-		 *  Does not overwrite anything that is there.
-		 */
-		if ( typeof this._SESSION == 'undefined' ) this._SESSION = {};
-		for (key in defs)
-		{
-			if ( typeof this._SESSION[ key ] == 'undefined' )
-				this._SESSION[ key ] = defs[ key ];
-		};
 	}, // }}}
 	getObjectByName: function (name) //{{{
 	{

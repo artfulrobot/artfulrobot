@@ -32,7 +32,7 @@ class RestApi {
   protected $json_request = FALSE;
 
   /** Whether to request json in the return */
-  protected $accept_json_response = TRUE;
+  protected $require_json_response = TRUE;
 
   /** auth string username:password, if HTTP basic auth is needed.*/
   protected $http_basic_auth = '';
@@ -91,6 +91,16 @@ class RestApi {
 
   /**
    * Whether to do SSL certificat verifications.
+   *
+   * @param bool $peer Whether do validate the certificate against certificate
+   * chain up to a trusted certificate installed on your server.
+   * @param int $host
+   * - 2: check that the domain in the certificate is the same as that used to connect
+   * - 1: historical use, but may replace '2' in future Curls
+   * - 0: no checks.
+   *
+   * @see http://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYPEER.html
+   * @see http://curl.haxx.se/libcurl/c/CURLOPT_SSL_VERIFYHOST.html
    */
   public function setSslVerify($peer=TRUE, $host=2) {
     $host = (int) $host;
@@ -107,7 +117,7 @@ class RestApi {
    */
   public function setJson($request=TRUE,$response=TRUE) {
     $this->json_request = (bool) $request;
-    $this->accept_json_response = (bool) $response;
+    $this->require_json_response = (bool) $response;
     return $this;
   }
   /**
@@ -151,6 +161,14 @@ class RestApi {
    */
   public function delete($uri, $data=null) {
     return $this->request('DELETE', $uri, $data);
+  }
+
+  /** Perform a REST PATCH command for updating resources.
+   *
+   * The uri can be a string, or a template, see RestApi::request()
+   */
+  public function patch($uri, $data=null) {
+    return $this->request('PATCH', $uri, $data);
   }
 
   /** Perform a REST PUT command for updating resources.
@@ -208,7 +226,7 @@ class RestApi {
     // Finally put payload in headers or body
 
     // Our json_request flag encodes the data as json
-    if ($this->json_request) {
+    if ($this->json_request && $this->payload) {
       $this->headers['Content-Type'] = 'Application/json;charset=UTF-8';
       $this->payload = json_encode($this->payload);
     }
@@ -264,6 +282,8 @@ class RestApi {
    * Allow $uri templating: Array('/some/%template/url', array('%template' => 'foo'));
    *
    * @todo Currently we ignore headers in responses. If we need these we'll impliment it.
+   *
+   * @throws RestApi_NetworkException
    */
   protected function request($method, $uri, $data) {
 
@@ -275,15 +295,14 @@ class RestApi {
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $this->method);
 
-    if ($this->body) {
-      curl_setopt($curl, CURLOPT_POSTFIELDS, $this->body);
-      $headers['Content-Length'] = strlen($this->body) ;
-    }
-
     // Set headers.
     $headers = array();
     foreach ($this->headers as $k=>$v) {
       $headers[] = "$k: $v";
+    }
+    if ($this->body) {
+      curl_setopt($curl, CURLOPT_POSTFIELDS, $this->body);
+      $headers['Content-Length'] = strlen($this->body) ;
     }
     curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
@@ -292,17 +311,47 @@ class RestApi {
       curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
       curl_setopt($curl, CURLOPT_USERPWD, $this->http_basic_auth);
     }
-
     curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, $this->ssl_verify_peer);
     curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, $this->ssl_verify_host);
-
     curl_setopt($curl, CURLOPT_URL, $this->url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     $result = curl_exec($curl);
     $info = curl_getinfo($curl);
     curl_close($curl);
 
-    return RestApiResponse::createFromCurl($result, $info);
+    // Check response.
+    if (empty($info['http_code'])) {
+      throw new RestApi_NetworkException("Missing http_code in curl response info");
+    }
+
+    // Should we try to decode a json response?
+    if ($result
+      && ($this->require_json_response
+      || (isset($info['content_type']) && preg_match('@^application/(problem\+)?json\b@i', $info['content_type'])))
+    ) {
+
+        // We were sent json, or we require it.
+        $result = json_decode($result);
+    }
+
+    // Pass on to another method to create the response object, so this can be
+    // overridden as needed by particular APIs.
+    return $this->createResponse($result, $info);
+  }
+  /**
+   * Create response object.
+   *
+   * Override this if you want to return a different object, or handle errors with exceptions etc.
+   *
+   * @param mixed $result     The raw result, unless JSON received/required, in which case a decoded object.
+   * @param array $curl_info. This will definitely include the http_code key.
+   *
+   * @returns RestApiResponse
+   */
+  protected function createResponse($result, $curl_info) {
+    // create object
+    $response = new RestApiResponse($curl_info['http_code'], $result);
+    return $response;
   }
 
   /**
