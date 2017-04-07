@@ -1,9 +1,9 @@
 {
   "name": "artfulrobot/artfulrobot",
-  "description": "Various useful PHP and javascript libraries.",
+  "description": "LEGACY, DO NOT USE: Various useful PHP and javascript libraries.",
   "type": "library",
   "keywords": ["php","javascript","pdo","ajax"],
-  "homepage": "http://artfulrobot.com",
+  "homepage": "https://artfulrobot.uk",
   "license": "GPL",
   "require": {
     "php": ">=5.3.0"
@@ -15,10 +15,5 @@
       "homepage": "http://artfulrobot.com",
       "role": "Developer"
     }
-  ],
-  "autoload": {
-    "psr-0": {
-      "ArtfulRobot": "./"
-    }
-  }
+  ]
 }
