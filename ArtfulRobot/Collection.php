@@ -1,8 +1,10 @@
 <?php
 namespace ArtfulRobot;
 
-// class ARL_Collection implements Iterator
-/** handles a collection of objects, iterateable
+/**
+ * ARL_Collection implements Iterator
+ *
+ * handles a collection of objects, iterateable
  *  basically, this is a wrapper for php's array, but without ever returning
  *  the array itself
  */
