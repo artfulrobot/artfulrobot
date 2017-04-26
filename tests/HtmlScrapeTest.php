@@ -5,7 +5,6 @@ class HtmlScrapeTest extends \PHPUnit_Framework_TestCase {
   const FIXTURE_URL_1 = './tests/fixtures/scrape1.html';
   const FIXTURE_URL_2 = './tests/fixtures/scrape2.html';
   const FIXTURE_URL_3 = './tests/fixtures/scrape3.html';
-  const FIXTURE_URL_FACEBOOK_1 = './tests/fixtures/scrape-facebook-1.html';
 
   public function testParseUrl() {
     foreach ([
@@ -55,12 +54,6 @@ class HtmlScrapeTest extends \PHPUnit_Framework_TestCase {
     $this->assertEquals("Test document\nThis document is all about socks.\nThere's a lot of information in here...",
       $_);
 
-    // Facebook post.
-    $x=1;
-    $_ = HtmlScrape::factory(self::FIXTURE_URL_FACEBOOK_1)
-      ->getDescription();
-    $this->assertEquals("People & Planet, Oxford, Oxfordshire. 7,798 likes · 96 talking about this · 4 were here. Student action on human rights, world poverty and the...",
-      $_);
   }
   public function testMain() {
     $_ = HtmlScrape::factory(self::FIXTURE_URL_1)
