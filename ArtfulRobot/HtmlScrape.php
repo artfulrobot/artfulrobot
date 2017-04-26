@@ -81,15 +81,35 @@ class HtmlScrape {
 
     // Try the og:image.
     if ($image = $this->getOgProperty('og:image')) {
-      return $image;
+      return $this->ensureAbsoluteUri($image);
+    }
+
+    // If it's a facebook page we won't be allowed to scrape it :-(
+    // Facebook returns a crappy 'browser not supported' page.
+    //$nodes = $this->xpath->evaluate('//html[@id="facebook"]//div[contains(@class, "permalinkPost")]//img[@width>400 and @height>200]');
+    $nodes = $this->xpath->evaluate('//html[@id="facebook"]');
+    if ($nodes->length) {
+      return '';
     }
 
     // Try to fetch first image from main section.
     $nodes = $this->xpath->evaluate("//img", $this->getMainSection());
     if ($nodes->length) {
-      return $nodes->item(0)->getAttribute('src');
+      return $this->ensureAbsoluteUri($nodes->item(0)->getAttribute('src'));
     }
 
+  }
+  public function ensureAbsoluteUri($url) {
+    if (!$url || preg_match('@^https?://@', $url)) {
+      return $url;
+    }
+    $src = $this->splitUrl();
+    if (substr($url, 0, 1) == '/') {
+      // Root-relative URL, prepend domain.
+      return $src->protocol . $src->domain . $url;
+    }
+    // Relative URL.
+    return $src->protocol . $src->domain . $src->path . $url;
   }
   /**
    * Get HTML title.
@@ -189,7 +209,7 @@ class HtmlScrape {
     // check for <link rel="shortcut icon" href="url" >
     $nodes = $this->xpath->evaluate("//html/head/link[@rel='shortcut icon']");
     if ($nodes->length > 0 && $nodes->item(0)->hasAttribute('href')) {
-      return $nodes->item(0)->getAttribute('href');
+      return $this->ensureAbsoluteUri($nodes->item(0)->getAttribute('href'));
     }
 
     // Default to domain/favion.ico.
@@ -221,7 +241,16 @@ class HtmlScrape {
     if (empty($this->url)) {
       throw new \Exception("Cannot load content without URL.");
     }
-    $this->raw = file_get_contents($this->url);
+    // @todo we need to be able to handle redirections ourselves so we know what
+    // the final URL is.
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $this->url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+    $this->raw = curl_exec($ch);
+    $this->url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    curl_close($ch);
+
     $this->parseRaw();
     return $this;
   }
