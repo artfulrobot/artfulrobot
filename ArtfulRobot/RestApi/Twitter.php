@@ -2,9 +2,22 @@
 namespace ArtfulRobot;
 
 /**
- * This class does the application-only authenticated requests
+ * This class does the application-only authenticated requests.
+ *
+ * Sign In with Twitter:
+ * $api = new RestApi_Twitter([
+ *  'consumer_api' => 'xxx',
+ *  'consumer_secret' => 'xxx',
+ * ]);
+ *
+ * // get request token passing our callback.
+ * // send user to twitter.
+ * //  user comes back to the callback url given.
+ * // request access token.
+ * // ready.
+ *
  */
-class RestApi_TwitterUser extends RestApi {
+class RestApi_Twitter extends RestApi {
 
   /*
    * Each instance is an instance of a registered Twitter App.
