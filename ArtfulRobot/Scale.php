@@ -8,6 +8,9 @@ namespace ArtfulRobot;
  */
 class Scale {
 
+  /**
+   * The scaling factor.
+   */
   public $factor;
 
   public $domain_min=0;
@@ -44,8 +47,17 @@ class Scale {
     }
   }
 
+  /**
+   * Factory method to facilitate chaining.
+   */
+  public static function factory($domain, $range=[0, 1]) {
+    $obj = new static($domain, $range);
+    return $obj;
+  }
+  // Configuration methods
   public function limitToRange($limit=TRUE) {
     $this->limit = TRUE;
+    return $this;
   }
 
   /**
@@ -66,6 +78,7 @@ class Scale {
     $this->domain_max = $max;
     $this->domain_min = $min;
     $this->recalcFactor();
+    return $this;
   }
 
   /**
@@ -84,6 +97,30 @@ class Scale {
     $this->range_max = $max;
     $this->range_min = $min;
     $this->recalcFactor();
+    return $this;
+  }
+
+  /**
+   * Set an array of #112233ff style colours.
+   */
+  public function setColours($colours) {
+    $this->colours = [];
+    foreach ($colours as $webhex) {
+      $this->colours[] = [
+        'r' => hexdec(substr($webhex, 0, 2)),
+        'g' => hexdec(substr($webhex, 2, 2)),
+        'b' => hexdec(substr($webhex, 4, 2)),
+        'a' => hexdec(substr($webhex, 6, 2)),
+      ];
+    }
+    return $this;
+  }
+  // Output methods.
+  /**
+   * Shortcut for scaled().
+   */
+  public function __invoke($x) {
+    return $this->scaled($x);
   }
 
   /**
@@ -114,36 +151,36 @@ class Scale {
   }
 
   /**
-   * Shortcut for scaled().
-   */
-  public function __invoke($x) {
-    return $this->scaled($x);
-  }
-
-  /**
-   * Set an array of #112233ff style colours.
-   */
-  public function setColours($colours) {
-    $this->colours = [];
-    foreach ($colours as $webhex) {
-      $this->colours[] = [
-        'r' => hexdec(substr($webhex, 0, 2)),
-        'g' => hexdec(substr($webhex, 2, 2)),
-        'b' => hexdec(substr($webhex, 4, 2)),
-        'a' => hexdec(substr($webhex, 6, 2)),
-      ];
-    }
-  }
-  /**
-   * return CSS rgba() format.
-   */
-  public function colour($col, $col2) {
-
-  }
-  /**
    * Get a rgba() colour for the given input.
    */
   public function rgba($x) {
+    $colour = $this->rgbaValues($x);
+    return "rgba($colour[r], $colour[g], $colour[b], $colour[a])";
+  }
+  /**
+   * Get a #rrggbbaa colour for the given input.
+   */
+  public function rgbaHex($x) {
+    $colour = $this->rgbaValues($x);
+    return '#'
+        . str_pad(dechex($colour['r']), 2, '0')
+        . str_pad(dechex($colour['g']), 2, '0')
+        . str_pad(dechex($colour['b']), 2, '0')
+        . str_pad(dechex($colour['a']), 2, '0');
+  }
+  /**
+   * Get a #rrggbb colour for the given input.
+   */
+  public function rgbHex($x) {
+    return substr($this->rgbaHex($x), 0, 7);
+  }
+  /**
+   * Get a rgba() colour for the given input return as array.
+   *
+   * @param number $x number in domain.
+   * @return array with r, g, b, a keys and integer values.
+   */
+  public function rgbaValues($x) {
     $fraction = ($x - $this->domain_min) / ($this->domain_max - $this->domain_min);
     $n = count($this->colours);
     // Colour index.
@@ -170,8 +207,9 @@ class Scale {
         $colour[$_] = (int) ($mix1 * $val + $mix2 * $colour2[$_]);
       }
     }
-    return "rgba($colour[r], $colour[g], $colour[b], $colour[a])";
+    return $colour;
   }
+  // Internal methods.
   /**
    * Calculate the factor.
    */
