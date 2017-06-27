@@ -424,28 +424,28 @@ class Email
             $this->body['html'] = $this->convertTextToHtml();
         }
 
-        // email should be 70 characters max
-        $body_html = wordwrap($this->body['html'], 70, "\r\n");
-        $body_text = wordwrap($this->body['text'], 70, "\r\n");
 
         $uid =$this->uid;
+
+        // Store the text version.
         $body =
             "--ARE-mixed-$uid\r\n"
             ."Content-Type: multipart/alternative;\r\n\tboundary=\"ARE-alt-$uid\"\r\n"
             ."\r\n"
             ."--ARE-alt-$uid\r\n"
-            ."Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-            ."Content-Transfer-Encoding: 8bit\r\n\r\n"
-            .$body_text
+            ."Content-Type: text/plain; charset=\"utf-8\"\r\n"
+            ."Content-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . quoted_printable_encode($this->body['text'])
             ."\r\n";
 
         // html
         if (empty($this->body['related'])) {
+            // No related attachments.
             $body .=
                 "--ARE-alt-$uid\r\n"
                 ."Content-Type: text/html; charset=\"UTF-8\"\r\n"
-                ."Content-Transfer-Encoding: 8bit\r\n\r\n"
-                .$body_html
+                ."Content-Transfer-Encoding: quoted-printable\r\n\r\n"
+                . quoted_printable_encode($this->body['html'])
                 ."\r\n";
 
         } else {
@@ -455,14 +455,14 @@ class Email
                 ."\r\n"
                 ."--ARE-rel-$uid\r\n"
                 ."Content-Type: text/html; charset=\"UTF-8\"\r\n"
-                ."Content-Transfer-Encoding: 8bit\r\n"
+                ."Content-Transfer-Encoding: quoted-printable\r\n\r\n"
                 ."\r\n";
-            $html = $body_html;
+            $html = $this->body['html'];
             foreach ($this->body['related'] as $name => $filename) {
                 $subs['{' . $name . '}'] = 'cid:ARE-CID-'.$name;
             }
-            $body .= strtr($html, $subs)
-                ."\r\n";
+            $html = strtr($html, $subs);
+            $body .= quoted_printable_encode($html) ."\r\n";
 
             foreach ($this->body['related'] as $name => $filename) {
                 $body .= "--ARE-rel-$uid\r\n"
