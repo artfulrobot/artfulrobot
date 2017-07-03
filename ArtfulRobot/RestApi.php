@@ -134,6 +134,15 @@ class RestApi {
     return array_key_exists($verb, $this->verb_to_http_method);
   }
 
+  /**
+   * Set the server URL.
+   *
+   * Nb. typically this does not end in a slash (since paths start with one).
+   * @param string $server
+   */
+  public function setServer($server) {
+    $this->server = $server;
+  }
 
   // Public methods for making (or testing) requests
 
