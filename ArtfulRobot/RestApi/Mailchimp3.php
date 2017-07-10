@@ -81,26 +81,65 @@ class RestApi_Mailchimp3 extends RestApi {
     if (empty($member_data['email_address'])) {
       throw new \Exception("Missing email_address key in \$member_data parameter.");
     }
+    /* Prepare a Mailchimp call like:
+     * URL: .../lists/{listid}/members/{subscriber_hash}
+     * $data = [
+     *   'status' => 'subscribed',
+     *   'email_address' => $contact['email'],
+     *   'merge_fields' => [
+     *     'FNAME' => $contact['first_name'],
+     *     'LNAME' => $contact['last_name'],
+     *     ],
+     *   'interests' => [
+     *    {interest_id_hash} => 0 | 1,
+     *    ...
+     *   ]
+     * ];
+     */
 
-    // First try to create the member, assuming they would not sign up if they already were.
-    $url = "lists/$list/members";
+    $url = "lists/$list/members/" . $this->emailMd5($member_data['email_address']);
     $params = ['status' => 'subscribed'] + $member_data;
-    $response = $this->post($url, $params);
+    $response = $this->put($url, $params);
     if ($response->status == 200) {
       // Success.
       return TRUE;
-
-    } elseif ($response->status == 400) {
-      // They are already a member. Send Patch.
-      unset($params['email_address']);
-      $member_url = "$url/" . $this->emailMd5($member_data['email_address']);
-      $result = $this->patch($member_url, $params);
-      if ($result->status == 200) {
-        return TRUE;
-      }
     }
 
     // Oh no.
     return FALSE;
+  }
+  /**
+   * Helper function to get all interest groups for a list.
+   *
+   * Returns an array keyed by the interest id (which is needed to PUT changes to a subscriber's interests), values is an array including
+   *
+   * - category_id
+   * - category_title
+   * - name (of interest)
+   *
+   * This is stupidly inefficient thanks to MC's API.
+   */
+  public function listInterests($list) {
+    $interests = [];
+
+    $categories_response = $this->get("lists/$list/interest-categories");
+    if ($categories_response->status !== 200) {
+      return $interests;
+    }
+    foreach ($categories_response->body->categories as $category) {
+      $response = $this->get("lists/$list/interest-categories/$category->id/interests");
+      if ($response->status !== 200) {
+        // Strange.
+        return $interests;
+      }
+      foreach ($response->body->interests as $interest) {
+        $interests[$interest->id] = [
+          'category_id' => $category->id,
+          'category_title' => $category->title,
+          'name' => $interest->name,
+        ];
+      }
+    }
+    return $interests;
   }
 }
