@@ -22,6 +22,7 @@ class HtmlScrapeTest extends \PHPUnit_Framework_TestCase {
     $this->assertEquals('http://example.com/some/favicon.ico', $favicon);
   }
   public function testImage() {
+
     $url = HtmlScrape::factory(self::FIXTURE_URL_1)
       ->getImageUrl();
     $this->assertEquals('http://example.com/image.jpg', $url);
@@ -29,6 +30,9 @@ class HtmlScrapeTest extends \PHPUnit_Framework_TestCase {
     $url = HtmlScrape::factory(self::FIXTURE_URL_2)
       ->getImageUrl();
     $this->assertEquals('http://example.com/image.jpg', $url);
+
+    //$this->assertEquals('https://scontent-cdg2-1.xx.fbcdn.net/v/t1.0-0/s480x480/13912360_826628420770281_2857235518930843627_n.jpg?oh=a69e81388a4b1e9d2c5753eff9c2bbbb&oe=58516057', $url);
+    
   }
   public function testTitle() {
     $_ = HtmlScrape::factory(self::FIXTURE_URL_1)
@@ -49,6 +53,7 @@ class HtmlScrapeTest extends \PHPUnit_Framework_TestCase {
       ->getDescription();
     $this->assertEquals("Test document\nThis document is all about socks.\nThere's a lot of information in here...",
       $_);
+
   }
   public function testMain() {
     $_ = HtmlScrape::factory(self::FIXTURE_URL_1)

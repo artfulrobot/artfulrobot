@@ -34,7 +34,7 @@ class RestApi_Mailchimp3 extends RestApi {
     }
     $datacenter = $matches[1];
 
-    $this->server = "https://$datacenter.api.mailchimp.com/3.0/";
+    $this->server = "https://$datacenter.api.mailchimp.com/3.0";
 
     // Set auth
     $this->setAuth('dummy-username', $this->api_key);
@@ -141,5 +141,96 @@ class RestApi_Mailchimp3 extends RestApi {
       }
     }
     return $interests;
+  }
+  /**
+   * Perform a /batches POST request and sit and wait for the result.
+   *
+   * It quicker to run small ops directly for <15 items.
+   *
+   * @param array $batch. Example: [
+   *    [ 'PUT', '/list/aabbccdd/member/aa112233', ['email_address' => 'foo@example.com', ... ] ],
+   *    ...
+   * ]
+   * @param mixed $method multiple|batch if left NULL, batch is used if there are 15+ requests.
+   *
+   */
+  public function batchAndWait(Array $batch, $method=NULL) {
+    // This can take a long time...
+    set_time_limit(0);
+    if ($method === NULL) {
+      // Automatically determine fastest method.
+      $method = (count($batch) < 15) ? 'multiple' : 'batch';
+    }
+    elseif (!in_array($method, ['multiple', 'batch'])) {
+      throw new InvalidArgumentException("Method argument must be mulitple|batch|NULL, given '$method'");
+    }
+    // Validate the batch operations.
+    foreach ($batch as $i=>$request) {
+      if (count($request)<2) {
+        throw new InvalidArgumentException("Batch item $i invalid - at least two values required.");
+      }
+      if (!preg_match('/^get|post|put|patch|delete$/i', $request[0])) {
+        throw new InvalidArgumentException("Batch item $i has invalid method '$request[0]'.");
+      }
+      if (substr($request[1], 0, 1) != '/') {
+        throw new InvalidArgumentException("Batch item $i has invalid path should begin with /. Given '$request[1]'");
+      }
+    }
+    // Choose method and submit.
+    if ($method == 'batch') {
+      // Submit a batch request and wait for it to complete.
+      $batch_result = $this->makeBatchRequest($batch);
+      do {
+        sleep(3);
+        $result = $this->get("/batches/{$batch_result->body->id}");
+      } while ($result->result->status != 'finished');
+      // Now complete.
+      // Note: we have no way to check the errors. Mailchimp make a downloadable
+      // .tar.gz file with one file per operation available, however PHP (as of
+      // writing) has a bug (I've reported it
+      // https://bugs.php.net/bug.php?id=72394) in its PharData class that
+      // handles opening of tar files which means there's no way we can access
+      // that info. So we have to ignore errors.
+      return $result;
+    }
+    else {
+      // Submit the requests one after another.
+      foreach ($batch as $item) {
+        $method = strtolower($item[0]);
+        $path = $item[1];
+        $data = isset($item[2]) ? $item[2] : [];
+        try {
+          $this->$method($path, $data);
+        }
+        catch (CRM_Mailchimp_RequestErrorException $e) {
+          // Here we ignore exceptions from Mailchimp not because we want to,
+          // but because we have no way of handling such errors when done for
+          // 15+ items in a proper batch, so we don't handle them here either.
+        }
+      }
+    }
+  }
+  /**
+   * Sends a batch request.
+   *
+   * @param array batch array of arrays which contain three values: the method,
+   * the path (e.g. /lists) and the data describing a set of requests.
+   */
+  public function makeBatchRequest(Array $batch) {
+    $ops = [];
+    foreach ($batch as $request) {
+      $op = ['method' => strtoupper($request[0]), 'path' => $request[1]];
+      if (!empty($request[2])) {
+        if ($op['method'] == 'GET') {
+          $op['params'] = $request[2];
+        }
+        else {
+          $op['body'] = json_encode($request[2]);
+        }
+      }
+      $ops []= $op;
+    }
+    $result = $this->post('/batches', ['operations' => $ops]);
+    return $result;
   }
 }

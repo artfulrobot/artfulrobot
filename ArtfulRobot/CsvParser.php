@@ -210,4 +210,10 @@ class CsvParser implements \Iterator {
     }
     $this->current_row = $row_number;
   }
+  /**
+   * Returns an array of column headers.
+   */
+  public function getHeaders() {
+    return array_keys($this->header_map);
+  }
 }

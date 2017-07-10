@@ -109,6 +109,12 @@ class ValidateItem {
     $this->value = $_;
     return $this;
   }
+  public function isType($type) {
+    if (gettype($this->value) !== $type) {
+      throw new \InvalidArgumentException("$this->key must be $type");
+    }
+    return $this;
+  }
   /**
    * Try to coerce given user in put into a UK postcode.
    */
@@ -189,6 +195,18 @@ class ValidateItem {
       if (!in_array($this->value, $valid)) {
         throw new \InvalidArgumentException("$this->key is not one of the allowed values.");
       }
+    }
+    return $this;
+  }
+  /**
+   * Ensure value is exactly as expected.
+   *
+   * Probably want to do required() first.
+   *
+   */
+  public function is($expected) {
+    if ($expected !== $this->value) {
+      throw new \InvalidArgumentException("$this->key is not as expected");
     }
     return $this;
   }

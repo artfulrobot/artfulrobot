@@ -1,17 +1,23 @@
 <?php
+namespace ArtfulRobot;
 /**
  * Class to help make sure things that should only happen once, do!
+ *
+ * Don't use this for security. The only advantage of this is that the tokens
+ * are pretty random (time based md5) so you could fetch a bunch at once and
+ * know that they were unique.
+ *
  * Synopsis:
-<code>
-// generate a link
-$token = \ArtfulRobot\\ArtfulRobot\Onceler::newToken();
-echo "<a href='?do=something&oncelerToken=$token' >go</a>;
-
-// check a link 
-if (!\ArtfulRobot\\ArtfulRobot\Onceler::check_get()) unset($_GET['do']);
-if ($_GET['do'] == 'something') do_something();
-</code>
-
+ *   <code>
+ *   // generate a link
+ *   $token = Onceler::newToken();
+ *   echo "<a href='?do=something&oncelerToken=$token' >go</a>;
+ *
+ *   // check a link
+ *   if (!Onceler::check_get()) unset($_GET['do']);
+ *   if ($_GET['do'] == 'something') do_something();
+ *   </code>
+ *
  * Note: this does not check that the token was created by \ArtfulRobot\Onceler
  * just that it has not been seen before. You do not need to use new_token
  * to generate tokens.
@@ -27,19 +33,17 @@ class Onceler
 	private static $done_get =false;
 	private static $done_post=false;
 
-	public static function check_get( $altKey='oncelerToken') 
-	{ 	
+	public static function check_get( $altKey='oncelerToken') {
 		if (self::$done_get) throw new Exception("\ArtfulRobot\Onceler::check_get() called twice");
 
-		self::$done_get = true;
-		return self::check($_GET,  $altKey);;
+		self::$done_get = TRUE;
+		return self::check($_GET, $altKey);
 	}
-	public static function check_post( $altKey='oncelerToken') 
-	{ 	
+	public static function check_post( $altKey='oncelerToken') {
 		if (self::$done_post) throw new Exception("\ArtfulRobot\Onceler::check_post() called twice");
 
-		self::$done_post = true;
-		return self::check($_POST,  $altKey);;
+		self::$done_post = TRUE;
+		return self::check($_POST, $altKey);
 	}
 
 	/** has token been used before?
@@ -47,41 +51,37 @@ class Onceler
 	 * @var &array $source Source array
 	 * @var string $key    key to find token in source array, e.g. oncelerToken
 	 * @return bool|null true (not seen before), false (seen before), null (no token)
-	 */ 
-	public static function check( &$source, $key )
-	{
+	 */
+	public static function check( &$source, $key ) {
 		if (! $key) throw new Exception("\ArtfulRobot\Onceler::check - no key given");
 		if (! is_array($source)) throw new Exception("\ArtfulRobot\Onceler::check - source is not an array");
-		$token = \ArtfulRobot\Utils::arrayValue($key, $source);
+		$token =  isset($source[$key]) ? $source[$key] : '';
 		// no token - return null;
-		if (! $token )
-		{
-			\ArtfulRobot\Debug::log("!! Warning: \ArtfulRobot\Onceler::check - no token at key $key returning null");
-			return null;
+		if (! $token ) {
+			return NULL;
 		}
 
-		$spent_tokens = & \ArtfulRobot\Utils::arrayReference('\ArtfulRobot\Onceler::spent_tokens', $_SESSION, array() );
-		if ( array_key_exists( $token, $spent_tokens ) )
-		{
-			\ArtfulRobot\Debug::log("!! \ArtfulRobot\Onceler: recognised spent token, resetting source token.");
-			$source[$key] = false;
-			return false;
+    if (!isset($_SESSION['Onceler::spent_tokens'][$token])) {
+      $_SESSION['Onceler::spent_tokens'] = [];
+    }
+		$spent_tokens = & $_SESSION['Onceler::spent_tokens'];
+
+		if ( array_key_exists( $token, $spent_tokens ) ) {
+			$source[$key] = FALSE;
+			return FALSE;
 		}
-		//error_log("!! setting new token $token");
-		// new token
+		// Was a new token, now spent.
 		$spent_tokens[$token] = true;
-		return true;
+		return TRUE;
 	}
 
 	/** Generate a token we've not used before
 	 */
-	public static function newToken()
-	{
-		$spent_tokens = \ArtfulRobot\Utils::arrayReference('\ArtfulRobot\Onceler::spent_tokens', $_SESSION, array() );
-		
-		while ( array_key_exists( 
-			$new = md5(++self::$count . 'NaCl' . time()),
-			$spent_tokens) ) self::$count++ ;
+	public static function newToken() {
+    do {
+      self::$count++;
+			$new = md5(++self::$count . 'NaCl' . time());
+    } while (isset($_SESSION['Onceler::spent_tokens'][$new]));
 
 		return $new;
 	}
