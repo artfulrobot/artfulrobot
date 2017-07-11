@@ -72,7 +72,9 @@ class RestApi_Mailchimp3 extends RestApi {
 
   // Helper methods.
   /**
-   * Subscribe someone. If they are already on the list, send a patch.
+   * Subscribe someone.
+   *
+   * @throws On failure, throws Exception with the title, detail fields from the mailchimp response.
    *
    * @param string $list List ID
    * @param array $member_data Must include email_address. Can include another array under merge_fields
@@ -97,16 +99,23 @@ class RestApi_Mailchimp3 extends RestApi {
      * ];
      */
 
-    $url = "lists/$list/members/" . $this->emailMd5($member_data['email_address']);
+    $url = "/lists/$list/members/" . $this->emailMd5($member_data['email_address']);
     $params = ['status' => 'subscribed'] + $member_data;
     $response = $this->put($url, $params);
-    if ($response->status == 200) {
-      // Success.
-      return TRUE;
+    if ($response->status != 200) {
+      if (isset($response->body->title)) {
+        $msg = $response->body->title;
+        if (isset($response->body->detail)) {
+          $msg .= " Detail: " . $response->body->detail;
+        }
+      }
+      else {
+        $msg = json_encode($response->body);
+      }
+      throw new \Exception($msg, $response->status);
     }
 
-    // Oh no.
-    return FALSE;
+    return TRUE;
   }
   /**
    * Helper function to get all interest groups for a list.
