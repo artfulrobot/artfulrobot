@@ -283,7 +283,7 @@ class Markdown_Parser {
 	# Internal hashes used during transformation. -- Rich Lott's extensions
 	private $singleLineDivs = array();
 
-	function Markdown_Parser() //{{{
+	function __construct() //{{{
 	{
 	#
 	# Constructor function. Initialize appropriate member variables.
