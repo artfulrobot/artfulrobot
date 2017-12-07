@@ -206,6 +206,7 @@ abstract class PDO_Model implements \JsonSerializable
       * or  field => { operator:'!=', value: 'value' }
       * or  field => { operator:'<', value: 'value' }
       * or  field => { operator:'>', value: 'value' }
+      * or  field => { operator:'LIKE', value: 'value%' }
       * or  field => { operator:'IN', values: array('value',...) }
       * or  field => { operator:'NOT IN', values: array('value',...) }
       * or  field => { operator:'BETWEEN', value1: '', value2:'' }
@@ -227,7 +228,7 @@ abstract class PDO_Model implements \JsonSerializable
                 $params[":$key"] = $filter;
                 $sql[] = "`$key` = :$key";
             } else {
-                if (in_array($filter['operator'], array('=','>=','<=','<','>','!='))) {
+                if (in_array($filter['operator'], array('=','>=','<=','<','>','!=','LIKE'))) {
                     $params[":$key"] = $filter['value'];
                     $sql[] = "`$key` $filter[operator] :$key";
 
@@ -485,16 +486,14 @@ abstract class PDO_Model implements \JsonSerializable
 
     /**
      * hook for altering object once loaded, e.g. if data needs formatting/unpacking.
-      */
-    protected function loadPostprocess()
-    {
+     */
+    protected function loadPostprocess() {
     }
 
     /**
      * hook for altering object before saving, e.g. serialize objects into fields
-      */
-    protected function savePreprocess()
-    {
+     */
+    protected function savePreprocess() {
     }
 
     /**
