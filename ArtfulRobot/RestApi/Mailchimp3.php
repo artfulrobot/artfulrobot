@@ -192,7 +192,7 @@ class RestApi_Mailchimp3 extends RestApi {
       do {
         sleep(3);
         $result = $this->get("/batches/{$batch_result->body->id}");
-      } while ($result->result->status != 'finished');
+      } while ($result->body->status != 'finished');
       // Now complete.
       // Note: we have no way to check the errors. Mailchimp make a downloadable
       // .tar.gz file with one file per operation available, however PHP (as of
