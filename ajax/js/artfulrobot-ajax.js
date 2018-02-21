@@ -513,9 +513,9 @@ artfulrobot.AjaxClass = artfulrobot.defineClass(
         }
 
 		// make request
-		if (jQuery().jquery<'1.5')
-		{
-			window.console && console.warn && console.warn("Running old version of jQuery - can cause problems with ajax requests");
+    var m = jQuery.fn.jquery.match(/(\d+)\.(\d+)\.(\d+)/);
+    if ((m[1] == 1) && (m[2] < 5)) {
+			window.console && console.warn && console.warn("Running pre 1.5 version of jQuery (" + jQuery.fn.jquery + ") - can cause problems with ajax requests");
 			this.requests[requestId].xhr = jQuery.ajax( 
 			{
 				url:this.requestFrom,
