@@ -242,4 +242,77 @@ class RestApi_Mailchimp3 extends RestApi {
     $result = $this->post('/batches', ['operations' => $ops]);
     return $result;
   }
+  /**
+   * Update mailchimp records for given list.
+   *
+   * - downloads members 5000 at a time
+   * - passes each member into an update callback
+   * - if callback returns updates, store it
+   * - if any updates create a batch request with them.
+   *
+   * @param string $list_id
+   * @param callback $callback
+   * @param array|NULL $options. Optional options array. The following are defaults:
+   * - batch: 5000 - how many to load at once?
+   * - status: ['subscribed', 'pending'] - filters members to map
+   * - wait: FALSE - use batchAndWait or just use makeBatchRequest?
+   * - progress: NULL|callback - called with progress of batch operations (unimplemented idea)
+   *
+   */
+  public function mapListMembers($list_id, $callback, $options =  NULL) {
+    if ($options === NULL) {
+      $options = [];
+    }
+    $options += [
+      'batch'    => 5000,
+      'status'   => 'subscribed,pending',
+      'wait'     => FALSE,
+      'progress' => NULL,
+    ];
+    $progress = is_callable($options['progress']) ? $options['progress'] : function ($_) {};
+
+    $done = 0;
+    $offset = 0;
+    $all_updates = [];
+    do {
+      $progress("Processed $offset members from $list_id; " . count($all_updates) . " updates pending; loading next batch...");
+      $members_batch = $this->get("/lists/$list_id/members", ['offset' => $offset, 'count' => 5000, 'status' => $options['status']])->body;
+      $offset += count($members_batch->members);
+      $progress("Loaded $offset members; " . count($all_updates) . " updates pending; processing last batch...");
+      foreach ($members_batch->members as $member) {
+        $_ = $callback($member);
+        if ($_) {
+          $all_updates[] = $_;
+        }
+      }
+    } while ($offset < $members_batch->total_items);
+
+    $result = NULL;
+    if ($all_updates) {
+      if ($options['wait']) {
+        $progress("Processed $offset members; submitting and waiting on " . count($all_updates) . " updates...");
+        $this->batchAndWait($all_updates);
+        $progress("Processed $offset members and completed " . count($all_updates) . " updates");
+      }
+      else {
+        $progress("Processed $offset members; submitting " . count($all_updates) . " updates...");
+        $result = $this->makeBatchRequest($all_updates);
+        $progress("Processed $offset members; submitted " . count($all_updates) . " updates (not waiting).");
+      }
+    }
+    else {
+      $progress("Processed $offset members; nothing to update.");
+    }
+
+    return $result;
+  }
+  public function batchStats() {
+    $result = $this->get('/batches')->body;
+    $batches = [];
+    foreach ($result->batches as $batch) {
+      $batches[$batch->id] = ['status' => $batch->status, 'total_operations' => $batch->total_operations, 'finished_operations' => $batch->finished_operations,
+        'submitted_at' => $batch->submitted_at, 'completed_at' => $batch->completed_at];
+    }
+    return $batches;
+  }
 }
