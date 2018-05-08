@@ -1,5 +1,7 @@
 <?php
 namespace ArtfulRobot;
+// @todo consider possibly move data into uri in the get() method itself rather than in the buildRequest method.
+
 /**
  * @file class to access REST API.
  *
@@ -234,6 +236,17 @@ class RestApi {
 
     // Finally put payload in headers or body
 
+    // Where to put data?
+    if ($this->payload) {
+      if ($this->method == 'GET') {
+        // Append to or add a query string.
+        $this->url .= ((strpos($this->url, '?')===FALSE) ? '?' : '&')
+          . http_build_query($this->payload);
+        // unset payload for rest of process.
+        $this->payload = NULL;
+      }
+    }
+
     // Our json_request flag encodes the data as json
     if ($this->json_request && $this->payload) {
       $this->headers['Content-Type'] = 'Application/json;charset=UTF-8';
@@ -244,18 +257,8 @@ class RestApi {
     if (!is_string($this->payload) && $this->payload !== null) {
       $this->payload = http_build_query($this->payload);
     }
-
-
-    // Where to put data?
     if ($this->payload) {
-      if ($this->method == 'GET') {
-        // Append to or add a query string.
-        $this->url .= ((strpos($this->url, '?')===FALSE) ? '?' : '&')
-          . $this->payload;
-      }
-      else {
-        $this->body = $this->payload;
-      }
+      $this->body = $this->payload;
     }
 
     // XDebug support.
