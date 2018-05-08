@@ -308,24 +308,30 @@ class Debug
 	/** uncaught exception handler, logs and either rethrows or exits
      *
 	 */
-	public static function handleException(\Exception $exception)
-	{
-        self::logException($exception, false);
+	public static function handleException($exception)
+  {
+    if (!(is_a($exception, 'Exception'))) {
+      error_log("xxx Debug::handleException called with something that is not an Exception" . serialize($exception));
+      $backtrace = debug_backtrace();
 
-        // we should not attempt to handle further exceptions
-        set_exception_handler(self::$previous_exception_handler);
-        // php 5.5+ set_error_handler(null);
-        restore_error_handler();
+      file_put_contents('/tmp/' . date('Y-m-d-His') . '-handleException-backtrace', serialize($backtrace));
+      file_put_contents('/tmp/' . date('Y-m-d-His') . '-handleException-error', serialize($exception));
+    }
+    self::logException($exception, false);
 
-        // now we either rethrow it...
-        if (self::$rethrow_execptions) {
-          throw($exception);
-        }
-        else {
-          // ... or we need to exit
-          self::exitNow('uncaught exception', $exception);
-        }
-	} // }}}
+    // we should not attempt to handle further exceptions
+    set_exception_handler(self::$previous_exception_handler);
+    restore_error_handler();
+
+    // now we either rethrow it...
+    if (self::$rethrow_execptions) {
+      throw($exception);
+    }
+    else {
+      // ... or we need to exit
+      self::exitNow('uncaught exception', $exception);
+    }
+  } // }}}
 	//public static function logException($exception)//{{{
     /** log exception with backtrace at LEVEL_FINISH_FATAL but not itself fatal
      *  This will trigger all the fatal level services that are setup,

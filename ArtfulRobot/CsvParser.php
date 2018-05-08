@@ -22,7 +22,7 @@ namespace ArtfulRobot;
  *     print "Age: $csv->Age\n";
  *     print "Name: " . $csv->getCell($col=0) . "\n";
  *     foreach ($csv as $row) {
- *        print "Hello, $row->Name\n";
+ *        print "Hello, $row->Name\n"; // Actually identical to $csv->Name
  *     }
  *     print "There are " . $csv->count() . " rows\n";
  *
