@@ -257,6 +257,8 @@ class RestApi_Mailchimp3 extends RestApi {
    * - status: ['subscribed', 'pending'] - filters members to map
    * - wait: FALSE - use batchAndWait or just use makeBatchRequest?
    * - progress: NULL|callback - called with progress of batch operations (unimplemented idea)
+   * - test_batch - FALSE limit processing to one batch for testing.
+   * - offset: optionally start mid-way through.
    *
    */
   public function mapListMembers($list_id, $callback, $options =  NULL) {
@@ -264,28 +266,36 @@ class RestApi_Mailchimp3 extends RestApi {
       $options = [];
     }
     $options += [
-      'batch'    => 5000,
-      'status'   => 'subscribed,pending',
-      'wait'     => FALSE,
-      'progress' => NULL,
+      'batch'      => 1000,
+      'status'     => 'subscribed,pending',
+      'wait'       => FALSE,
+      'progress'   => NULL,
+      'test_batch' => FALSE,
+      'offset'     => 0,
     ];
     $progress = is_callable($options['progress']) ? $options['progress'] : function ($_) {};
+    if ($options['limit']) {
+      $progress("Using limit: will only process $options[batch] records.");
+    }
 
     $done = 0;
-    $offset = 0;
+    $offset = (int) $options['offset'];
     $all_updates = [];
     do {
       $progress("Processed $offset members from $list_id; " . count($all_updates) . " updates pending; loading next batch...");
-      $members_batch = $this->get("/lists/$list_id/members", ['offset' => $offset, 'count' => 5000, 'status' => $options['status']])->body;
+      $members_batch = $this->get("/lists/$list_id/members", ['offset' => $offset, 'count' => $options['batch'], 'status' => $options['status']])->body;
       $offset += count($members_batch->members);
       $progress("Loaded $offset members; " . count($all_updates) . " updates pending; processing last batch...");
       foreach ($members_batch->members as $member) {
         $_ = $callback($member);
+        if ($options['test_batch']) {
+          $progress("Test batch: processing $member->email_address resulted in update: " . json_encode($_));
+        }
         if ($_) {
           $all_updates[] = $_;
         }
       }
-    } while ($offset < $members_batch->total_items);
+    } while ((!$options['test_batch']) && ($offset < $members_batch->total_items));
 
     $result = NULL;
     if ($all_updates) {
@@ -297,7 +307,10 @@ class RestApi_Mailchimp3 extends RestApi {
       else {
         $progress("Processed $offset members; submitting " . count($all_updates) . " updates...");
         $result = $this->makeBatchRequest($all_updates);
-        $progress("Processed $offset members; submitted " . count($all_updates) . " updates (not waiting).");
+        if (!empty($result->body->_links)) {
+          unset($result->body->_links);
+        }
+        $progress("Processed $offset members; submitted " . count($all_updates) . " updates (not waiting). " . json_encode($result));
       }
     }
     else {
@@ -307,12 +320,30 @@ class RestApi_Mailchimp3 extends RestApi {
     return $result;
   }
   public function batchStats() {
+    $todo = 0;
+    $doing = 0;
+    $doing_done = 0;
+    $done = 0;
     $result = $this->get('/batches')->body;
     $batches = [];
     foreach ($result->batches as $batch) {
       $batches[$batch->id] = ['status' => $batch->status, 'total_operations' => $batch->total_operations, 'finished_operations' => $batch->finished_operations,
         'submitted_at' => $batch->submitted_at, 'completed_at' => $batch->completed_at];
+
+      if ($batch->status != 'finished') {
+        $doing += (int) $batch->total_operations;
+        $doing_done += (int) $batch->finished_operations;
+      }
+      $todo += (int) $batch->total_operations;
+      $done += (int) $batch->finished_operations;
     }
-    return $batches;
+    return [
+      'doing' => $doing,
+      'doing_done' => $doing_done,
+      'done' => $done,
+      'todo' => $todo,
+      'percent_done' => number_format($doing_done*100/$doing, 1) . '%',
+      'batches' => $batches,
+    ];
   }
 }
