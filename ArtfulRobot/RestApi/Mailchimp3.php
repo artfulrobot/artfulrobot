@@ -78,8 +78,15 @@ class RestApi_Mailchimp3 extends RestApi {
    *
    * @param string $list List ID
    * @param array $member_data Must include email_address. Can include another array under merge_fields
+   * @param bool $set_pending_on_fail. This handles the case that you try to
+   * subscribe someone who previously unsubscribed. Mailchimp won't let you do
+   * that. The default, FALSE, means that an exception is thrown if you try to do this
+   * Alternatively, TRUE means that if this happens it will try again to update
+   * mailchimp by submitting the same changes and setting the status to 'pending', which
+   * will generate an email sent from Mailchimp directly to the person that they have to
+   * opt-into before they're actually subscribed.
    */
-  public function subscribeToList($list, $member_data) {
+  public function subscribeToList($list, $member_data, $set_pending_on_fail=FALSE) {
     if (empty($member_data['email_address'])) {
       throw new \Exception("Missing email_address key in \$member_data parameter.");
     }
@@ -102,20 +109,34 @@ class RestApi_Mailchimp3 extends RestApi {
     $url = "/lists/$list/members/" . $this->emailMd5($member_data['email_address']);
     $params = ['status' => 'subscribed'] + $member_data;
     $response = $this->put($url, $params);
-    if ($response->status != 200) {
-      if (isset($response->body->title)) {
-        $msg = $response->body->title;
-        if (isset($response->body->detail)) {
-          $msg .= " Detail: " . $response->body->detail;
-        }
-      }
-      else {
-        $msg = json_encode($response->body);
-      }
-      throw new \Exception($msg, $response->status);
+    if ($response->status == 200) {
+      // Great, job done.
+      return;
     }
 
-    return TRUE;
+    // Collect error message title, if poss.
+    $msg = $response->body->title ?? json_encode($response->body);
+
+    if ($msg == 'Member In Compliance State' && $set_pending_on_fail) {
+      // They've previously unsubscribed.
+      $params['status'] = 'pending';
+      $response = $this->patch($url, $params);
+
+      if ($response->status == 200) {
+        // OK, we're done.
+        return TRUE;
+      }
+      // That failed, too.
+
+      // Pick up the latest error.
+      $msg .= " **and after trying to PATCH to 'pending' status**: " . ($response->body->title ?? json_encode($response->body));
+    }
+
+    // Append all details we can to the message.
+    if (isset($response->body->detail)) {
+      $msg .= " Detail: " . $response->body->detail;
+    }
+    throw new \Exception($msg, $response->status);
   }
   /**
    * Helper function to get all interest groups for a list.
