@@ -5,7 +5,7 @@ namespace ArtfulRobot;
  * Simple class provides access to HTTP status code and data received in PHP friendly way.
  *
  */
-class RestApiResponse {
+class RestApiResponse implements \JsonSerializable {
   /** HTTP Status code */
   protected $status=200;
   /** Body */
@@ -51,5 +51,12 @@ class RestApiResponse {
     default:
       throw new \Exception("Attempt to set unknown property '$prop'");
     }
+  }
+  /** output as json */
+  public function jsonSerialize() {
+    return [
+      'status' => $this->status,
+      'body' => $this->body,
+    ];
   }
 }

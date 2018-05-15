@@ -19,16 +19,14 @@ class PDO_ModelCreator
 
 		$def = array();
 
-		foreach ($rows as $row)
-		{
+		foreach ($rows as $row) {
 			$line = sprintf("%-{$max}s", "'$row->Field'")
-				."=> array( ";
+				."=> [";
 			//cast?
 			$t = strtolower($row->Type);
-			if (preg_match('/^(?:tiny|small|long|med|big|)int\((\d+)\)\s?(unsigned)?/', $t, $matches))
-			{
+			if (preg_match('/^(?:tiny|small|long|med|big|)int\((\d+)\)\s?(unsigned)?/', $t, $matches)) {
 				$line .= "'cast' => 'int"
-					. ($matches[2]  ? "_unsigned'" 
+					. ($matches[2]  ? "_unsigned'"
 									: "'         ")
 					. ($matches[1] ? ", 'size' => $matches[1] " : "");
 			}
@@ -56,9 +54,9 @@ class PDO_ModelCreator
 			elseif (preg_match('/^blob/', $t, $matches))
 				$line .= "'cast' => 'blob'      , 'size' => 65535";
 			elseif (preg_match('/^enum\((.+)\)/', $t, $matches))
-				$line .= "'cast' => 'enum'        , 'enum' => array( $matches[1] )";
+				$line .= "'cast' => 'enum'        , 'enum' => [$matches[1]] ";
 			elseif (preg_match('/^set\((.+)\)/', $t, $matches))
-				$line .= "'cast' => 'set'        , 'values' => array( $matches[1] )";
+				$line .= "'cast' => 'set'        , 'values' => [$matches[1]]";
 			else {
 				echo "Encountered $t type - unknown";
 				exit;
@@ -75,9 +73,9 @@ class PDO_ModelCreator
 						? "'now'" /* this is not valid sql, but it will be parsed by php's strtotime(), and it will work there. */
 						: "'$row->Default'"));
 
-			$def[] = "$line )";
+			$def[] = "$line ]"; // Close initial array opening [
 		}
-		$def = implode(",\n\t\t", $def).',';
+		$def = implode(",\n    ", $def).',';
 
 		$tmp = explode("_", $tablename);
 		$tmp = array_map('ucfirst', $tmp);
@@ -86,20 +84,21 @@ class PDO_ModelCreator
 
 		$out =  <<<PHP
 
-//class Model_$classname extends \ArtfulRobot\PDO_Model {{{
-/** \ArtfulRobot\PDO_Model for $classname
-  */
+/**
+ * @file
+ * \ArtfulRobot\PDO_Model for $classname
+ */
 class Model_$classname extends \ArtfulRobot\PDO_Model
 {
-	const TABLE_NAME = '$tablename';
-	protected \$definition = array(
-		$def
-		);
-	protected function getter(\$name) {}
-	protected function setter(\$name, \$value) {}
-	/** this function must return an \ArtfulRobot\PDO object */
-	abstract static protected function getConnection() ;
-} // }}}
+  const TABLE_NAME = '$tablename';
+  protected static \$definition = [
+    $def
+    ];
+  protected function getter(\$name) {}
+  protected function setter(\$name, \$value) {}
+  /** This function must return an \ArtfulRobot\PDO object */
+  abstract static protected function getConnection() ;
+}
 
 PHP;
 	if ($format=='html')

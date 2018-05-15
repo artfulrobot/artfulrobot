@@ -28,6 +28,20 @@ class RestApiTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * Tests a GET request using the httpbin service.
+     */
+    public function testGetJson()
+    {
+        $rest = new RestApi('http://httpbin.org');
+        $rest->setJson(true, true);
+        $response = $rest->get('/get', array('foo' => 'bar'));
+        $this->assertEquals(200, $response->status);
+        $this->assertObjectHasAttribute('args', $response->body);
+        $this->assertInternalType('object', $response->body->args);
+        $this->assertEquals('bar', $response->body->args->foo);
+    }
+
+    /**
      * Tests a PUT request using the httpbin service.
      */
     public function testPut()
