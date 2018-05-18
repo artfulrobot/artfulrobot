@@ -266,7 +266,7 @@ class RestApi_Mailchimp3 extends RestApi {
   /**
    * Update mailchimp records for given list.
    *
-   * - downloads members 5000 at a time
+   * - downloads members 1000 at a time
    * - passes each member into an update callback
    * - if callback returns updates, store it
    * - if any updates create a batch request with them.
@@ -274,39 +274,61 @@ class RestApi_Mailchimp3 extends RestApi {
    * @param string $list_id
    * @param callback $callback
    * @param array|NULL $options. Optional options array. The following are defaults:
-   * - batch: 5000 - how many to load at once?
-   * - status: ['subscribed', 'pending'] - filters members to map
-   * - wait: FALSE - use batchAndWait or just use makeBatchRequest?
-   * - progress: NULL|callback - called with progress of batch operations (unimplemented idea)
-   * - test_batch - FALSE limit processing to one batch for testing.
-   * - offset: optionally start mid-way through.
-   *
+   * - batch:       2000 - how many to load at once?
+   * - status:      ['subscribed', 'pending'] - filters members to map
+   * - wait:        FALSE  use batchAndWait or just use makeBatchRequest?
+   * - progress:    NULL|callback called with progress of batch operations (unimplemented idea)
+   * - test_batch:  FALSE limit processing to one batch for testing.
+   * - offset:      optionally start mid-way through.
+   * - fields:      optional 'A comma-separated list of fields to return.
+   *                Reference parameters of sub-objects with dot notation.' useful to
+   *                fetch only what you want from the API which may be faster.
+   *                e.g. 'total_items,members.email_address,members.status,members.merge_fields'
+   *                is about 7x faster than not specifying it.
+   *                MUST CONTAIN total_items,members.email_address !!
    */
   public function mapListMembers($list_id, $callback, $options =  NULL) {
     if ($options === NULL) {
       $options = [];
     }
     $options += [
-      'batch'      => 1000,
+      'batch'      => 2000,
       'status'     => 'subscribed,pending',
       'wait'       => FALSE,
       'progress'   => NULL,
       'test_batch' => FALSE,
       'offset'     => 0,
+      'fields'     => NULL,
     ];
     $progress = is_callable($options['progress']) ? $options['progress'] : function ($_) {};
     if ($options['limit']) {
       $progress("Using limit: will only process $options[batch] records.");
     }
+    if ($options['fields']) {
+      // Validate fields.
+      $_ = explode(',' , $options['fields']);
+      if (!(in_array('total_items', $_) && in_array('members.email_address', $_))) {
+        throw new \InvalidArgumentException("fields option to mapListMembers MUST contain total_items and members.email_address");
+      }
+    }
 
     $done = 0;
     $offset = (int) $options['offset'];
     $all_updates = [];
+    $progress("Processing list: $list_id (statuses: $options[status])");
+    $total = 'unknown';
+
     do {
-      $progress("Processed $offset members from $list_id; " . count($all_updates) . " updates pending; loading next batch...");
-      $members_batch = $this->get("/lists/$list_id/members", ['offset' => $offset, 'count' => $options['batch'], 'status' => $options['status']])->body;
+      $progress("Processed $offset/$total members; " . count($all_updates) . " updates pending; loading next $options[batch]...");
+      $get_params = ['offset' => $offset, 'count' => $options['batch'], 'status' => $options['status']];
+      if ($options['fields']) {
+        // Limit fields we fetch, if option given.
+        $get_params['fields'] = $options['fields'];
+      }
+      $members_batch = $this->get("/lists/$list_id/members", $get_params)->body;
+      $total = $members_batch->total_items;
       $offset += count($members_batch->members);
-      $progress("Loaded $offset members; " . count($all_updates) . " updates pending; processing last batch...");
+      $progress("Loaded    $offset/$total members; " . count($all_updates) . " updates pending; processing last batch...");
       foreach ($members_batch->members as $member) {
         $_ = $callback($member);
         if ($options['test_batch']) {
@@ -321,21 +343,21 @@ class RestApi_Mailchimp3 extends RestApi {
     $result = NULL;
     if ($all_updates) {
       if ($options['wait']) {
-        $progress("Processed $offset members; submitting and waiting on " . count($all_updates) . " updates...");
+        $progress("Processed all $offset members; submitting and waiting on " . count($all_updates) . " updates...");
         $this->batchAndWait($all_updates);
-        $progress("Processed $offset members and completed " . count($all_updates) . " updates");
+        $progress("Processed all $offset members and completed " . count($all_updates) . " updates");
       }
       else {
-        $progress("Processed $offset members; submitting " . count($all_updates) . " updates...");
+        $progress("Processed all $offset members; submitting " . count($all_updates) . " updates...");
         $result = $this->makeBatchRequest($all_updates);
         if (!empty($result->body->_links)) {
           unset($result->body->_links);
         }
-        $progress("Processed $offset members; submitted " . count($all_updates) . " updates (not waiting). " . json_encode($result));
+        $progress("Processed all $offset members; submitted " . count($all_updates) . " updates.");
       }
     }
     else {
-      $progress("Processed $offset members; nothing to update.");
+      $progress("Processed all $offset members; nothing to update.");
     }
 
     return $result;
