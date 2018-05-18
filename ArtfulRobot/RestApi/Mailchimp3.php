@@ -111,7 +111,7 @@ class RestApi_Mailchimp3 extends RestApi {
     $response = $this->put($url, $params);
     if ($response->status == 200) {
       // Great, job done.
-      return;
+      return TRUE;
     }
 
     // Collect error message title, if poss.
