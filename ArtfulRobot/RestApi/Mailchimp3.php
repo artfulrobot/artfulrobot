@@ -161,18 +161,27 @@ class RestApi_Mailchimp3 extends RestApi {
    *    ...
    * ]
    * @param mixed $method multiple|batch if left NULL, batch is used if there are 15+ requests.
+   * @param callback|NULL $progress
    *
    */
-  public function batchAndWait(Array $batch, $method=NULL) {
+  public function batchAndWait(Array $batch, $method=NULL, $progress=NULL) {
     // This can take a long time...
     set_time_limit(0);
+
+    $c = count($batch);
     if ($method === NULL) {
       // Automatically determine fastest method.
-      $method = (count($batch) < 15) ? 'multiple' : 'batch';
+      $method = ($c < 15) ? 'multiple' : 'batch';
     }
     elseif (!in_array($method, ['multiple', 'batch'])) {
       throw new InvalidArgumentException("Method argument must be mulitple|batch|NULL, given '$method'");
     }
+
+    if (!is_callable($progress)) {
+      // NOOP function so we can call progress.
+      $progress = function ($_) {};
+    }
+
     // Validate the batch operations.
     foreach ($batch as $i=>$request) {
       if (count($request)<2) {
@@ -185,14 +194,23 @@ class RestApi_Mailchimp3 extends RestApi {
         throw new InvalidArgumentException("Batch item $i has invalid path should begin with /. Given '$request[1]'");
       }
     }
+
     // Choose method and submit.
     if ($method == 'batch') {
       // Submit a batch request and wait for it to complete.
+
+      $progress("Submitting batch of $c changes.");
       $batch_result = $this->makeBatchRequest($batch);
+      $finished = FALSE;
       do {
-        sleep(3);
+        sleep(5);
         $result = $this->get("/batches/{$batch_result->body->id}");
-      } while ($result->body->status != 'finished');
+
+        $finished = $result->body->status == 'finished';
+        $progress(($result->body->finished_operations ?? '?') . "/$c changes complete.");
+
+      } while (!$finished);
+      $progress("$c changes complete.");
       // Now complete.
       // Note: we have no way to check the errors. Mailchimp make a downloadable
       // .tar.gz file with one file per operation available, however PHP (as of
@@ -204,7 +222,10 @@ class RestApi_Mailchimp3 extends RestApi {
     }
     else {
       // Submit the requests one after another.
+      $done = 0;
       foreach ($batch as $item) {
+        $done++;
+        $progress("Submitting $done / $c changes.");
         $method = strtolower($item[0]);
         $path = $item[1];
         $data = isset($item[2]) ? $item[2] : [];
@@ -256,7 +277,7 @@ class RestApi_Mailchimp3 extends RestApi {
    * - batch: 5000 - how many to load at once?
    * - status: ['subscribed', 'pending'] - filters members to map
    * - wait: FALSE - use batchAndWait or just use makeBatchRequest?
-   * - progress: NULL|callback - called with progress of batch operations (unimplemented idea)
+   * - progress: NULL|callback - called with progress of batch operations
    * - test_batch - FALSE limit processing to one batch for testing.
    * - offset: optionally start mid-way through.
    *
