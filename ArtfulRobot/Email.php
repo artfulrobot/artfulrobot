@@ -147,51 +147,62 @@ class Email
     }
     /**
      * append 'to' address
+     *
+     * @return Email $this
      */
-    public function setTo($to, $append=false)
-    {
+    public function setTo($to, $append=false) {
         if ($append) {
             $this->to[] = $to;
         } else {
             $this->to = array($to);
         }
+        return $this;
     }
     /**
      * set from address
+     *
+     * @return Email $this
      */
-    public function setFrom($from)
-    {
+    public function setFrom($from) {
         $this->from = $from;
+        return $this;
     }
     /**
      * set return path
+     *
+     * @return Email $this
      */
-    public function setReturnPath($return_path)
-    {
+    public function setReturnPath($return_path) {
         $this->return_path = $return_path;
+        return $this;
     }
     /**
      * set Reply-To field
+     *
+     * @return Email $this
      */
-    public function setReplyTo($from)
-    {
+    public function setReplyTo($from) {
         $this->reply_to = $reply_to;
+        return $this;
     }
     /**
      * set subject
+     *
+     * @return Email $this
      */
-    public function setSubject($subject)
-    {
+    public function setSubject($subject) {
         $this->subject = $subject;
+        return $this;
     }
     /**
      * Set an arbitrary header.
      *
      * Special headers are handled by their setter; some are disallowed.
      *
+     *
+     * @return Email $this
      */
-    public function setHeader($header, $value)
-    {
+    public function setHeader($header, $value) {
         switch ($header) {
         case 'Content-Type':
         case 'MIME-Version':
@@ -215,31 +226,39 @@ class Email
         default:
             $this->headers[$header] = $value;
         }
+        return $this;
     }
     /**
      * Normally a UID is generated, but for testing
      * it's useful to be able to specify this.
      *
+     *
+     * @return Email $this
      */
-    public function setUidSeed($seed)
-    {
+    public function setUidSeed($seed) {
         $this->uid = md5($seed);
+        return $this;
     }
     /**
      * Allow dependency injection to replace PHP's mail() function used to send mail.
+     *
+     * @return Email $this
      */
     public function setMailService($callback) {
         $this->mail_service = $callback;
+        return $this;
     }
     /**
      * adds text message
+     *
+     * @return Email $this
      */
-    public function setMessageText($message)
-    {
+    public function setMessageText($message) {
         $message = $this->rfc822LineEndings($message);
         // let's always send utf8 and be done with it...
         $message = mb_convert_encoding($message, 'UTF-8', static::mbDetectEncoding($message));
         $this->body['text'] = $message;
+        return $this;
     }
     /**
      * adds html message
@@ -250,24 +269,27 @@ class Email
      *
      * and the html message must include references like {name}
      *
+     *
+     * @return Email $this
      */
-    public function setMessageHtml($message, $related_files = null)
-    {
+    public function setMessageHtml($message, $related_files = null) {
         $message = $this->rfc822LineEndings($message);
         // let's always send utf8 and be done with it...
         $message = mb_convert_encoding($message, 'UTF-8', static::mbDetectEncoding($message));
 
         $this->body['html'] = $message;
         $this->body['related'] = $related_files;
+        return $this;
     }
     /**
      * Add attachment
      *
      * Optionally pass a different filename - so you can rename the file
      * as seen by the email client.
+     *
+     * @return Email $this
      */
-    public function addAttachment($filename, $rename=null)
-    {
+    public function addAttachment($filename, $rename=null) {
         $filename = realpath($filename);
         if (!file_exists($filename)) {
             throw new Exception("File $filename not found.");
@@ -275,10 +297,11 @@ class Email
         if (!is_readable($filename)) {
             throw new Exception("File $filename not readable.");
         }
-        if (isset($this->attachments[$filename])) {
-            return;
+        if (!isset($this->attachments[$filename])) {
+            // Only add the attachment once.
+            $this->attachments[$filename] = $rename;
         }
-        $this->attachments[$filename] = $rename;
+        return $this;
     }
     /**
      * Ensure line endings conform to RFC 822.
