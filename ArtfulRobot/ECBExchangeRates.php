@@ -19,6 +19,7 @@
  *
  */
 namespace ArtfulRobot;
+use SimpleXMLElement;
 
 class ECBExchangeRates {
 	const XML_ENDPOINT_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
@@ -31,8 +32,14 @@ class ECBExchangeRates {
   /**
    * Load from external source.
    */
-	public function loadFromECB() {
-		$xml = simplexml_load_file(static::XML_ENDPOINT_URL);
+	public function loadFromECB($url=NULL) {
+    if (!$url) {
+      $url = static::XML_ENDPOINT_URL;
+    }
+		$xml = @simplexml_load_file($url);
+    if (!$xml) {
+      throw new \RuntimeException("Rates could not be loaded from ECB");
+    }
     return $this->extractFromSimpleXML($xml);
 	}
 
@@ -54,8 +61,14 @@ class ECBExchangeRates {
    */
 	public function extractFromSimpleXML(SimpleXMLElement $xml) {
 		$this->rates = [];
-		foreach($XML->Cube->Cube->Cube as $rate) {
-      $this->rates[$rate['currency']] = $rate['rate'];
+    if (!isset($xml->Cube->Cube->Cube)) {
+      throw new \RuntimeException("Invalid data loaded.");
+    }
+		foreach($xml->Cube->Cube->Cube as $rate) {
+      if (!isset($rate['currency']) || !isset($rate['rate'])) {
+        throw new \RuntimeException("Invalid data loaded - missing currency or rate attribute(s).");
+      }
+      $this->rates[(string) $rate['currency']] = (double) $rate['rate'];
 	  }
     $this->rates['EUR'] = 1.0;
     return $this;
