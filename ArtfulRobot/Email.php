@@ -544,19 +544,29 @@ class Email
     }
     public function convertHtmlToText()
     {
-        $text = $this->rfc822LineEndings( strip_tags(
-            // convert brs to single \n
-            preg_replace('@<br( */)?' . '>@i',"\n",
-                // convert end of block-level things to \n\n
-                preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n",
-                    // remove whitespace at start of lines before tag
-                    preg_replace('@^\s+<@m','<',
-                        // remove html entities.
-                        html_entity_decode(
-                            // change &nbsp; to space and remove other htmlentities
-                            str_replace('&nbsp;', ' ',
-                                $this->body['html'])
-        ))))));
+        $text = $this->body['html'];
+        // Completely strip head/style/script tags.
+        $text = preg_replace('@<head\b.*?</head>@is', '', $text);
+        $text = preg_replace('@<style\b.*?</style>@is', '', $text);
+        $text = preg_replace('@<script\b.*?</script>@is', '', $text);
+        $text = $this->rfc822LineEndings($text);
+        // change &nbsp; to space and remove other htmlentities
+        $text = str_replace('&nbsp;', ' ', $text);
+        // remove html entities.
+        $text = html_entity_decode($text);
+        // remove whitespace at start of lines before tag
+        $text = preg_replace('@^\s+<@m','<', $text);
+        // convert end of block-level things to \n\n
+        $text = preg_replace('@</(p|div|li|ul|h[12345])>@i',"$0\n\n", $text);
+        // convert brs to single \n
+        $text = preg_replace('@<br( */)?' . '>@i',"\n", $text);
+        // Convert links with href="foo"
+        $text = preg_replace('@<a [^>]*href="([^"]+)"[^>]*>(.+?)</a>@is', '$2 $1 ', $text);
+        // Strip all remaining tags.
+        $text = strip_tags($text);
+        // Strip whitespace at top/bottom.
+        $text = trim($text);
+
         return $text;
     }
     public function convertTextToHtml()
