@@ -353,7 +353,7 @@ class RestApi_Mailchimp3 extends RestApi {
       foreach ($members_batch->members as $member) {
         $_ = $callback($member);
         if ($options['test_batch']) {
-          $progress("Test batch: processing $member->email_address resulted in update: " . json_encode($_));
+          $progress("Test batch: processing $member->email_address resulted in update: " . json_encode($_, JSON_PRETTY_PRINT));
         }
         if ($_) {
           $all_updates[] = $_;
