@@ -136,6 +136,10 @@ class RestApi_Mailchimp3 extends RestApi {
     if (isset($response->body->detail)) {
       $msg .= " Detail: " . $response->body->detail;
     }
+    if (isset($response->body->errors)) {
+      $msg .= " Errors: " . json_encode($response->body->errors);
+    }
+    $msg .= " Data: " . json_encode($params);
     throw new \Exception($msg, $response->status);
   }
   /**
