@@ -117,7 +117,22 @@ class RestApi_Mailchimp3 extends RestApi {
     // Collect error message title, if poss.
     $msg = $response->body->title ?? json_encode($response->body);
 
-    if ($msg == 'Member In Compliance State' && $set_pending_on_fail) {
+    if ($msg === 'Forgotten Email Not Subscribed' && $set_pending_on_fail) {
+      // Deleted emails show up like this.
+      $params['status'] = 'pending';
+      $response = $this->put($url, $params);
+
+      if ($response->status == 200) {
+        // OK, we're done.
+        return TRUE;
+      }
+      // That failed, too.
+
+      // Pick up the latest error.
+      $msg .= " **and after trying to PUT to 'pending' status**: " . ($response->body->title ?? json_encode($response->body));
+
+    }
+    elseif ($msg == 'Member In Compliance State' && $set_pending_on_fail) {
       // They've previously unsubscribed.
       $params['status'] = 'pending';
       $response = $this->patch($url, $params);
