@@ -232,4 +232,14 @@ class CsvParser implements \Iterator {
       return $_;
     }
   }
+  /**
+   * Returns current row number in spreadsheet terms.
+   *
+   * i.e. First row is 1 not 0.
+   *
+   * @return NULL|int
+   */
+  public function getRowNumber() {
+    return isset($this->data[$this->current_row]) ? $this->current_row + 1 : NULL;
+  }
 }
