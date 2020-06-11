@@ -216,4 +216,30 @@ class CsvParser implements \Iterator {
   public function getHeaders() {
     return array_keys($this->header_map);
   }
+  /**
+   * Returns an associative array for current row.
+   *
+   * Headers are keys.
+   *
+   * @return NULL|Array
+   */
+  public function getRowAsArray() {
+    $_ = [];
+    if ($this->valid()) {
+      foreach ($this->header_map as $key => $index) {
+        $_[$key] = $this->data[$this->current_row][$index];
+      }
+      return $_;
+    }
+  }
+  /**
+   * Returns current row number in spreadsheet terms.
+   *
+   * i.e. First row is 1 not 0.
+   *
+   * @return NULL|int
+   */
+  public function getRowNumber() {
+    return isset($this->data[$this->current_row]) ? $this->current_row + 1 : NULL;
+  }
 }
