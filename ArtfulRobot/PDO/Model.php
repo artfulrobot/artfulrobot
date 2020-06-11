@@ -625,7 +625,8 @@ abstract class PDO_Model implements \JsonSerializable
             return $value;
 
         } elseif ($cast == 'bool') {
-            return (bool) $value;
+            // MySQL/MariaDB/PHP 7.2's PDO will crash if we're not passing bools as 0 or 1.
+            return (int) ((bool) $value);
         }
         throw new Exception( get_class($this) . " does not know type '$cast'");
     }
