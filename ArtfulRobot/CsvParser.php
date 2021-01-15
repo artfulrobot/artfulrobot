@@ -119,6 +119,9 @@ class CsvParser implements \Iterator {
     $this->headers = $row_data;
     $this->header_map = [];
     foreach ($row_data as $i=>$_) {
+
+      // Trim the header because leading/trailing spaces are pretty much always a mistake.
+      $_ = trim($_);
       if ($_) {
         if (isset($this->header_map[$_])) {
           throw new \InvalidArgumentException("Duplicate header name: $_");
