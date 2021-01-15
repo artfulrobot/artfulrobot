@@ -155,18 +155,7 @@ class CsvParser implements \Iterator {
   public function __get($property) {
     if (isset($this->header_map[$property])) {
       $i = $this->header_map[$property];
-      if ($this->valid()) {
-        if (empty($this->data[$this->current_row][$i])) {
-          // No data returns ZLS
-          return '';
-        }
-        else {
-          return $this->data[$this->current_row][$i];
-        }
-      }
-      else {
-        throw new \Exception("No data");
-      }
+      return $this->getCell($i);
     }
     throw new \Exception("Unknown property '$property'");
   }
@@ -188,13 +177,10 @@ class CsvParser implements \Iterator {
       throw new \InvalidArgumentException("Column out of bounds.");
     }
 
-    if (empty($this->data[$this->current_row][$col_number])) {
-      // No data returns ZLS
+    if (!isset($this->data[$this->current_row][$col_number])) {
       return '';
     }
-    else {
-      return $this->data[$this->current_row][$col_number];
-    }
+    return $this->data[$this->current_row][$col_number];
   }
 
   /**
