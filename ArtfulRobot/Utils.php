@@ -149,7 +149,7 @@ class Utils
 	static public function objectProperty( $property, $object, $default=null, $create_if_missing=false)
 	{
 		if (! is_object($object)) throw new Exception( "\ArtfulRobot\Object::value called with something other than an object");
-		if (array_key_exists($property, $object)) return $object->$property;
+		if (property_exists($object, $property)) return $object->$property;
 		if ($create_if_missing) $object->$property = $default;
 		return $default;
 	}/*}}}*/
