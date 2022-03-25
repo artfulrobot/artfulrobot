@@ -109,6 +109,14 @@ class RestApi_Mailchimp3 extends RestApi {
     $url = "/lists/$list/members/" . $this->emailMd5($member_data['email_address']);
     $params = ['status' => 'subscribed'] + $member_data;
     $response = $this->put($url, $params);
+    if ($response->status === 400
+      && ($response->body->title ?? '' === 'Member Exists')) {
+      // Weird error. This can happen because of capitalisatoin in email address, whic
+      // is a known (by me) bug in Mailchimp's API.
+      // Try the url using a hash of the aCtUaL email...
+      $url = "/lists/$list/members/" . md5($member_data['email_address']);
+      $response = $this->put($url, $params);
+    }
     if ($response->status == 200) {
       // Great, job done.
       return TRUE;
