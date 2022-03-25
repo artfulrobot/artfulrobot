@@ -251,6 +251,10 @@ class HtmlScrape {
     $this->url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     curl_close($ch);
 
+    if (empty($this->raw)) {
+      throw new \InvalidArgumentException("No data could be downloaded from URL: $this->url");
+    }
+
     $this->parseRaw();
     return $this;
   }

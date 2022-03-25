@@ -1,13 +1,13 @@
 <?php
 use \ArtfulRobot\CsvParser;
 
-class CsvParserTest extends \PHPUnit_Framework_TestCase {
+class CsvParserTest extends \PHPUnit\Framework\TestCase {
 
     public function testBasicParse()
     {
       $csv = CsvParser::createFromFile(dirname(__FILE__) . '/fixtures/testcase-1.csv');
       $i=0;
-      $expectations = [['Rich',  40], ['Fred',  1000], ['Wilma',  ''], ['',  56], ['Bam Bam', '']];
+      $expectations = [['Rich',  40], ['Fred',  1000], ['Wilma',  0], ['',  56], ['Bam Bam', '']];
       foreach ($csv as $row) {
         $expect = array_shift($expectations);
         $this->assertEquals($expect[0], $row->Name);
